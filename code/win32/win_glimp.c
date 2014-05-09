@@ -127,14 +127,7 @@ static int GLW_ChoosePFD( HDC hDC, PIXELFORMATDESCRIPTOR *pPFD )
 	ri.Printf( PRINT_ALL, "...GLW_ChoosePFD( %d, %d, %d )\n", ( int ) pPFD->cColorBits, ( int ) pPFD->cDepthBits, ( int ) pPFD->cStencilBits );
 
 	// count number of PFDs
-	if ( glConfig.driverType > GLDRV_ICD )
-	{
-		maxPFD = qwglDescribePixelFormat( hDC, 1, sizeof( PIXELFORMATDESCRIPTOR ), &pfds[0] );
-	}
-	else
-	{
-		maxPFD = DescribePixelFormat( hDC, 1, sizeof( PIXELFORMATDESCRIPTOR ), &pfds[0] );
-	}
+	maxPFD = DescribePixelFormat( hDC, 1, sizeof( PIXELFORMATDESCRIPTOR ), &pfds[0] );
 	if ( maxPFD > MAX_PFDS )
 	{
 		ri.Printf( PRINT_WARNING, "...numPFDs > MAX_PFDS (%d > %d)\n", maxPFD, MAX_PFDS );
@@ -146,14 +139,7 @@ static int GLW_ChoosePFD( HDC hDC, PIXELFORMATDESCRIPTOR *pPFD )
 	// grab information
 	for ( i = 1; i <= maxPFD; i++ )
 	{
-		if ( glConfig.driverType > GLDRV_ICD )
-		{
-			qwglDescribePixelFormat( hDC, i, sizeof( PIXELFORMATDESCRIPTOR ), &pfds[i] );
-		}
-		else
-		{
-			DescribePixelFormat( hDC, i, sizeof( PIXELFORMATDESCRIPTOR ), &pfds[i] );
-		}
+		DescribePixelFormat( hDC, i, sizeof( PIXELFORMATDESCRIPTOR ), &pfds[i] );
 	}
 
 	// look for a best match
@@ -386,24 +372,12 @@ static int GLW_MakeContext( PIXELFORMATDESCRIPTOR *pPFD )
 		}
 		ri.Printf( PRINT_ALL, "...PIXELFORMAT %d selected\n", pixelformat );
 
-		if ( glConfig.driverType > GLDRV_ICD )
-		{
-			qwglDescribePixelFormat( glw_state.hDC, pixelformat, sizeof( *pPFD ), pPFD );
-			if ( qwglSetPixelFormat( glw_state.hDC, pixelformat, pPFD ) == FALSE )
-			{
-				ri.Printf ( PRINT_ALL, "...qwglSetPixelFormat failed\n");
-				return TRY_PFD_FAIL_SOFT;
-			}
-		}
-		else
-		{
-			DescribePixelFormat( glw_state.hDC, pixelformat, sizeof( *pPFD ), pPFD );
+		DescribePixelFormat( glw_state.hDC, pixelformat, sizeof( *pPFD ), pPFD );
 
-			if ( SetPixelFormat( glw_state.hDC, pixelformat, pPFD ) == FALSE )
-			{
-				ri.Printf (PRINT_ALL, "...SetPixelFormat failed\n", glw_state.hDC );
-				return TRY_PFD_FAIL_SOFT;
-			}
+		if ( SetPixelFormat( glw_state.hDC, pixelformat, pPFD ) == FALSE )
+		{
+			ri.Printf (PRINT_ALL, "...SetPixelFormat failed\n", glw_state.hDC );
+			return TRY_PFD_FAIL_SOFT;
 		}
 
 		glw_state.pixelFormatSet = qtrue;
@@ -623,7 +597,7 @@ static qboolean GLW_CreateWindow( const char *drivername, int width, int height,
 		r.right  = width;
 		r.bottom = height;
 
-		if ( cdsFullscreen || !Q_stricmp( _3DFX_DRIVER_NAME, drivername ) )
+		if ( cdsFullscreen )
 		{
 			exstyle = WS_EX_TOPMOST;
 			stylebits = WS_POPUP|WS_VISIBLE|WS_SYSMENU;
@@ -638,7 +612,7 @@ static qboolean GLW_CreateWindow( const char *drivername, int width, int height,
 		w = r.right - r.left;
 		h = r.bottom - r.top;
 
-		if ( cdsFullscreen || !Q_stricmp( _3DFX_DRIVER_NAME, drivername ) )
+		if ( cdsFullscreen  )
 		{
 			x = 0;
 			y = 0;
@@ -747,17 +721,6 @@ static rserr_t GLW_SetMode( const char *drivername,
 	const char *win_fs[] = { "W", "FS" };
 	int		cdsRet;
 	DEVMODE dm;
-		
-	//
-	// print out informational messages
-	//
-	ri.Printf( PRINT_ALL, "...setting mode %d:", mode );
-	if ( !R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, &glConfig.windowAspect, mode ) )
-	{
-		ri.Printf( PRINT_ALL, " invalid mode\n" );
-		return RSERR_INVALID_MODE;
-	}
-	ri.Printf( PRINT_ALL, " %d %d %s\n", glConfig.vidWidth, glConfig.vidHeight, win_fs[cdsFullscreen] );
 
 	//
 	// check our desktop attributes
@@ -767,29 +730,47 @@ static rserr_t GLW_SetMode( const char *drivername,
 	glw_state.desktopWidth = GetDeviceCaps( hDC, HORZRES );
 	glw_state.desktopHeight = GetDeviceCaps( hDC, VERTRES );
 	ReleaseDC( GetDesktopWindow(), hDC );
+		
+	//
+	// print out informational messages
+	//
+	if (cdsFullscreen) 
+	{
+		ri.Printf( PRINT_ALL, "...setting fullscreen mode:");
+		glConfig.vidWidth = glw_state.desktopWidth;
+		glConfig.vidHeight = glw_state.desktopHeight;
+		glConfig.windowAspect = 1.0f;
+	}
+	else 
+	{
+		ri.Printf( PRINT_ALL, "...setting mode %d:", mode );
+		if ( !R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, &glConfig.windowAspect, mode ) )
+		{
+			ri.Printf( PRINT_ALL, " invalid mode\n" );
+			return RSERR_INVALID_MODE;
+		}
+	}
+	ri.Printf( PRINT_ALL, " %d %d %s\n", glConfig.vidWidth, glConfig.vidHeight, win_fs[cdsFullscreen] );
 
 	//
 	// verify desktop bit depth
 	//
-	if ( glConfig.driverType != GLDRV_VOODOO )
+	if ( glw_state.desktopBitsPixel < 15 || glw_state.desktopBitsPixel == 24 )
 	{
-		if ( glw_state.desktopBitsPixel < 15 || glw_state.desktopBitsPixel == 24 )
+		if ( colorbits == 0 || ( !cdsFullscreen && colorbits >= 15 ) )
 		{
-			if ( colorbits == 0 || ( !cdsFullscreen && colorbits >= 15 ) )
+			if ( MessageBox( NULL,
+						"It is highly unlikely that a correct\n"
+						"windowed display can be initialized with\n"
+						"the current desktop display depth.  Select\n"
+						"'OK' to try anyway.  Press 'Cancel' if you\n"
+						"have a 3Dfx Voodoo, Voodoo-2, or Voodoo Rush\n"
+						"3D accelerator installed, or if you otherwise\n"
+						"wish to quit.",
+						"Low Desktop Color Depth",
+						MB_OKCANCEL | MB_ICONEXCLAMATION ) != IDOK )
 			{
-				if ( MessageBox( NULL,
-							"It is highly unlikely that a correct\n"
-							"windowed display can be initialized with\n"
-							"the current desktop display depth.  Select\n"
-							"'OK' to try anyway.  Press 'Cancel' if you\n"
-							"have a 3Dfx Voodoo, Voodoo-2, or Voodoo Rush\n"
-							"3D accelerator installed, or if you otherwise\n"
-							"wish to quit.",
-							"Low Desktop Color Depth",
-							MB_OKCANCEL | MB_ICONEXCLAMATION ) != IDOK )
-				{
-					return RSERR_INVALID_MODE;
-				}
+				return RSERR_INVALID_MODE;
 			}
 		}
 	}
@@ -868,60 +849,20 @@ static rserr_t GLW_SetMode( const char *drivername,
 			}
 			else
 			{
-				//
-				// the exact mode failed, so scan EnumDisplaySettings for the next largest mode
-				//
-				DEVMODE		devmode;
-				int			modeNum;
-
-				ri.Printf( PRINT_ALL, "failed, " );
-				
+				ri.Printf( PRINT_ALL, " failed, " );
+					
 				PrintCDSError( cdsRet );
-			
-				ri.Printf( PRINT_ALL, "...trying next higher resolution:" );
-				
-				// we could do a better matching job here...
-				for ( modeNum = 0 ; ; modeNum++ ) {
-					if ( !EnumDisplaySettings( NULL, modeNum, &devmode ) ) {
-						modeNum = -1;
-						break;
-					}
-					if ( devmode.dmPelsWidth >= glConfig.vidWidth
-						&& devmode.dmPelsHeight >= glConfig.vidHeight
-						&& devmode.dmBitsPerPel >= 15 ) {
-						break;
-					}
-				}
-
-				if ( modeNum != -1 && ( cdsRet = ChangeDisplaySettings( &devmode, CDS_FULLSCREEN ) ) == DISP_CHANGE_SUCCESSFUL )
+					
+				ri.Printf( PRINT_ALL, "...restoring display settings\n" );
+				ChangeDisplaySettings( 0, 0 );
+					
+				glw_state.cdsFullscreen = qfalse;
+				glConfig.isFullscreen = qfalse;
+				if ( !GLW_CreateWindow( drivername, glConfig.vidWidth, glConfig.vidHeight, colorbits, qfalse) )
 				{
-					ri.Printf( PRINT_ALL, " ok\n" );
-					if ( !GLW_CreateWindow( drivername, glConfig.vidWidth, glConfig.vidHeight, colorbits, qtrue) )
-					{
-						ri.Printf( PRINT_ALL, "...restoring display settings\n" );
-						ChangeDisplaySettings( 0, 0 );
-						return RSERR_INVALID_MODE;
-					}
-					
-					glw_state.cdsFullscreen = qtrue;
+					return RSERR_INVALID_MODE;
 				}
-				else
-				{
-					ri.Printf( PRINT_ALL, " failed, " );
-					
-					PrintCDSError( cdsRet );
-					
-					ri.Printf( PRINT_ALL, "...restoring display settings\n" );
-					ChangeDisplaySettings( 0, 0 );
-					
-					glw_state.cdsFullscreen = qfalse;
-					glConfig.isFullscreen = qfalse;
-					if ( !GLW_CreateWindow( drivername, glConfig.vidWidth, glConfig.vidHeight, colorbits, qfalse) )
-					{
-						return RSERR_INVALID_MODE;
-					}
-					return RSERR_INVALID_FULLSCREEN;
-				}
+				return RSERR_INVALID_FULLSCREEN;
 			}
 		}
 	}
@@ -937,16 +878,6 @@ static rserr_t GLW_SetMode( const char *drivername,
 		{
 			return RSERR_INVALID_MODE;
 		}
-	}
-
-	//
-	// success, now check display frequency, although this won't be valid on Voodoo(2)
-	//
-	memset( &dm, 0, sizeof( dm ) );
-	dm.dmSize = sizeof( dm );
-	if ( EnumDisplaySettings( NULL, ENUM_CURRENT_SETTINGS, &dm ) )
-	{
-		glConfig.displayFrequency = dm.dmDisplayFrequency;
 	}
 
 	// NOTE: this is overridden later on standalone 3Dfx drivers
@@ -1062,7 +993,7 @@ static void GLW_InitExtensions( void )
 	// GL_EXT_compiled_vertex_array
 	qglLockArraysEXT = NULL;
 	qglUnlockArraysEXT = NULL;
-	if ( strstr( glConfig.extensions_string, "GL_EXT_compiled_vertex_array" ) && ( glConfig.hardwareType != GLHW_RIVA128 ) )
+	if ( strstr( glConfig.extensions_string, "GL_EXT_compiled_vertex_array" ) )
 	{
 		if ( r_ext_compiled_vertex_array->integer )
 		{
@@ -1081,37 +1012,6 @@ static void GLW_InitExtensions( void )
 	else
 	{
 		ri.Printf( PRINT_ALL, "...GL_EXT_compiled_vertex_array not found\n" );
-	}
-
-	// WGL_3DFX_gamma_control
-	qwglGetDeviceGammaRamp3DFX = NULL;
-	qwglSetDeviceGammaRamp3DFX = NULL;
-
-	if ( strstr( glConfig.extensions_string, "WGL_3DFX_gamma_control" ) )
-	{
-		if ( !r_ignorehwgamma->integer && r_ext_gamma_control->integer )
-		{
-			qwglGetDeviceGammaRamp3DFX = ( BOOL ( WINAPI * )( HDC, LPVOID ) ) qwglGetProcAddress( "wglGetDeviceGammaRamp3DFX" );
-			qwglSetDeviceGammaRamp3DFX = ( BOOL ( WINAPI * )( HDC, LPVOID ) ) qwglGetProcAddress( "wglSetDeviceGammaRamp3DFX" );
-
-			if ( qwglGetDeviceGammaRamp3DFX && qwglSetDeviceGammaRamp3DFX )
-			{
-				ri.Printf( PRINT_ALL, "...using WGL_3DFX_gamma_control\n" );
-			}
-			else
-			{
-				qwglGetDeviceGammaRamp3DFX = NULL;
-				qwglSetDeviceGammaRamp3DFX = NULL;
-			}
-		}
-		else
-		{
-			ri.Printf( PRINT_ALL, "...ignoring WGL_3DFX_gamma_control\n" );
-		}
-	}
-	else
-	{
-		ri.Printf( PRINT_ALL, "...WGL_3DFX_gamma_control not found\n" );
 	}
 }
 
@@ -1169,30 +1069,10 @@ static qboolean GLW_LoadOpenGL( const char *drivername )
 	char buffer[1024];
 	qboolean cdsFullscreen;
 
+	glConfig.driverType = GLDRV_ICD; 
+
 	Q_strncpyz( buffer, drivername, sizeof(buffer) );
 	Q_strlwr(buffer);
-
-	//
-	// determine if we're on a standalone driver
-	//
-	if ( strstr( buffer, "opengl32" ) != 0 || r_maskMinidriver->integer )
-	{
-		glConfig.driverType = GLDRV_ICD;
-	}
-	else
-	{
-		glConfig.driverType = GLDRV_STANDALONE;
-
-		ri.Printf( PRINT_ALL, "...assuming '%s' is a standalone driver\n", drivername );
-
-		if ( strstr( buffer, _3DFX_DRIVER_NAME ) )
-		{
-			glConfig.driverType = GLDRV_VOODOO;
-		}
-	}
-
-	// disable the 3Dfx splash screen
-	_putenv("FX_GLIDE_NO_SPLASH=0");
 
 	//
 	// load the driver and bind our function pointers to it
@@ -1204,29 +1084,7 @@ static qboolean GLW_LoadOpenGL( const char *drivername )
 		// create the window and set up the context
 		if ( !GLW_StartDriverAndSetMode( drivername, r_mode->integer, r_colorbits->integer, cdsFullscreen ) )
 		{
-			// if we're on a 24/32-bit desktop and we're going fullscreen on an ICD,
-			// try it again but with a 16-bit desktop
-			if ( glConfig.driverType == GLDRV_ICD )
-			{
-				if ( r_colorbits->integer != 16 ||
-					 cdsFullscreen != qtrue ||
-					 r_mode->integer != 3 )
-				{
-					if ( !GLW_StartDriverAndSetMode( drivername, 3, 16, qtrue ) )
-					{
-						goto fail;
-					}
-				}
-			}
-			else
-			{
-				goto fail;
-			}
-		}
-
-		if ( glConfig.driverType == GLDRV_VOODOO )
-		{
-			glConfig.isFullscreen = qtrue;
+			goto fail;
 		}
 
 		return qtrue;
@@ -1260,17 +1118,7 @@ void GLimp_EndFrame (void)
 	// don't flip if drawing to front buffer
 	if ( Q_stricmp( r_drawBuffer->string, "GL_FRONT" ) != 0 )
 	{
-		if ( glConfig.driverType > GLDRV_ICD )
-		{
-			if ( !qwglSwapBuffers( glw_state.hDC ) )
-			{
-				ri.Error( ERR_FATAL, "GLimp_EndFrame() - SwapBuffers() failed!\n" );
-			}
-		}
-		else
-		{
 			SwapBuffers( glw_state.hDC );
-		}
 	}
 
 	// check logging
@@ -1280,7 +1128,6 @@ void GLimp_EndFrame (void)
 static void GLW_StartOpenGL( void )
 {
 	qboolean attemptedOpenGL32 = qfalse;
-	qboolean attempted3Dfx = qfalse;
 
 	//
 	// load and initialize the specific OpenGL driver
@@ -1291,39 +1138,9 @@ static void GLW_StartOpenGL( void )
 		{
 			attemptedOpenGL32 = qtrue;
 		}
-		else if ( !Q_stricmp( r_glDriver->string, _3DFX_DRIVER_NAME ) )
-		{
-			attempted3Dfx = qtrue;
-		}
 
-		if ( !attempted3Dfx )
+		if ( !attemptedOpenGL32 )
 		{
-			attempted3Dfx = qtrue;
-			if ( GLW_LoadOpenGL( _3DFX_DRIVER_NAME ) )
-			{
-				ri.Cvar_Set( "r_glDriver", _3DFX_DRIVER_NAME );
-				r_glDriver->modified = qfalse;
-			}
-			else
-			{
-				if ( !attemptedOpenGL32 )
-				{
-					if ( !GLW_LoadOpenGL( OPENGL_DRIVER_NAME ) )
-					{
-						ri.Error( ERR_FATAL, "GLW_StartOpenGL() - could not load OpenGL subsystem\n" );
-					}
-					ri.Cvar_Set( "r_glDriver", OPENGL_DRIVER_NAME );
-					r_glDriver->modified = qfalse;
-				}
-				else
-				{
-					ri.Error( ERR_FATAL, "GLW_StartOpenGL() - could not load OpenGL subsystem\n" );
-				}
-			}
-		}
-		else if ( !attemptedOpenGL32 )
-		{
-			attemptedOpenGL32 = qtrue;
 			if ( GLW_LoadOpenGL( OPENGL_DRIVER_NAME ) )
 			{
 				ri.Cvar_Set( "r_glDriver", OPENGL_DRIVER_NAME );
@@ -1333,6 +1150,10 @@ static void GLW_StartOpenGL( void )
 			{
 				ri.Error( ERR_FATAL, "GLW_StartOpenGL() - could not load OpenGL subsystem\n" );
 			}
+		} 
+		else 
+		{
+			ri.Error( ERR_FATAL, "GLW_StartOpenGL() - could not load OpenGL subsystem\n" );
 		}
 	}
 }
@@ -1395,7 +1216,7 @@ void GLimp_Init( void )
 	//
 	if ( Q_stricmp( lastValidRenderer->string, glConfig.renderer_string ) )
 	{
-		glConfig.hardwareType = GLHW_GENERIC;
+		glConfig.hardwareType = GLHW_GENERIC; 
 
 		ri.Cvar_Set( "r_textureMode", "GL_LINEAR_MIPMAP_NEAREST" );
 
@@ -1421,40 +1242,6 @@ void GLimp_Init( void )
 		}
 	}
 	
-	//
-	// this is where hardware specific workarounds that should be
-	// detected/initialized every startup should go.
-	//
-	if ( strstr( buf, "banshee" ) || strstr( buf, "voodoo3" ) )
-	{
-		glConfig.hardwareType = GLHW_3DFX_2D3D;
-	}
-	// VOODOO GRAPHICS w/ 2MB
-	else if ( strstr( buf, "voodoo graphics/1 tmu/2 mb" ) )
-	{
-	}
-	else if ( strstr( buf, "glzicd" ) )
-	{
-	}
-	else if ( strstr( buf, "rage pro" ) || strstr( buf, "Rage Pro" ) || strstr( buf, "ragepro" ) )
-	{
-		glConfig.hardwareType = GLHW_RAGEPRO;
-	}
-	else if ( strstr( buf, "rage 128" ) )
-	{
-	}
-	else if ( strstr( buf, "permedia2" ) )
-	{
-		glConfig.hardwareType = GLHW_PERMEDIA2;
-	}
-	else if ( strstr( buf, "riva 128" ) )
-	{
-		glConfig.hardwareType = GLHW_RIVA128;
-	}
-	else if ( strstr( buf, "riva tnt " ) )
-	{
-	}
-
 	ri.Cvar_Set( "r_lastValidRenderer", glConfig.renderer_string );
 
 	GLW_InitExtensions();

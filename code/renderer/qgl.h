@@ -514,9 +514,6 @@ extern  int   ( WINAPI * qwglGetPixelFormat)(HDC);
 extern  BOOL  ( WINAPI * qwglSetPixelFormat)(HDC, int, CONST PIXELFORMATDESCRIPTOR *);
 extern  BOOL  ( WINAPI * qwglSwapBuffers)(HDC);
 
-extern	BOOL  ( WINAPI * qwglGetDeviceGammaRamp3DFX)( HDC, LPVOID );
-extern	BOOL  ( WINAPI * qwglSetDeviceGammaRamp3DFX)( HDC, LPVOID );
-
 extern BOOL  ( WINAPI * qwglCopyContext)(HGLRC, HGLRC, UINT);
 extern HGLRC ( WINAPI * qwglCreateContext)(HDC);
 extern HGLRC ( WINAPI * qwglCreateLayerContext)(HDC, int);

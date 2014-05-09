@@ -6,6 +6,9 @@ mkdir vm
 cd vm
 set cc=lcc -DQ3_VM -DCGAME -S -Wf-target=bytecode -Wf-g -I..\..\cgame -I..\..\game -I..\..\ui %1
 
+rem update PATH variable to point to the quake3 sdk tools
+set PATH=.\..\..\win32\mod-sdk-setup\bin;%PATH%
+
 %cc% ../../game/bg_misc.c
 @if errorlevel 1 goto quit
 %cc% ../../game/bg_pmove.c

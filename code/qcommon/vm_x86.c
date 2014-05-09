@@ -31,6 +31,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <sys/mman.h> // for PROT_ stuff
 #endif
 
+// <artem>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+// </artem>
+
 /*
 
   eax	scratch
@@ -1082,6 +1088,15 @@ void VM_Compile( vm_t *vm, vmHeader_t *header ) {
 	}
 #endif
 
+	// <artem>
+#ifdef _WIN32
+	{
+		DWORD oldProtect;
+		if (!VirtualProtect(vm->codeBase, compiledOfs, PAGE_EXECUTE_READWRITE, &oldProtect))
+			Com_Error(ERR_FATAL, "VM_CompileX86: VirtualProtect failed");
+	}	
+#endif
+	// </artem>
 }
 
 /*

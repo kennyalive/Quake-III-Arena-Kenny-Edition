@@ -148,25 +148,22 @@ typedef enum {
 	TC_S3TC
 } textureCompression_t;
 
+	
+// <artem>
+// glDriverType_t is not used by the engine and quake3 game anymore.
+// Single value (GLDRV_ICD) is left only for compatibility with other mods.
 typedef enum {
-	GLDRV_ICD,					// driver is integrated with window system
-								// WARNING: there are tests that check for
-								// > GLDRV_ICD for minidriverness, so this
-								// should always be the lowest value in this
-								// enum set
-	GLDRV_STANDALONE,			// driver is a non-3Dfx standalone driver
-	GLDRV_VOODOO				// driver is a 3Dfx standalone driver
+	GLDRV_ICD // driver is integrated with window system
 } glDriverType_t;
+// </artem>
 
+// <artem>
+// glHardwareType_t is not used by the engine and quake3 game anymore.
+// Single value (GLHW_GENERIC) is left only for compatibility with other mods.
 typedef enum {
-	GLHW_GENERIC,			// where everthing works the way it should
-	GLHW_3DFX_2D3D,			// Voodoo Banshee or Voodoo3, relevant since if this is
-							// the hardware type then there can NOT exist a secondary
-							// display adapter
-	GLHW_RIVA128,			// where you can't interpolate alpha
-	GLHW_RAGEPRO,			// where you can't modulate alpha on alpha textures
-	GLHW_PERMEDIA2			// where you don't have src*dst
+	GLHW_GENERIC // where everthing works the way it should
 } glHardwareType_t;
+// </artem>
 
 typedef struct {
 	char					renderer_string[MAX_STRING_CHARS];
@@ -179,8 +176,15 @@ typedef struct {
 
 	int						colorBits, depthBits, stencilBits;
 
+	// <artem>
+	// Obsolete. Should be here for compatibility with other mods.
 	glDriverType_t			driverType;
+	// </artem>
+
+	// <artem>
+	// Obsolete. Should be here for compatibility with other mods.
 	glHardwareType_t		hardwareType;
+	// </artem>
 
 	qboolean				deviceSupportsGamma;
 	textureCompression_t	textureCompression;
@@ -192,8 +196,6 @@ typedef struct {
 	// normal screens should be 4/3, but wide aspect monitors may be 16/9
 	float					windowAspect;
 
-	int						displayFrequency;
-
 	// synonymous with "does rendering consume the entire screen?", therefore
 	// a Voodoo or Voodoo2 will have this set to TRUE, as will a Win32 ICD that
 	// used CDS.
@@ -202,28 +204,8 @@ typedef struct {
 	qboolean				smpActive;		// dual processor
 } glconfig_t;
 
-// FIXME: VM should be OS agnostic .. in theory
-
-/*
-#ifdef Q3_VM
-
-#define _3DFX_DRIVER_NAME	"Voodoo"
-#define OPENGL_DRIVER_NAME	"Default"
-
-#elif defined(_WIN32)
-*/
-
 #if defined(Q3_VM) || defined(_WIN32)
-
-#define _3DFX_DRIVER_NAME	"3dfxvgl"
 #define OPENGL_DRIVER_NAME	"opengl32"
-
-#else
-
-#define _3DFX_DRIVER_NAME	"libMesaVoodooGL.so"
-// https://zerowing.idsoftware.com/bugzilla/show_bug.cgi?id=524
-#define OPENGL_DRIVER_NAME	"libGL.so.1"
-
 #endif	// !defined _WIN32
 
 #endif	// __TR_TYPES_H

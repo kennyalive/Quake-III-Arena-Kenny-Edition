@@ -1,6 +1,6 @@
 -o "\quake3\baseq3\vm\ui"
 ui_main
-..\..\ui\ui_syscalls
+..\ui_syscalls
 ui_gameinfo
 ui_atoms
 ui_cinematics

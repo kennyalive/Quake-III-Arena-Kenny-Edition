@@ -7,6 +7,9 @@ cd vm
 
 set cc=lcc -DQ3_VM -S -Wf-target=bytecode -Wf-g -I..\..\cgame -I..\..\game -I..\..\q3_ui %1
 
+rem update PATH variable to point to the quake3 sdk tools
+set PATH=.\..\..\win32\mod-sdk-setup\bin;%PATH%
+
 lcc -DQ3_VM -S -Wf-target=bytecode -Wf-g -I..\..\cgame -I..\..\game -I..\..\q3_ui ../ui_main.c
 @if errorlevel 1 goto quit
 lcc -DQ3_VM -S -Wf-target=bytecode -Wf-g -I..\..\cgame -I..\..\game -I..\..\q3_ui ../ui_cdkey.c

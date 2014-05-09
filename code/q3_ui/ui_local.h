@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../game/q_shared.h"
 #include "../cgame/tr_types.h"
 //NOTE: include the ui_public.h from the new UI
-#include "../ui/ui_public.h" // bk001205 - yes, do have to use this
+#include "ui_public.h" // bk001205 - yes, do have to use this
 //redefine to old API version
 #undef UI_API_VERSION
 #define UI_API_VERSION	4

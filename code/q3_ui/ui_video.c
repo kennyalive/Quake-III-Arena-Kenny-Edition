@@ -241,7 +241,6 @@ GRAPHICS OPTIONS MENU
 static const char *s_drivers[] =
 {
 	OPENGL_DRIVER_NAME,
-	_3DFX_DRIVER_NAME,
 	0
 };
 
@@ -886,7 +885,7 @@ void GraphicsOptions_MenuInit( void )
 	s_graphicsoptions.driver.generic.x     = 400;
 	s_graphicsoptions.driver.generic.y     = y;
 	s_graphicsoptions.driver.itemnames     = s_driver_names;
-	s_graphicsoptions.driver.curvalue      = (uis.glconfig.driverType == GLDRV_VOODOO);
+	s_graphicsoptions.driver.curvalue      = 0;
 	y += BIGCHAR_HEIGHT+2;
 
 	// references/modifies "r_allowExtensions"
@@ -1033,12 +1032,6 @@ void GraphicsOptions_MenuInit( void )
 
 	GraphicsOptions_SetMenuItems();
 	GraphicsOptions_GetInitialVideo();
-
-	if ( uis.glconfig.driverType == GLDRV_ICD &&
-		 uis.glconfig.hardwareType == GLHW_3DFX_2D3D )
-	{
-		s_graphicsoptions.driver.generic.flags |= QMF_HIDDEN|QMF_INACTIVE;
-	}
 }
 
 

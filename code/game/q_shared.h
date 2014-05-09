@@ -54,6 +54,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #pragma warning(disable : 4702)		// unreachable code
 #pragma warning(disable : 4711)		// selected for automatic inline expansion
 #pragma warning(disable : 4220)		// varargs matches remaining parameters
+
+// <artem>
+#pragma warning(disable : 4996) // the function or variable may be unsafe
+// </artem>
+
 #endif
 
 /**********************************************************************

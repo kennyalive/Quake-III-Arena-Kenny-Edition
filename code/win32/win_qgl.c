@@ -36,8 +36,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 void QGL_EnableLogging( qboolean enable );
 
 int ( WINAPI * qwglSwapIntervalEXT)( int interval );
-BOOL  ( WINAPI * qwglGetDeviceGammaRamp3DFX)( HDC, LPVOID );
-BOOL  ( WINAPI * qwglSetDeviceGammaRamp3DFX)( HDC, LPVOID );
 
 int   ( WINAPI * qwglChoosePixelFormat )(HDC, CONST PIXELFORMATDESCRIPTOR *);
 int   ( WINAPI * qwglDescribePixelFormat) (HDC, int, UINT, LPPIXELFORMATDESCRIPTOR);
@@ -3180,46 +3178,6 @@ void QGL_Shutdown( void )
 
 #define GR_NUM_BOARDS 0x0f
 
-static qboolean GlideIsValid( void )
-{
-	HMODULE hGlide;
-//	int numBoards;
-//	void (__stdcall *grGet)(unsigned int, unsigned int, int*);
-
-    if ( ( hGlide = LoadLibrary("Glide3X") ) != 0 ) 
-	{
-		// FIXME: 3Dfx needs to fix this shit
-		return qtrue;
-
-#if 0
-        grGet = (void *)GetProcAddress( hGlide, "_grGet@12");
-
-		if ( grGet )
-		{
-	        grGet( GR_NUM_BOARDS, sizeof(int), &numBoards);
-		}
-		else
-		{
-			// if we've reached this point, something is seriously wrong
-			ri.Printf( PRINT_WARNING, "WARNING: could not find grGet in GLIDE3X.DLL\n" );
-			numBoards = 0;
-		}
-
-		FreeLibrary( hGlide );
-		hGlide = NULL;
-
-		if ( numBoards > 0 )
-		{
-			return qtrue;
-		}
-
-		ri.Printf( PRINT_WARNING, "WARNING: invalid Glide installation!\n" );
-#endif
-    }
-
-	return qfalse;
-} 
-
 #	pragma warning (disable : 4113 4133 4047 )
 #	define GPA( a ) GetProcAddress( glw_state.hinstOpenGL, a )
 
@@ -3242,16 +3200,6 @@ qboolean QGL_Init( const char *dllname )
 	assert( glw_state.hinstOpenGL == 0 );
 
 	ri.Printf( PRINT_ALL, "...initializing QGL\n" );
-
-	// NOTE: this assumes that 'dllname' is lower case (and it should be)!
-	if ( strstr( dllname, _3DFX_DRIVER_NAME ) )
-	{
-		if ( !GlideIsValid() )
-		{
-			ri.Printf( PRINT_ALL, "...WARNING: missing Glide installation, assuming no 3Dfx available\n" );
-			return qfalse;
-		}
-	}
 
 	if ( dllname[0] != '!' )
 	{
@@ -3635,8 +3583,6 @@ qboolean QGL_Init( const char *dllname )
 	qglMultiTexCoord2fARB = 0;
 	qglLockArraysEXT = 0;
 	qglUnlockArraysEXT = 0;
-	qwglGetDeviceGammaRamp3DFX = NULL;
-	qwglSetDeviceGammaRamp3DFX = NULL;
 
 	// check logging
 	QGL_EnableLogging( r_logFile->integer );
