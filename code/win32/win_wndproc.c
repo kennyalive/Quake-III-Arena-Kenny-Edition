@@ -86,7 +86,7 @@ VID_AppActivate
 */
 static void VID_AppActivate(BOOL fActive, BOOL minimize)
 {
-	g_wv.isMinimized = minimize;
+	g_wv.isMinimized = (qboolean) minimize;
 
 	Com_DPrintf("VID_AppActivate: %i\n", fActive );
 
@@ -280,7 +280,7 @@ LONG WINAPI MainWndProc (
 					else
 					{
 						Sys_QueEvent( g_wv.sysMsgTime, SE_KEY, K_MWHEELUP, flip, 0, NULL );
-						flip = !flip;
+						flip = (qboolean) !flip;
 					}
 				}
 			}
@@ -296,7 +296,7 @@ LONG WINAPI MainWndProc (
 					else
 					{
 						Sys_QueEvent( g_wv.sysMsgTime, SE_KEY, K_MWHEELDOWN, flip, 0, NULL );
-						flip = !flip;
+						flip = (qboolean) !flip;
 					}
 				}
 			}

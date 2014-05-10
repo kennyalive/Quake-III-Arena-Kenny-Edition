@@ -1221,7 +1221,7 @@ redump:
 			if (cinTable[currentHandle].numQuads != 1) cinTable[currentHandle].numQuads = 0;
 			break;
 		case	ROQ_PACKET:
-			cinTable[currentHandle].inMemory = cinTable[currentHandle].roq_flags;
+			cinTable[currentHandle].inMemory = (qboolean) cinTable[currentHandle].roq_flags;
 			cinTable[currentHandle].RoQFrameSize = 0;           // for header
 			break;
 		case	ROQ_QUAD_HANG:
@@ -1264,7 +1264,7 @@ redump:
 		}
 		return;
 	}
-	if (cinTable[currentHandle].inMemory && (cinTable[currentHandle].status != FMV_EOF)) { cinTable[currentHandle].inMemory--; framedata += 8; goto redump; }
+	if (cinTable[currentHandle].inMemory && (cinTable[currentHandle].status != FMV_EOF)) { ((int&)cinTable[currentHandle].inMemory)--; framedata += 8; goto redump; }
 //
 // one more frame hits the dust
 //
@@ -1419,7 +1419,7 @@ e_status CIN_RunCinematic (int handle)
 
 	// we need to use CL_ScaledMilliseconds because of the smp mode calls from the renderer
 	thisTime = CL_ScaledMilliseconds()*com_timescale->value;
-	if (cinTable[currentHandle].shader && (abs(thisTime - cinTable[currentHandle].lastTime))>100) {
+	if (cinTable[currentHandle].shader && (abs((int)(thisTime - cinTable[currentHandle].lastTime)))>100) {
 		cinTable[currentHandle].startTime += thisTime - cinTable[currentHandle].lastTime;
 	}
 	// we need to use CL_ScaledMilliseconds because of the smp mode calls from the renderer
@@ -1499,15 +1499,15 @@ int CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBi
 	}
 
 	CIN_SetExtents(currentHandle, x, y, w, h);
-	CIN_SetLooping(currentHandle, (systemBits & CIN_loop)!=0);
+	CIN_SetLooping(currentHandle, (qboolean) ((systemBits & CIN_loop)!=0));
 
 	cinTable[currentHandle].CIN_HEIGHT = DEFAULT_CIN_HEIGHT;
 	cinTable[currentHandle].CIN_WIDTH  =  DEFAULT_CIN_WIDTH;
-	cinTable[currentHandle].holdAtEnd = (systemBits & CIN_hold) != 0;
-	cinTable[currentHandle].alterGameState = (systemBits & CIN_system) != 0;
+	cinTable[currentHandle].holdAtEnd = (qboolean) ((systemBits & CIN_hold) != 0);
+	cinTable[currentHandle].alterGameState = (qboolean) ((systemBits & CIN_system) != 0);
 	cinTable[currentHandle].playonwalls = 1;
-	cinTable[currentHandle].silent = (systemBits & CIN_silent) != 0;
-	cinTable[currentHandle].shader = (systemBits & CIN_shader) != 0;
+	cinTable[currentHandle].silent = (qboolean) ((systemBits & CIN_silent) != 0);
+	cinTable[currentHandle].shader = (qboolean) ((systemBits & CIN_shader) != 0);
 
 	if (cinTable[currentHandle].alterGameState) {
 		// close the menu
@@ -1597,7 +1597,7 @@ void CIN_DrawCinematic (int handle) {
                 }
                 
 		buf3 = (int*)buf;
-		buf2 = Hunk_AllocateTempMemory( 256*256*4 );
+		buf2 = (int*) Hunk_AllocateTempMemory( 256*256*4 );
                 if (xm==2 && ym==2) {
                     byte *bc2, *bc3;
                     int	ic, iiy;

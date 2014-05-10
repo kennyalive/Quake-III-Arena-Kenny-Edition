@@ -377,7 +377,7 @@ void Field_KeyDownEvent( field_t *edit, int key ) {
 	}
 
 	if ( key == K_INS ) {
-		key_overstrikeMode = !key_overstrikeMode;
+		key_overstrikeMode = (qboolean) !key_overstrikeMode;
 		return;
 	}
 }
@@ -1030,13 +1030,13 @@ void CL_KeyEvent (int key, qboolean down, unsigned time) {
 	if (down) {
 		keys[key].repeats++;
 		if ( keys[key].repeats == 1) {
-			anykeydown++;
+			((int&)anykeydown)++;
 		}
 	} else {
 		keys[key].repeats = 0;
-		anykeydown--;
+		((int&)anykeydown)--;
 		if (anykeydown < 0) {
-			anykeydown = 0;
+			(int&)anykeydown = 0;
 		}
 	}
 
@@ -1245,7 +1245,7 @@ void Key_ClearStates (void)
 			CL_KeyEvent( i, qfalse, 0 );
 
 		}
-		keys[i].down = 0;
+		keys[i].down = (qboolean) 0;
 		keys[i].repeats = 0;
 	}
 }

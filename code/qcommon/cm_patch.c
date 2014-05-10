@@ -176,7 +176,7 @@ static qboolean	CM_NeedsSubdivision( vec3_t a, vec3_t b, vec3_t c ) {
 	VectorSubtract( cmid, lmid, delta );
 	dist = VectorLength( delta );
 	
-	return dist >= SUBDIVIDE_DISTANCE;
+	return (qboolean) (dist >= SUBDIVIDE_DISTANCE);
 }
 
 /*
@@ -859,7 +859,7 @@ void CM_AddFacetBevels( facet_t *facet ) {
 			if ( i == facet->numBorders ) {
 				if (facet->numBorders > 4 + 6 + 16) Com_Printf("ERROR: too many bevels\n");
 				facet->borderPlanes[facet->numBorders] = CM_FindPlane2(plane, &flipped);
-				facet->borderNoAdjust[facet->numBorders] = 0;
+				facet->borderNoAdjust[facet->numBorders] = (qboolean) 0;
 				facet->borderInward[facet->numBorders] = flipped;
 				facet->numBorders++;
 			}
@@ -927,7 +927,7 @@ void CM_AddFacetBevels( facet_t *facet ) {
 							facet->borderPlanes[k]) Com_Printf("WARNING: bevel plane already used\n");
 					}
 
-					facet->borderNoAdjust[facet->numBorders] = 0;
+					facet->borderNoAdjust[facet->numBorders] = (qboolean) 0;
 					facet->borderInward[facet->numBorders] = flipped;
 					//
 					w2 = CopyWinding(w);
@@ -958,7 +958,7 @@ void CM_AddFacetBevels( facet_t *facet ) {
 #ifndef BSPC
 	//add opposite plane
 	facet->borderPlanes[facet->numBorders] = facet->surfacePlane;
-	facet->borderNoAdjust[facet->numBorders] = 0;
+	facet->borderNoAdjust[facet->numBorders] = (qboolean) 0;
 	facet->borderInward[facet->numBorders] = qtrue;
 	facet->numBorders++;
 #endif //BSPC
@@ -1064,13 +1064,13 @@ static void CM_PatchCollideFromGrid( cGrid_t *grid, patchCollide_t *pf ) {
 				facet->surfacePlane = gridPlanes[i][j][0];
 				facet->numBorders = 4;
 				facet->borderPlanes[0] = borders[EN_TOP];
-				facet->borderNoAdjust[0] = noAdjust[EN_TOP];
+				facet->borderNoAdjust[0] = (qboolean) noAdjust[EN_TOP];
 				facet->borderPlanes[1] = borders[EN_RIGHT];
-				facet->borderNoAdjust[1] = noAdjust[EN_RIGHT];
+				facet->borderNoAdjust[1] = (qboolean) noAdjust[EN_RIGHT];
 				facet->borderPlanes[2] = borders[EN_BOTTOM];
-				facet->borderNoAdjust[2] = noAdjust[EN_BOTTOM];
+				facet->borderNoAdjust[2] = (qboolean)noAdjust[EN_BOTTOM];
 				facet->borderPlanes[3] = borders[EN_LEFT];
-				facet->borderNoAdjust[3] = noAdjust[EN_LEFT];
+				facet->borderNoAdjust[3] = (qboolean) noAdjust[EN_LEFT];
 				CM_SetBorderInward( facet, grid, gridPlanes, i, j, -1 );
 				if ( CM_ValidateFacet( facet ) ) {
 					CM_AddFacetBevels( facet );
@@ -1081,9 +1081,9 @@ static void CM_PatchCollideFromGrid( cGrid_t *grid, patchCollide_t *pf ) {
 				facet->surfacePlane = gridPlanes[i][j][0];
 				facet->numBorders = 3;
 				facet->borderPlanes[0] = borders[EN_TOP];
-				facet->borderNoAdjust[0] = noAdjust[EN_TOP];
+				facet->borderNoAdjust[0] = (qboolean)noAdjust[EN_TOP];
 				facet->borderPlanes[1] = borders[EN_RIGHT];
-				facet->borderNoAdjust[1] = noAdjust[EN_RIGHT];
+				facet->borderNoAdjust[1] = (qboolean)noAdjust[EN_RIGHT];
 				facet->borderPlanes[2] = gridPlanes[i][j][1];
 				if ( facet->borderPlanes[2] == -1 ) {
 					facet->borderPlanes[2] = borders[EN_BOTTOM];
@@ -1106,9 +1106,9 @@ static void CM_PatchCollideFromGrid( cGrid_t *grid, patchCollide_t *pf ) {
 				facet->surfacePlane = gridPlanes[i][j][1];
 				facet->numBorders = 3;
 				facet->borderPlanes[0] = borders[EN_BOTTOM];
-				facet->borderNoAdjust[0] = noAdjust[EN_BOTTOM];
+				facet->borderNoAdjust[0] = (qboolean)noAdjust[EN_BOTTOM];
 				facet->borderPlanes[1] = borders[EN_LEFT];
-				facet->borderNoAdjust[1] = noAdjust[EN_LEFT];
+				facet->borderNoAdjust[1] = (qboolean)noAdjust[EN_LEFT];
 				facet->borderPlanes[2] = gridPlanes[i][j][0];
 				if ( facet->borderPlanes[2] == -1 ) {
 					facet->borderPlanes[2] = borders[EN_TOP];
@@ -1128,9 +1128,9 @@ static void CM_PatchCollideFromGrid( cGrid_t *grid, patchCollide_t *pf ) {
 	// copy the results out
 	pf->numPlanes = numPlanes;
 	pf->numFacets = numFacets;
-	pf->facets = Hunk_Alloc( numFacets * sizeof( *pf->facets ), h_high );
+	pf->facets = (facet_t*) Hunk_Alloc( numFacets * sizeof( *pf->facets ), h_high );
 	Com_Memcpy( pf->facets, facets, numFacets * sizeof( *pf->facets ) );
-	pf->planes = Hunk_Alloc( numPlanes * sizeof( *pf->planes ), h_high );
+	pf->planes = (patchPlane_t*) Hunk_Alloc( numPlanes * sizeof( *pf->planes ), h_high );
 	Com_Memcpy( pf->planes, planes, numPlanes * sizeof( *pf->planes ) );
 }
 
@@ -1188,7 +1188,7 @@ struct patchCollide_s	*CM_GeneratePatchCollide( int width, int height, vec3_t *p
 	// we now have a grid of points exactly on the curve
 	// the aproximate surface defined by these points will be
 	// collided against
-	pf = Hunk_Alloc( sizeof( *pf ), h_high );
+	pf = (patchCollide_t*) Hunk_Alloc( sizeof( *pf ), h_high );
 	ClearBounds( pf->bounds[0], pf->bounds[1] );
 	for ( i = 0 ; i < grid.width ; i++ ) {
 		for ( j = 0 ; j < grid.height ; j++ ) {

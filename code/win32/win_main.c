@@ -305,7 +305,7 @@ char **Sys_ListFiles( const char *directory, const char *extension, char *filter
 		if (!nfiles)
 			return NULL;
 
-		listCopy = Z_Malloc( ( nfiles + 1 ) * sizeof( *listCopy ) );
+		listCopy = (char**) Z_Malloc( ( nfiles + 1 ) * sizeof( *listCopy ) );
 		for ( i = 0 ; i < nfiles ; i++ ) {
 			listCopy[i] = list[i];
 		}
@@ -358,7 +358,7 @@ char **Sys_ListFiles( const char *directory, const char *extension, char *filter
 		return NULL;
 	}
 
-	listCopy = Z_Malloc( ( nfiles + 1 ) * sizeof( *listCopy ) );
+	listCopy = (char**) Z_Malloc( ( nfiles + 1 ) * sizeof( *listCopy ) );
 	for ( i = 0 ; i < nfiles ; i++ ) {
 		listCopy[i] = list[i];
 	}
@@ -475,8 +475,8 @@ char *Sys_GetClipboardData( void ) {
 		HANDLE hClipboardData;
 
 		if ( ( hClipboardData = GetClipboardData( CF_TEXT ) ) != 0 ) {
-			if ( ( cliptext = GlobalLock( hClipboardData ) ) != 0 ) {
-				data = Z_Malloc( GlobalSize( hClipboardData ) + 1 );
+			if ( ( cliptext = (char*) GlobalLock( hClipboardData ) ) != 0 ) {
+				data = (char*) Z_Malloc( GlobalSize( hClipboardData ) + 1 );
 				Q_strncpyz( data, cliptext, GlobalSize( hClipboardData ) );
 				GlobalUnlock( hClipboardData );
 				
@@ -507,7 +507,7 @@ void Sys_UnloadDll( void *dllHandle ) {
 	if ( !dllHandle ) {
 		return;
 	}
-	if ( !FreeLibrary( dllHandle ) ) {
+	if ( !FreeLibrary( (HMODULE) dllHandle ) ) {
 		Com_Error (ERR_FATAL, "Sys_UnloadDll FreeLibrary failed");
 	}
 }
@@ -972,7 +972,7 @@ sysEvent_t Sys_GetEvent( void ) {
 		int		len;
 
 		len = (int)strlen( s ) + 1;
-		b = Z_Malloc( len );
+		b = (char*)Z_Malloc( len );
 		Q_strncpyz( b, s, len-1 );
 		Sys_QueEvent( 0, SE_CONSOLE, 0, 0, len, b );
 	}
@@ -986,7 +986,7 @@ sysEvent_t Sys_GetEvent( void ) {
 		// copy out to a seperate buffer for qeueing
 		// the readcount stepahead is for SOCKS support
 		len = sizeof( netadr_t ) + netmsg.cursize - netmsg.readcount;
-		buf = Z_Malloc( len );
+		buf = (netadr_t*) Z_Malloc( len );
 		*buf = adr;
 		memcpy( buf+1, &netmsg.data[netmsg.readcount], netmsg.cursize - netmsg.readcount );
 		Sys_QueEvent( 0, SE_PACKET, 0, 0, len, buf );

@@ -583,7 +583,12 @@ void SV_ClipMoveToEntities( moveclip_t *clip ) {
 
 			trace.entityNum = touch->s.number;
 			clip->trace = trace;
-			clip->trace.startsolid |= oldStart;
+
+			//clip->trace.startsolid |= oldStart;
+			if (oldStart == qtrue) {
+				clip->trace.startsolid = qtrue;
+			}
+			
 		}
 	}
 }

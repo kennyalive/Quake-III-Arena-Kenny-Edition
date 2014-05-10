@@ -267,7 +267,7 @@ for (i = 0, j = 0; j < len; i++, j += 4)
 
 //===================================================================
 
-unsigned Com_BlockChecksum (void *buffer, int length)
+unsigned Com_BlockChecksum (const void *buffer, int length)
 {
 	int			digest[4];
 	unsigned	val;

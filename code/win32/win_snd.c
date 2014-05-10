@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <float.h>
 
 #include "../client/snd_local.h"
+#define CINTERFACE
 #include "win_local.h"
 
 HRESULT (WINAPI *pDirectSoundCreate)(GUID FAR *lpGUID, LPDIRECTSOUND FAR *lplpDS, IUnknown FAR *pUnkOuter);
@@ -117,7 +118,7 @@ Returns false if failed
 qboolean SNDDMA_Init(void) {
 
 	memset ((void *)&dma, 0, sizeof (dma));
-	dsound_init = 0;
+	dsound_init = (qboolean) 0;
 
 	CoInitialize(NULL);
 
@@ -160,9 +161,9 @@ int SNDDMA_InitDS ()
 
 	use8 = 1;
     // Create IDirectSound using the primary sound device
-    if( FAILED( hresult = CoCreateInstance(&CLSID_DirectSound8, NULL, CLSCTX_INPROC_SERVER, &IID_IDirectSound8, (void **)&pDS))) {
+    if( FAILED( hresult = CoCreateInstance(CLSID_DirectSound8, NULL, CLSCTX_INPROC_SERVER, IID_IDirectSound8, (void **)&pDS))) {
 		use8 = 0;
-	    if( FAILED( hresult = CoCreateInstance(&CLSID_DirectSound, NULL, CLSCTX_INPROC_SERVER, &IID_IDirectSound, (void **)&pDS))) {
+	    if( FAILED( hresult = CoCreateInstance(CLSID_DirectSound, NULL, CLSCTX_INPROC_SERVER, IID_IDirectSound, (void **)&pDS))) {
 			Com_Printf ("failed\n");
 			SNDDMA_Shutdown ();
 			return qfalse;
@@ -331,8 +332,8 @@ void SNDDMA_BeginPainting( void ) {
 	reps = 0;
 	dma.buffer = NULL;
 
-	while ((hresult = pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pbuf, &locksize, 
-								   &pbuf2, &dwSize2, 0)) != DS_OK)
+	while ((hresult = pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, (LPVOID*) &pbuf, &locksize, 
+								   (LPVOID*) &pbuf2, &dwSize2, 0)) != DS_OK)
 	{
 		if (hresult != DSERR_BUFFERLOST)
 		{

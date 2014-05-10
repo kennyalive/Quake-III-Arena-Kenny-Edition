@@ -48,11 +48,11 @@ static void SV_Netchan_Encode( client_t *client, msg_t *msg ) {
         
         msg->bit = 0;
         msg->readcount = 0;
-        msg->oob = 0;
+        msg->oob = (qboolean) 0;
         
 	reliableAcknowledge = MSG_ReadLong(msg);
 
-        msg->oob = soob;
+		msg->oob = (qboolean) soob;
         msg->bit = sbit;
         msg->readcount = srdc;
         
@@ -96,13 +96,13 @@ static void SV_Netchan_Decode( client_t *client, msg_t *msg ) {
         sbit = msg->bit;
         soob = msg->oob;
         
-        msg->oob = 0;
+		msg->oob = (qboolean) 0;
         
         serverId = MSG_ReadLong(msg);
 	messageAcknowledge = MSG_ReadLong(msg);
 	reliableAcknowledge = MSG_ReadLong(msg);
 
-        msg->oob = soob;
+    msg->oob = (qboolean) soob;
         msg->bit = sbit;
         msg->readcount = srdc;
         

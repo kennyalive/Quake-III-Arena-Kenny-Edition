@@ -279,7 +279,7 @@ qboolean IN_InitDIMouse( void ) {
 	}
 
 	if (!pDirectInputCreate) {
-		pDirectInputCreate = (long (__stdcall *)(void *,unsigned long ,struct IDirectInputA ** ,struct IUnknown *))
+		pDirectInputCreate = (HRESULT (__stdcall *)(HINSTANCE,DWORD ,struct IDirectInputA ** ,struct IUnknown *))
 			GetProcAddress(hInstDI,"DirectInputCreateA");
 
 		if (!pDirectInputCreate) {
@@ -297,7 +297,7 @@ qboolean IN_InitDIMouse( void ) {
 	}
 
 	// obtain an interface to the system mouse device.
-	hr = IDirectInput_CreateDevice(g_pdi, &GUID_SysMouse, &g_pMouse, NULL);
+	hr = IDirectInput_CreateDevice(g_pdi, GUID_SysMouse, &g_pMouse, NULL);
 
 	if (FAILED(hr)) {
 		Com_Printf ("Couldn't open DI mouse device\n");
