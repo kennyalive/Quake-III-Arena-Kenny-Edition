@@ -12,6 +12,6 @@ Some of the modifications that were made to the original codebase:
 
 1. Removed support for ancient graphics hardware and drivers.
 1. Removed Unix and Mac OS X platform files. 
-1. Visual Studio project files are updated to target Visual Studio 2010.
+1. Visual Studio project files are updated to target Visual Studio 2013.
 
 ![Screenshot](https://github.com/artemalive/Quake-III-Arena/raw/master/Screenshot.jpg)
