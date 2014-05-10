@@ -467,7 +467,7 @@ int BotAllocWeaponState(void)
 	{
 		if (!botweaponstates[i])
 		{
-			botweaponstates[i] = GetClearedMemory(sizeof(bot_weaponstate_t));
+			botweaponstates[i] = (bot_weaponstate_t*) GetClearedMemory(sizeof(bot_weaponstate_t));
 			return i;
 		} //end if
 	} //end for

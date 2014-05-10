@@ -606,34 +606,8 @@ aas_trace_t AAS_TraceClientBBox(vec3_t start, vec3_t end, int presencetype,
 		//the current node plane
 		plane = &aasworld.planes[aasnode->planenum];
 
-		switch(plane->type)
-		{/*FIXME: wtf doesn't this work? obviously the axial node planes aren't always facing positive!!!
-			//check for axial planes
-			case PLANE_X:
-			{
-				front = cur_start[0] - plane->dist;
-				back = cur_end[0] - plane->dist;
-				break;
-			} //end case
-			case PLANE_Y:
-			{
-				front = cur_start[1] - plane->dist;
-				back = cur_end[1] - plane->dist;
-				break;
-			} //end case
-			case PLANE_Z:
-			{
-				front = cur_start[2] - plane->dist;
-				back = cur_end[2] - plane->dist;
-				break;
-			} //end case*/
-			default: //gee it's not an axial plane
-			{
-				front = DotProduct(cur_start, plane->normal) - plane->dist;
-				back = DotProduct(cur_end, plane->normal) - plane->dist;
-				break;
-			} //end default
-		} //end switch
+        front = DotProduct(cur_start, plane->normal) - plane->dist;
+        back = DotProduct(cur_end, plane->normal) - plane->dist;
 		// bk010221 - old location of FPE hack and divide by zero expression
 		//if the whole to be traced line is totally at the front of this node
 		//only go down the tree with the front child
@@ -797,34 +771,8 @@ int AAS_TraceAreas(vec3_t start, vec3_t end, int *areas, vec3_t *points, int max
 		//the current node plane
 		plane = &aasworld.planes[aasnode->planenum];
 
-		switch(plane->type)
-		{/*FIXME: wtf doesn't this work? obviously the node planes aren't always facing positive!!!
-			//check for axial planes
-			case PLANE_X:
-			{
-				front = cur_start[0] - plane->dist;
-				back = cur_end[0] - plane->dist;
-				break;
-			} //end case
-			case PLANE_Y:
-			{
-				front = cur_start[1] - plane->dist;
-				back = cur_end[1] - plane->dist;
-				break;
-			} //end case
-			case PLANE_Z:
-			{
-				front = cur_start[2] - plane->dist;
-				back = cur_end[2] - plane->dist;
-				break;
-			} //end case*/
-			default: //gee it's not an axial plane
-			{
-				front = DotProduct(cur_start, plane->normal) - plane->dist;
-				back = DotProduct(cur_end, plane->normal) - plane->dist;
-				break;
-			} //end default
-		} //end switch
+        front = DotProduct(cur_start, plane->normal) - plane->dist;
+        back = DotProduct(cur_end, plane->normal) - plane->dist;
 
 		//if the whole to be traced line is totally at the front of this node
 		//only go down the tree with the front child

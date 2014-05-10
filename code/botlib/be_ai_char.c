@@ -302,7 +302,7 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 					else if (token.type == TT_STRING)
 					{
 						StripDoubleQuotes(token.string);
-						ch->c[index].value.string = GetMemory((int)strlen(token.string)+1);
+						ch->c[index].value.string = (char*)GetMemory((int)strlen(token.string)+1);
 						strcpy(ch->c[index].value.string, token.string);
 						ch->c[index].type = CT_STRING;
 					} //end else if

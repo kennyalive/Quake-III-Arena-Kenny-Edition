@@ -80,7 +80,7 @@ qboolean ReadNumber(source_t *source, fielddef_t *fd, void *p)
 	long int intval, intmin = 0, intmax = 0;
 	double floatval;
 
-	if (!PC_ExpectAnyToken(source, &token)) return 0;
+	if (!PC_ExpectAnyToken(source, &token)) return (qboolean) 0;
 
 	//check for minus sign
 	if (token.type == TT_PUNCTUATION)
@@ -88,23 +88,23 @@ qboolean ReadNumber(source_t *source, fielddef_t *fd, void *p)
 		if (fd->type & FT_UNSIGNED)
 		{
 			SourceError(source, "expected unsigned value, found %s", token.string);
-			return 0;
+			return (qboolean) 0;
 		} //end if
 		//if not a minus sign
 		if (strcmp(token.string, "-"))
 		{
 			SourceError(source, "unexpected punctuation %s", token.string);
-			return 0;
+			return (qboolean) 0;
 		} //end if
 		negative = qtrue;
 		//read the number
-		if (!PC_ExpectAnyToken(source, &token)) return 0;
+		if (!PC_ExpectAnyToken(source, &token)) return (qboolean) 0;
 	} //end if
 	//check if it is a number
 	if (token.type != TT_NUMBER)
 	{
 		SourceError(source, "expected number, found %s", token.string);
-		return 0;
+		return (qboolean) 0;
 	} //end if
 	//check for a float value
 	if (token.subtype & TT_FLOAT)
@@ -112,7 +112,7 @@ qboolean ReadNumber(source_t *source, fielddef_t *fd, void *p)
 		if ((fd->type & FT_TYPE) != FT_FLOAT)
 		{
 			SourceError(source, "unexpected float");
-			return 0;
+			return (qboolean) 0;
 		} //end if
 		floatval = token.floatvalue;
 		if (negative) floatval = -floatval;
@@ -121,11 +121,11 @@ qboolean ReadNumber(source_t *source, fielddef_t *fd, void *p)
 			if (floatval < fd->floatmin || floatval > fd->floatmax)
 			{
 				SourceError(source, "float out of range [%f, %f]", fd->floatmin, fd->floatmax);
-				return 0;
+				return (qboolean) 0;
 			} //end if
 		} //end if
 		*(float *) p = (float) floatval;
-		return 1;
+		return (qboolean) 1;
 	} //end if
 	//
 	intval = token.intvalue;
@@ -151,7 +151,7 @@ qboolean ReadNumber(source_t *source, fielddef_t *fd, void *p)
 		if (intval < intmin || intval > intmax)
 		{
 			SourceError(source, "value %d out of range [%d, %d]", intval, intmin, intmax);
-			return 0;
+			return (qboolean) 0;
 		} //end if
 	} //end if
 	else if ((fd->type & FT_TYPE) == FT_FLOAT)
@@ -161,7 +161,7 @@ qboolean ReadNumber(source_t *source, fielddef_t *fd, void *p)
 			if (intval < fd->floatmin || intval > fd->floatmax)
 			{
 				SourceError(source, "value %d out of range [%f, %f]", intval, fd->floatmin, fd->floatmax);
-				return 0;
+				return (qboolean) 0;
 			} //end if
 		} //end if
 	} //end else if
@@ -180,7 +180,7 @@ qboolean ReadNumber(source_t *source, fielddef_t *fd, void *p)
 	{
 		*(float *) p = (float) intval;
 	} //end else
-	return 1;
+	return (qboolean) 1;
 } //end of the function ReadNumber
 //===========================================================================
 //
@@ -192,7 +192,7 @@ qboolean ReadChar(source_t *source, fielddef_t *fd, void *p)
 {
 	token_t token;
 
-	if (!PC_ExpectAnyToken(source, &token)) return 0;
+	if (!PC_ExpectAnyToken(source, &token)) return (qboolean) 0;
 
 	//take literals into account
 	if (token.type == TT_LITERAL)
@@ -203,9 +203,9 @@ qboolean ReadChar(source_t *source, fielddef_t *fd, void *p)
 	else
 	{
 		PC_UnreadLastToken(source);
-		if (!ReadNumber(source, fd, p)) return 0;
+		if (!ReadNumber(source, fd, p)) return (qboolean) 0;
 	} //end if
-	return 1;
+	return (qboolean) 1;
 } //end of the function ReadChar
 //===========================================================================
 //

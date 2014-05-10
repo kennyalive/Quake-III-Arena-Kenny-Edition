@@ -1736,7 +1736,7 @@ int BotAllocGoalState(int client)
 	{
 		if (!botgoalstates[i])
 		{
-			botgoalstates[i] = GetClearedMemory(sizeof(bot_goalstate_t));
+			botgoalstates[i] = (bot_goalstate_t*) GetClearedMemory(sizeof(bot_goalstate_t));
 			botgoalstates[i]->client = client;
 			return i;
 		} //end if
