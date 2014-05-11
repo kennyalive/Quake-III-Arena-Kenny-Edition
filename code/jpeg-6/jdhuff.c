@@ -324,7 +324,7 @@ jpeg_huff_decode (bitread_working_state * state,
 		  d_derived_tbl * htbl, int min_bits)
 {
   register int l = min_bits;
-  register INT32 code;
+  register JPEG_INT32 code;
 
   /* HUFF_DECODE has determined that the code is at least min_bits */
   /* bits long, so fetch that many bits in one swoop. */

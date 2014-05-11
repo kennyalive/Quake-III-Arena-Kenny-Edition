@@ -120,8 +120,8 @@ start_pass_fdctmgr (j_compress_ptr cinfo)
 	dtbl = fdct->divisors[qtblno];
 	for (i = 0; i < DCTSIZE2; i++) {
 	  dtbl[i] = (DCTELEM)
-	    DESCALE(MULTIPLY16V16((INT32) qtbl->quantval[jpeg_zigzag_order[i]],
-				  (INT32) aanscales[i]),
+	    DESCALE(MULTIPLY16V16((JPEG_INT32) qtbl->quantval[jpeg_zigzag_order[i]],
+				  (JPEG_INT32) aanscales[i]),
 		    CONST_BITS-3);
 	}
       }

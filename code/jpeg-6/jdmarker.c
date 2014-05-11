@@ -129,7 +129,7 @@ typedef enum {			/* JPEG marker codes */
 		  V = GETJOCTET(*next_input_byte++); )
 
 /* As above, but read two bytes interpreted as an unsigned 16-bit integer.
- * V should be declared unsigned int or perhaps INT32.
+ * V should be declared unsigned int or perhaps JPEG_INT32.
  */
 #define INPUT_2BYTES(cinfo,V,action)  \
 	MAKESTMT( MAKE_BYTE_AVAIL(cinfo,action); \
@@ -204,7 +204,7 @@ LOCAL boolean
 get_sof (j_decompress_ptr cinfo, boolean is_prog, boolean is_arith)
 /* Process a SOFn marker */
 {
-  INT32 length;
+  JPEG_INT32 length;
   int c, ci;
   jpeg_component_info * compptr;
   INPUT_VARS(cinfo);
@@ -268,7 +268,7 @@ LOCAL boolean
 get_sos (j_decompress_ptr cinfo)
 /* Process a SOS marker */
 {
-  INT32 length;
+  JPEG_INT32 length;
   int i, ci, n, c, cc;
   jpeg_component_info * compptr;
   INPUT_VARS(cinfo);
@@ -339,7 +339,7 @@ get_app0 (j_decompress_ptr cinfo)
 /* Process an APP0 marker */
 {
 #define JFIF_LEN 14
-  INT32 length;
+  JPEG_INT32 length;
   UINT8 b[JFIF_LEN];
   int buffp;
   INPUT_VARS(cinfo);
@@ -374,7 +374,7 @@ get_app0 (j_decompress_ptr cinfo)
 	       cinfo->X_density, cinfo->Y_density, cinfo->density_unit);
       if (b[12] | b[13])
 	TRACEMS2(cinfo, 1, JTRC_JFIF_THUMBNAIL, b[12], b[13]);
-      if (length != ((INT32) b[12] * (INT32) b[13] * (INT32) 3))
+      if (length != ((JPEG_INT32) b[12] * (JPEG_INT32) b[13] * (JPEG_INT32) 3))
 	TRACEMS1(cinfo, 1, JTRC_JFIF_BADTHUMBNAILSIZE, (int) length);
     } else {
       /* Start of APP0 does not match "JFIF" */
@@ -398,7 +398,7 @@ get_app14 (j_decompress_ptr cinfo)
 /* Process an APP14 marker */
 {
 #define ADOBE_LEN 12
-  INT32 length;
+  JPEG_INT32 length;
   UINT8 b[ADOBE_LEN];
   int buffp;
   unsigned int version, flags0, flags1, transform;
@@ -444,7 +444,7 @@ LOCAL boolean
 get_dac (j_decompress_ptr cinfo)
 /* Process a DAC marker */
 {
-  INT32 length;
+  JPEG_INT32 length;
   int index, val;
   INPUT_VARS(cinfo);
 
@@ -481,7 +481,7 @@ LOCAL boolean
 get_dht (j_decompress_ptr cinfo)
 /* Process a DHT marker */
 {
-  INT32 length;
+  JPEG_INT32 length;
   UINT8 bits[17];
   UINT8 huffval[256];
   int i, index, count;
@@ -512,7 +512,7 @@ get_dht (j_decompress_ptr cinfo)
 	     bits[9], bits[10], bits[11], bits[12],
 	     bits[13], bits[14], bits[15], bits[16]);
 
-    if (count > 256 || ((INT32) count) > length)
+    if (count > 256 || ((JPEG_INT32) count) > length)
       ERREXIT(cinfo, JERR_DHT_COUNTS);
 
     for (i = 0; i < count; i++)
@@ -546,7 +546,7 @@ LOCAL boolean
 get_dqt (j_decompress_ptr cinfo)
 /* Process a DQT marker */
 {
-  INT32 length;
+  JPEG_INT32 length;
   int n, i, prec;
   unsigned int tmp;
   JQUANT_TBL *quant_ptr;
@@ -598,7 +598,7 @@ LOCAL boolean
 get_dri (j_decompress_ptr cinfo)
 /* Process a DRI marker */
 {
-  INT32 length;
+  JPEG_INT32 length;
   unsigned int tmp;
   INPUT_VARS(cinfo);
 
@@ -622,7 +622,7 @@ METHODDEF boolean
 skip_variable (j_decompress_ptr cinfo)
 /* Skip over an unknown or uninteresting variable-length marker */
 {
-  INT32 length;
+  JPEG_INT32 length;
   INPUT_VARS(cinfo);
 
   INPUT_2BYTES(cinfo, length, return FALSE);
