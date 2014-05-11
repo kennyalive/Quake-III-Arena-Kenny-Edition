@@ -477,7 +477,7 @@ static qboolean GLW_InitDriver( const char *drivername, int colorbits )
 	//
 	if ( !glw_state.pixelFormatSet )
 	{
-		GLW_CreatePFD( &pfd, colorbits, depthbits, stencilbits, r_stereo->integer );
+		GLW_CreatePFD( &pfd, colorbits, depthbits, stencilbits, (qboolean) r_stereo->integer );
 		if ( ( tpfd = GLW_MakeContext( &pfd ) ) != TRY_PFD_SUCCESS )
 		{
 			if ( tpfd == TRY_PFD_FAIL_HARD )
@@ -507,7 +507,7 @@ static qboolean GLW_InitDriver( const char *drivername, int colorbits )
 			{
 				colorbits = glw_state.desktopBitsPixel;
 			}
-			GLW_CreatePFD( &pfd, colorbits, depthbits, 0, r_stereo->integer );
+			GLW_CreatePFD( &pfd, colorbits, depthbits, 0, (qboolean) r_stereo->integer );
 			if ( GLW_MakeContext( &pfd ) != TRY_PFD_SUCCESS )
 			{
 				if ( glw_state.hDC )
@@ -572,7 +572,7 @@ static qboolean GLW_CreateWindow( const char *drivername, int width, int height,
 		wc.hInstance     = g_wv.hInstance;
 		wc.hIcon         = LoadIcon( g_wv.hInstance, MAKEINTRESOURCE(IDI_ICON1));
 		wc.hCursor       = LoadCursor (NULL,IDC_ARROW);
-		wc.hbrBackground = (void *)COLOR_GRAYTEXT;
+		wc.hbrBackground = (HBRUSH) (void *)COLOR_GRAYTEXT;
 		wc.lpszMenuName  = 0;
 		wc.lpszClassName = WINDOW_CLASS_NAME;
 
@@ -1079,7 +1079,7 @@ static qboolean GLW_LoadOpenGL( const char *drivername )
 	// 
 	if ( QGL_Init( buffer ) ) 
 	{
-		cdsFullscreen = r_fullscreen->integer;
+		cdsFullscreen = (qboolean) r_fullscreen->integer;
 
 		// create the window and set up the context
 		if ( !GLW_StartDriverAndSetMode( drivername, r_mode->integer, r_colorbits->integer, cdsFullscreen ) )
@@ -1122,7 +1122,7 @@ void GLimp_EndFrame (void)
 	}
 
 	// check logging
-	QGL_EnableLogging( r_logFile->integer );
+	QGL_EnableLogging( (qboolean) r_logFile->integer );
 }
 
 static void GLW_StartOpenGL( void )
@@ -1198,10 +1198,10 @@ void GLimp_Init( void )
 	GLW_StartOpenGL();
 
 	// get our config strings
-	Q_strncpyz( glConfig.vendor_string, qglGetString (GL_VENDOR), sizeof( glConfig.vendor_string ) );
-	Q_strncpyz( glConfig.renderer_string, qglGetString (GL_RENDERER), sizeof( glConfig.renderer_string ) );
-	Q_strncpyz( glConfig.version_string, qglGetString (GL_VERSION), sizeof( glConfig.version_string ) );
-	Q_strncpyz( glConfig.extensions_string, qglGetString (GL_EXTENSIONS), sizeof( glConfig.extensions_string ) );
+	Q_strncpyz( glConfig.vendor_string, (const char*) qglGetString (GL_VENDOR), sizeof( glConfig.vendor_string ) );
+	Q_strncpyz(glConfig.renderer_string, (const char*)qglGetString(GL_RENDERER), sizeof(glConfig.renderer_string));
+	Q_strncpyz(glConfig.version_string, (const char*)qglGetString(GL_VERSION), sizeof(glConfig.version_string));
+	Q_strncpyz(glConfig.extensions_string, (const char*)qglGetString(GL_EXTENSIONS), sizeof(glConfig.extensions_string));
 
 	//
 	// chipset specific configuration
@@ -1379,7 +1379,7 @@ qboolean GLimp_SpawnRenderThread( void (*function)( void ) ) {
 	   (LPTHREAD_START_ROUTINE)GLimp_RenderThreadWrapper,	// LPTHREAD_START_ROUTINE lpStartAddr,
 	   0,			// LPVOID lpvThreadParm,
 	   0,			//   DWORD fdwCreate,
-	   &renderThreadId );
+	   (LPDWORD)&renderThreadId );
 
 	if ( !renderThreadHandle ) {
 		return qfalse;

@@ -368,7 +368,7 @@ void RE_RegisterFont(const char *fontName, int pointSize, fontInfo_t *font) {
 	if (len == sizeof(fontInfo_t)) {
 		ri.FS_ReadFile(name, &faceData);
 		fdOffset = 0;
-		fdFile = faceData;
+		fdFile = (byte*) faceData;
 		for(i=0; i<GLYPHS_PER_FONT; i++) {
 			font->glyphs[i].height		= readInt();
 			font->glyphs[i].top			= readInt();
