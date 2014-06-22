@@ -138,20 +138,7 @@ float	FloatSwap (const float *f);
 #undef QDECL
 #define	QDECL	__cdecl
 
-// buildstring will be incorporated into the version string
-#ifdef NDEBUG
-#ifdef _M_IX86
-#define	CPUSTRING	"win-x86"
-#elif defined _M_ALPHA
-#define	CPUSTRING	"win-AXP"
-#endif
-#else
-#ifdef _M_IX86
-#define	CPUSTRING	"win-x86-debug"
-#elif defined _M_ALPHA
-#define	CPUSTRING	"win-AXP-debug"
-#endif
-#endif
+#define CPUSTRING "generic"
 
 #define ID_INLINE __inline 
 

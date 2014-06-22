@@ -325,7 +325,7 @@ Dlls will call this directly
 ============
 */
 int QDECL VM_DllSyscall( int arg, ... ) {
-#if ((defined __linux__) && (defined __powerpc__))
+#ifdef _WIN64
   // rcg010206 - see commentary above
   int args[16];
   int i;
@@ -541,6 +541,10 @@ vm_t *VM_Create( const char *module, int (*systemCalls)(int *),
 	// copy or compile the instructions
 	vm->codeLength = header->codeLength;
 
+#ifdef _WIN64
+	vm->compiled = qfalse;
+	VM_PrepareInterpreter( vm, header );
+#else
 	if ( interpret >= VMI_COMPILED ) {
 		vm->compiled = qtrue;
 		VM_Compile( vm, header );
@@ -548,6 +552,7 @@ vm_t *VM_Create( const char *module, int (*systemCalls)(int *),
 		vm->compiled = qfalse;
 		VM_PrepareInterpreter( vm, header );
 	}
+#endif
 
 	// free the original file
 	FS_FreeFile( header );
@@ -698,10 +703,27 @@ int	QDECL VM_Call( vm_t *vm, int callnum, ... ) {
                             args[4],  args[5],  args[6], args[7],
                             args[8],  args[9], args[10], args[11],
                             args[12], args[13], args[14], args[15]);
-	} else if ( vm->compiled ) {
+	}
+#ifndef _WIN64
+	else if ( vm->compiled )
+	{
 		r = VM_CallCompiled( vm, &callnum );
-	} else {
-		r = VM_CallInterpreted( vm, &callnum );
+	}
+#endif
+	else
+	{
+		struct {
+			int callnum;
+			int args[10];
+		} a;
+		a.callnum = callnum;
+		va_start(ap, callnum);
+		for (i = 0; i < sizeof (a.args) / sizeof (a.args[i]); i++) {
+			a.args[i] = va_arg(ap, int);
+		}
+		va_end(ap);
+
+		r = VM_CallInterpreted( vm, &a );
 	}
 
 	if ( oldVM != NULL ) // bk001220 - assert(currentVM!=NULL) for oldVM==NULL
