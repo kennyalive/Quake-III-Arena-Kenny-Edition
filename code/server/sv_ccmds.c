@@ -567,7 +567,7 @@ static void SV_Status_f( void ) {
     // TTimo adding a ^7 to reset the color
     // NOTE: colored names in status breaks the padding (WONTFIX)
     Com_Printf ("^7");
-		l = 16 - strlen(cl->name);
+		l = 16 - (int)strlen(cl->name);
 		for (j=0 ; j<l ; j++)
 			Com_Printf (" ");
 
@@ -575,7 +575,7 @@ static void SV_Status_f( void ) {
 
 		s = NET_AdrToString( cl->netchan.remoteAddress );
 		Com_Printf ("%s", s);
-		l = 22 - strlen(s);
+		l = 22 - (int)strlen(s);
 		for (j=0 ; j<l ; j++)
 			Com_Printf (" ");
 		

@@ -153,7 +153,7 @@ void CL_ChangeReliableCommand( void ) {
 
 	r = clc.reliableSequence - (random() * 5);
 	index = clc.reliableSequence & ( MAX_RELIABLE_COMMANDS - 1 );
-	l = strlen(clc.reliableCommands[ index ]);
+	l = (int)strlen(clc.reliableCommands[ index ]);
 	if ( l >= MAX_STRING_CHARS - 1 ) {
 		l = MAX_STRING_CHARS - 2;
 	}
@@ -513,7 +513,7 @@ void CL_PlayDemo_f( void ) {
 	arg = Cmd_Argv(1);
 	
 	// check for an extension .dm_?? (?? is protocol)
-	ext_test = arg + strlen(arg) - 6;
+	ext_test = arg + (int)strlen(arg) - 6;
 	if ((strlen(arg) > 6) && (ext_test[0] == '.') && ((ext_test[1] == 'd') || (ext_test[1] == 'D')) && ((ext_test[2] == 'm') || (ext_test[2] == 'M')) && (ext_test[3] == '_'))
 	{
 		protocol = atoi(ext_test+4);
@@ -909,7 +909,7 @@ void CL_RequestAuthorization( void ) {
 	} else {
 		// only grab the alphanumeric values from the cdkey, to avoid any dashes or spaces
 		j = 0;
-		l = strlen( cl_cdkey );
+		l = (int)strlen( cl_cdkey );
 		if ( l > 32 ) {
 			l = 32;
 		}
@@ -1139,7 +1139,7 @@ void CL_Rcon_f( void ) {
 		}
 	}
 	
-	NET_SendPacket (NS_CLIENT, strlen(message)+1, message, to);
+	NET_SendPacket (NS_CLIENT, (int)strlen(message)+1, message, to);
 }
 
 /*
@@ -1428,14 +1428,14 @@ void CL_NextDownload(void) {
 		if ( (s = strchr(s, '@')) != NULL )
 			*s++ = 0;
 		else
-			s = localName + strlen(localName); // point at the nul byte
+			s = localName + (int)strlen(localName); // point at the nul byte
 
 		CL_BeginDownload( localName, remoteName );
 
 		clc.downloadRestart = qtrue;
 
 		// move over the rest
-		memmove( clc.downloadList, s, strlen(s) + 1);
+		memmove( clc.downloadList, s, (int)strlen(s) + 1);
 
 		return;
 	}
@@ -2767,7 +2767,7 @@ void CL_ServerStatusResponse( netadr_t from, msg_t *msg ) {
 		}
 	}
 
-	len = strlen(serverStatus->string);
+	len = (int)strlen(serverStatus->string);
 	Com_sprintf(&serverStatus->string[len], sizeof(serverStatus->string)-len, "\\");
 
 	if (serverStatus->print) {
@@ -2776,7 +2776,7 @@ void CL_ServerStatusResponse( netadr_t from, msg_t *msg ) {
 	}
 	for (i = 0, s = MSG_ReadStringLine( msg ); *s; s = MSG_ReadStringLine( msg ), i++) {
 
-		len = strlen(serverStatus->string);
+		len = (int)strlen(serverStatus->string);
 		Com_sprintf(&serverStatus->string[len], sizeof(serverStatus->string)-len, "\\%s", s);
 
 		if (serverStatus->print) {
@@ -2792,7 +2792,7 @@ void CL_ServerStatusResponse( netadr_t from, msg_t *msg ) {
 			Com_Printf("%-2d   %-3d    %-3d   %s\n", i, score, ping, s );
 		}
 	}
-	len = strlen(serverStatus->string);
+	len = (int)strlen(serverStatus->string);
 	Com_sprintf(&serverStatus->string[len], sizeof(serverStatus->string)-len, "\\");
 
 	serverStatus->time = Com_Milliseconds();
@@ -2840,10 +2840,10 @@ void CL_LocalServers_f( void ) {
 			to.port = BigShort( (short)(PORT_SERVER + j) );
 
 			to.type = NA_BROADCAST;
-			NET_SendPacket( NS_CLIENT, strlen( message ), message, to );
+			NET_SendPacket( NS_CLIENT, (int)strlen( message ), message, to );
 
 			to.type = NA_BROADCAST_IPX;
-			NET_SendPacket( NS_CLIENT, strlen( message ), message, to );
+			NET_SendPacket( NS_CLIENT, (int)strlen( message ), message, to );
 		}
 	}
 }
@@ -2888,7 +2888,7 @@ void CL_GlobalServers_f( void ) {
 	sprintf( command, "getservers %s", Cmd_Argv(2) );
 
 	// tack on keywords
-	buffptr = command + strlen( command );
+	buffptr = command + (int)strlen( command );
 	count   = Cmd_Argc();
 	for (i=3; i<count; i++)
 		buffptr += sprintf( buffptr, " %s", Cmd_Argv(i) );
@@ -3268,12 +3268,12 @@ qboolean CL_CDKeyValidate( const char *key, const char *checksum ) {
 	char	chs[3];
 	int i, len;
 
-	len = strlen(key);
+	len = (int)strlen(key);
 	if( len != CDKEY_LEN ) {
 		return qfalse;
 	}
 
-	if( checksum && strlen( checksum ) != CDCHKSUM_LEN ) {
+	if( checksum && (int)strlen( checksum ) != CDCHKSUM_LEN ) {
 		return qfalse;
 	}
 

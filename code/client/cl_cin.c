@@ -990,7 +990,7 @@ static void setupQuad( long xOff, long yOff )
 	long numQuadCels, i,x,y;
 	byte *temp;
 
-	if (xOff == cin.oldXOff && yOff == cin.oldYOff && cinTable[currentHandle].ysize == cin.oldysize && cinTable[currentHandle].xsize == cin.oldxsize) {
+	if (xOff == cin.oldXOff && yOff == cin.oldYOff && (long)cinTable[currentHandle].ysize == cin.oldysize && (long)cinTable[currentHandle].xsize == cin.oldxsize) {
 		return;
 	}
 
@@ -1430,7 +1430,7 @@ e_status CIN_RunCinematic (int handle)
 		&& (cinTable[currentHandle].status == FMV_PLAY) ) 
 	{
 		RoQInterrupt();
-		if (start != cinTable[currentHandle].startTime) {
+		if (start != (int)cinTable[currentHandle].startTime) {
 			// we need to use CL_ScaledMilliseconds because of the smp mode calls from the renderer
 		  cinTable[currentHandle].tfps = ((((CL_ScaledMilliseconds()*com_timescale->value)
 							  - cinTable[currentHandle].startTime)*3)/100);

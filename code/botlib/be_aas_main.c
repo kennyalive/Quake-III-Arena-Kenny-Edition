@@ -148,7 +148,7 @@ void AAS_UpdateStringIndexes(int numconfigstrings, char *configstrings[])
 		if (configstrings[i])
 		{
 			//if (aasworld.configstrings[i]) FreeMemory(aasworld.configstrings[i]);
-			aasworld.configstrings[i] = (char *) GetMemory(strlen(configstrings[i]) + 1);
+			aasworld.configstrings[i] = (char *) GetMemory((int)strlen(configstrings[i]) + 1);
 			strcpy(aasworld.configstrings[i], configstrings[i]);
 		} //end if
 	} //end for

@@ -100,7 +100,7 @@ int SV_ReplacePendingServerCommands( client_t *client, const char *cmd ) {
 	for ( i = client->reliableSent+1; i <= client->reliableSequence; i++ ) {
 		index = i & ( MAX_RELIABLE_COMMANDS - 1 );
 		//
-		if ( !Q_strncmp(cmd, client->reliableCommands[ index ], strlen("cs")) ) {
+		if ( !Q_strncmp(cmd, client->reliableCommands[ index ], (int)strlen("cs")) ) {
 			sscanf(cmd, "cs %i", &csnum1);
 			sscanf(client->reliableCommands[ index ], "cs %i", &csnum2);
 			if ( csnum1 == csnum2 ) {
@@ -343,7 +343,7 @@ void SVC_Status( netadr_t from ) {
 			ps = SV_GameClientNum( i );
 			Com_sprintf (player, sizeof(player), "%i %i \"%s\"\n", 
 				ps->persistant[PERS_SCORE], cl->ping, cl->name);
-			playerLength = strlen(player);
+			playerLength = (int)strlen(player);
 			if (statusLength + playerLength >= sizeof(status) ) {
 				break;		// can't hold any more
 			}

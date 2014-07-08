@@ -1100,7 +1100,7 @@ void QDECL G_LogPrintf( const char *fmt, ... ) {
 		return;
 	}
 
-	trap_FS_Write( string, strlen( string ), level.logFile );
+	trap_FS_Write( string, (int)strlen( string ), level.logFile );
 }
 
 /*

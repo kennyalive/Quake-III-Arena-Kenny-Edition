@@ -91,7 +91,7 @@ UI_CDKeyMenu_PreValidateKey
 static int UI_CDKeyMenu_PreValidateKey( const char *key ) {
 	char	ch;
 
-	if( strlen( key ) != 16 ) {
+	if( (int)strlen( key ) != 16 ) {
 		return 1;
 	}
 

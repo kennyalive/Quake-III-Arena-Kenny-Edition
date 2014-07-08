@@ -1122,7 +1122,7 @@ void CG_BuildSpectatorString() {
 			Q_strcat(cg.spectatorList, sizeof(cg.spectatorList), va("%s     ", cgs.clientinfo[i].name));
 		}
 	}
-	i = strlen(cg.spectatorList);
+	i = (int)strlen(cg.spectatorList);
 	if (i != cg.spectatorLen) {
 		cg.spectatorLen = i;
 		cg.spectatorWidth = -1;

@@ -331,7 +331,7 @@ static void PlayerModel_PicEvent( void* ptr, int event )
 
 	// get model and strip icon_
 	modelnum = s_playermodel.modelpage*MAX_MODELSPERPAGE + i;
-	buffptr  = s_playermodel.modelnames[modelnum] + strlen("models/players/");
+	buffptr  = s_playermodel.modelnames[modelnum] + (int)strlen("models/players/");
 	pdest    = strstr(buffptr,"icon_");
 	if (pdest)
 	{
@@ -347,7 +347,7 @@ static void PlayerModel_PicEvent( void* ptr, int event )
 		Q_strupr( s_playermodel.modelname.string );
 
 		// seperate the skin name
-		maxlen = strlen(pdest+5)+1;
+		maxlen = (int)strlen(pdest+5)+1;
 		if (maxlen > 16)
 			maxlen = 16;
 		Q_strncpyz( s_playermodel.skinname.string, pdest+5, maxlen );
@@ -410,7 +410,7 @@ static void PlayerModel_BuildList( void )
 	dirptr  = dirlist;
 	for (i=0; i<numdirs && s_playermodel.nummodels < MAX_PLAYERMODELS; i++,dirptr+=dirlen+1)
 	{
-		dirlen = strlen(dirptr);
+		dirlen = (int)strlen(dirptr);
 		
 		if (dirlen && dirptr[dirlen-1]=='/') dirptr[dirlen-1]='\0';
 
@@ -422,7 +422,7 @@ static void PlayerModel_BuildList( void )
 		fileptr  = filelist;
 		for (j=0; j<numfiles && s_playermodel.nummodels < MAX_PLAYERMODELS;j++,fileptr+=filelen+1)
 		{
-			filelen = strlen(fileptr);
+			filelen = (int)strlen(fileptr);
 
 			COM_StripExtension(fileptr,skinname);
 
@@ -473,7 +473,7 @@ static void PlayerModel_SetMenuItems( void )
 	for (i=0; i<s_playermodel.nummodels; i++)
 	{
 		// strip icon_
-		buffptr  = s_playermodel.modelnames[i] + strlen("models/players/");
+		buffptr  = s_playermodel.modelnames[i] + (int)strlen("models/players/");
 		pdest    = strstr(buffptr,"icon_");
 		if (pdest)
 		{
@@ -497,7 +497,7 @@ static void PlayerModel_SetMenuItems( void )
 			Q_strupr( s_playermodel.modelname.string );
 
 			// seperate the skin name
-			maxlen = strlen(pdest+5)+1;
+			maxlen = (int)strlen(pdest+5)+1;
 			if (maxlen > 16)
 				maxlen = 16;
 			Q_strncpyz( s_playermodel.skinname.string, pdest+5, maxlen );

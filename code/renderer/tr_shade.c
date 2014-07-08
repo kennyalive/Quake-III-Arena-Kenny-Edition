@@ -87,7 +87,7 @@ static void R_DrawStripElements( int numIndexes, const glIndex_t *indexes, void 
 		if ( !even )
 		{
 			// check previous triangle to see if we're continuing a strip
-			if ( ( indexes[i+0] == last[2] ) && ( indexes[i+1] == last[1] ) )
+			if ( ( (int)indexes[i+0] == last[2] ) && ( (int)indexes[i+1] == last[1] ) )
 			{
 				element( indexes[i+2] );
 				c_vertexes++;
@@ -115,7 +115,7 @@ static void R_DrawStripElements( int numIndexes, const glIndex_t *indexes, void 
 		else
 		{
 			// check previous triangle to see if we're continuing a strip
-			if ( ( last[2] == indexes[i+1] ) && ( last[0] == indexes[i+0] ) )
+			if ( ( last[2] == (int)indexes[i+1] ) && ( last[0] == (int)indexes[i+0] ) )
 			{
 				element( indexes[i+2] );
 				c_vertexes++;

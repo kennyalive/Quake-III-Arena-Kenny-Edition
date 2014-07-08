@@ -122,11 +122,11 @@ void UpdateTournamentInfo( void ) {
 #endif
 	}
 
-	msglen = strlen( msg );
+	msglen = (int)strlen( msg );
 	for( i = 0; i < level.numNonSpectatorClients; i++ ) {
 		n = level.sortedClients[i];
 		Com_sprintf( buf, sizeof(buf), " %i %i %i", n, level.clients[n].ps.persistant[PERS_RANK], level.clients[n].ps.persistant[PERS_SCORE] );
-		buflen = strlen( buf );
+		buflen = (int)strlen( buf );
 		if( msglen + buflen + 1 >= sizeof(msg) ) {
 			break;
 		}

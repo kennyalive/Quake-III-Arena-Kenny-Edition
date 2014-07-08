@@ -150,7 +150,7 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 	va_end (argptr);
 
 	if ( rd_buffer ) {
-		if ((strlen (msg) + strlen(rd_buffer)) > (rd_buffersize - 1)) {
+		if ((strlen (msg) + (int)strlen(rd_buffer)) > (rd_buffersize - 1)) {
 			rd_flush(rd_buffer);
 			*rd_buffer = 0;
 		}
@@ -193,7 +193,7 @@ void QDECL Com_Printf( const char *fmt, ... ) {
       opening_qconsole = qfalse;
 		}
 		if ( logfile && FS_Initialized()) {
-			FS_Write(msg, strlen(msg), logfile);
+			FS_Write(msg, (int)strlen(msg), logfile);
 		}
 	}
 }
@@ -525,7 +525,7 @@ Com_StringContains
 char *Com_StringContains(char *str1, char *str2, int casesensitive) {
 	int len, i, j;
 
-	len = strlen(str1) - strlen(str2);
+	len = (int)strlen(str1) - (int)strlen(str2);
 	for (i = 0; i <= len; i++, str1++) {
 		for (j = 0; str2[j]; j++) {
 			if (casesensitive) {
@@ -569,7 +569,7 @@ int Com_Filter(char *filter, char *name, int casesensitive)
 			if (strlen(buf)) {
 				ptr = Com_StringContains(name, buf, casesensitive);
 				if (!ptr) return qfalse;
-				name = ptr + strlen(buf);
+				name = ptr + (int)strlen(buf);
 			}
 		}
 		else if (*filter == '?') {
@@ -1062,7 +1062,7 @@ void Z_LogZoneHeap( memzone_t *zone, char *name ) {
 		return;
 	size = allocSize = numBlocks = 0;
 	Com_sprintf(buf, sizeof(buf), "\r\n================\r\n%s log\r\n================\r\n", name);
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 	for (block = zone->blocklist.next ; block->next != &zone->blocklist; block = block->next) {
 		if (block->tag) {
 #ifdef ZONE_DEBUG
@@ -1078,7 +1078,7 @@ void Z_LogZoneHeap( memzone_t *zone, char *name ) {
 			}
 			dump[j] = '\0';
 			Com_sprintf(buf, sizeof(buf), "size = %8d: %s, line: %d (%s) [%s]\r\n", block->d.allocSize, block->d.file, block->d.line, block->d.label, dump);
-			FS_Write(buf, strlen(buf), logfile);
+			FS_Write(buf, (int)strlen(buf), logfile);
 			allocSize += block->d.allocSize;
 #endif
 			size += block->size;
@@ -1092,9 +1092,9 @@ void Z_LogZoneHeap( memzone_t *zone, char *name ) {
 	allocSize = numBlocks * sizeof(memblock_t); // + 32 bit alignment
 #endif
 	Com_sprintf(buf, sizeof(buf), "%d %s memory in %d blocks\r\n", size, name, numBlocks);
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 	Com_sprintf(buf, sizeof(buf), "%d %s memory overhead\r\n", size - allocSize, name);
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 }
 
 /*
@@ -1148,7 +1148,7 @@ char *CopyString( const char *in ) {
 			return ((char *)&numberstring[in[0]-'0']) + sizeof(memblock_t);
 		}
 	}
-	out = S_Malloc (strlen(in)+1);
+	out = S_Malloc ((int)strlen(in)+1);
 	strcpy (out, in);
 	return out;
 }
@@ -1417,19 +1417,19 @@ void Hunk_Log( void) {
 	size = 0;
 	numBlocks = 0;
 	Com_sprintf(buf, sizeof(buf), "\r\n================\r\nHunk log\r\n================\r\n");
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 	for (block = hunkblocks ; block; block = block->next) {
 #ifdef HUNK_DEBUG
 		Com_sprintf(buf, sizeof(buf), "size = %8d: %s, line: %d (%s)\r\n", block->size, block->file, block->line, block->label);
-		FS_Write(buf, strlen(buf), logfile);
+		FS_Write(buf, (int)strlen(buf), logfile);
 #endif
 		size += block->size;
 		numBlocks++;
 	}
 	Com_sprintf(buf, sizeof(buf), "%d Hunk memory\r\n", size);
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 	Com_sprintf(buf, sizeof(buf), "%d hunk blocks\r\n", numBlocks);
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 }
 
 /*
@@ -1450,7 +1450,7 @@ void Hunk_SmallLog( void) {
 	size = 0;
 	numBlocks = 0;
 	Com_sprintf(buf, sizeof(buf), "\r\n================\r\nHunk Small log\r\n================\r\n");
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 	for (block = hunkblocks; block; block = block->next) {
 		if (block->printed) {
 			continue;
@@ -1469,15 +1469,15 @@ void Hunk_SmallLog( void) {
 		}
 #ifdef HUNK_DEBUG
 		Com_sprintf(buf, sizeof(buf), "size = %8d: %s, line: %d (%s)\r\n", locsize, block->file, block->line, block->label);
-		FS_Write(buf, strlen(buf), logfile);
+		FS_Write(buf, (int)strlen(buf), logfile);
 #endif
 		size += block->size;
 		numBlocks++;
 	}
 	Com_sprintf(buf, sizeof(buf), "%d Hunk memory\r\n", size);
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 	Com_sprintf(buf, sizeof(buf), "%d hunk blocks\r\n", numBlocks);
-	FS_Write(buf, strlen(buf), logfile);
+	FS_Write(buf, (int)strlen(buf), logfile);
 }
 
 /*
@@ -3191,7 +3191,7 @@ FindMatches
 static void FindMatches( const char *s ) {
 	int		i;
 
-	if ( Q_stricmpn( s, completionString, strlen( completionString ) ) ) {
+	if ( Q_stricmpn( s, completionString, (int)strlen( completionString ) ) ) {
 		return;
 	}
 	matchCount++;
@@ -3215,7 +3215,7 @@ PrintMatches
 ===============
 */
 static void PrintMatches( const char *s ) {
-	if ( !Q_stricmpn( s, shortestMatch, strlen( shortestMatch ) ) ) {
+	if ( !Q_stricmpn( s, shortestMatch, (int)strlen( shortestMatch ) ) ) {
 		Com_Printf( "    %s\n", s );
 	}
 }
@@ -3250,7 +3250,7 @@ static void ConcatRemaining( const char *src, const char *start ) {
 		return;
 	}
 
-	str += strlen(start);
+	str += (int)strlen(start);
 	Q_strcat( completionField->buffer, sizeof( completionField->buffer ), str);
 }
 
@@ -3278,7 +3278,7 @@ void Field_CompleteCommand( field_t *field ) {
 	matchCount = 0;
 	shortestMatch[0] = 0;
 
-	if ( strlen( completionString ) == 0 ) {
+	if ( (int)strlen( completionString ) == 0 ) {
 		return;
 	}
 
@@ -3298,13 +3298,13 @@ void Field_CompleteCommand( field_t *field ) {
 		} else {
 			ConcatRemaining( temp.buffer, completionString );
 		}
-		completionField->cursor = strlen( completionField->buffer );
+		completionField->cursor = (int)strlen( completionField->buffer );
 		return;
 	}
 
 	// multiple matches, complete to shortest
 	Com_sprintf( completionField->buffer, sizeof( completionField->buffer ), "\\%s", shortestMatch );
-	completionField->cursor = strlen( completionField->buffer );
+	completionField->cursor = (int)strlen( completionField->buffer );
 	ConcatRemaining( temp.buffer, completionString );
 
 	Com_Printf( "]%s\n", completionField->buffer );

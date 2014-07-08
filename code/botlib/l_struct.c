@@ -347,7 +347,7 @@ int WriteFloat(FILE *fp, float value)
 	int l;
 
 	sprintf(buf, "%f", value);
-	l = strlen(buf);
+	l = (int)strlen(buf);
 	//strip any trailing zeros
 	while(l-- > 1)
 	{

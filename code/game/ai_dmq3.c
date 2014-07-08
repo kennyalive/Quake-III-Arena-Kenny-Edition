@@ -1492,19 +1492,19 @@ char *EasyClientName(int client, char *buf, int size) {
 	for (i = 0; name[i]; i++) name[i] &= 127;
 	//remove all spaces
 	for (ptr = strstr(name, " "); ptr; ptr = strstr(name, " ")) {
-		memmove(ptr, ptr+1, strlen(ptr+1)+1);
+		memmove(ptr, ptr+1, (int)strlen(ptr+1)+1);
 	}
 	//check for [x] and ]x[ clan names
 	str1 = strstr(name, "[");
 	str2 = strstr(name, "]");
 	if (str1 && str2) {
-		if (str2 > str1) memmove(str1, str2+1, strlen(str2+1)+1);
-		else memmove(str2, str1+1, strlen(str1+1)+1);
+		if (str2 > str1) memmove(str1, str2+1, (int)strlen(str2+1)+1);
+		else memmove(str2, str1+1, (int)strlen(str1+1)+1);
 	}
 	//remove Mr prefix
 	if ((name[0] == 'm' || name[0] == 'M') &&
 			(name[1] == 'r' || name[1] == 'R')) {
-		memmove(name, name+2, strlen(name+2)+1);
+		memmove(name, name+2, (int)strlen(name+2)+1);
 	}
 	//only allow lower case alphabet characters
 	ptr = name;
@@ -1519,7 +1519,7 @@ char *EasyClientName(int client, char *buf, int size) {
 			ptr++;
 		}
 		else {
-			memmove(ptr, ptr+1, strlen(ptr + 1)+1);
+			memmove(ptr, ptr+1, (int)strlen(ptr + 1)+1);
 		}
 	}
 	strncpy(buf, name, size-1);

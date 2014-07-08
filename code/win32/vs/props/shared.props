@@ -10,6 +10,9 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile />
+    <ClCompile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />
 </Project>

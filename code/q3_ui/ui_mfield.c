@@ -39,7 +39,7 @@ void MField_Draw( mfield_t *edit, int x, int y, int style, vec4_t color ) {
 	char	str[MAX_STRING_CHARS];
 
 	drawLen = edit->widthInChars;
-	len     = strlen( edit->buffer ) + 1;
+	len     = (int)strlen( edit->buffer ) + 1;
 
 	// guarantee that cursor will be visible
 	if ( len <= drawLen ) {
@@ -96,12 +96,12 @@ void MField_Draw( mfield_t *edit, int x, int y, int style, vec4_t color ) {
 
 	if (style & UI_CENTER)
 	{
-		len = strlen(str);
+		len = (int)strlen(str);
 		x = x - len*charw/2;
 	}
 	else if (style & UI_RIGHT)
 	{
-		len = strlen(str);
+		len = (int)strlen(str);
 		x = x - len*charw;
 	}
 	
@@ -120,7 +120,7 @@ void MField_Paste( mfield_t *edit ) {
 	trap_GetClipboardData( pasteBuffer, 64 );
 
 	// send as if typed, so insert / overstrike works properly
-	pasteLen = strlen( pasteBuffer );
+	pasteLen = (int)strlen( pasteBuffer );
 	for ( i = 0 ; i < pasteLen ; i++ ) {
 		MField_CharEvent( edit, pasteBuffer[i] );
 	}
@@ -145,7 +145,7 @@ void MField_KeyDownEvent( mfield_t *edit, int key ) {
 		return;
 	}
 
-	len = strlen( edit->buffer );
+	len = (int)strlen( edit->buffer );
 
 	if ( key == K_DEL || key == K_KP_DEL ) {
 		if ( edit->cursor < len ) {
@@ -217,7 +217,7 @@ void MField_CharEvent( mfield_t *edit, int ch ) {
 		return;
 	}
 
-	len = strlen( edit->buffer );
+	len = (int)strlen( edit->buffer );
 
 	if ( ch == 'h' - 'a' + 1 )	{	// ctrl-h is backspace
 		if ( edit->cursor > 0 ) {
@@ -312,7 +312,7 @@ void MenuField_Init( menufield_s* m ) {
 	}	
 
 	if (m->generic.name) {
-		l = (strlen( m->generic.name )+1) * w;		
+		l = ((int)strlen( m->generic.name )+1) * w;		
 	}
 	else {
 		l = 0;

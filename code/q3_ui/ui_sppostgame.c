@@ -484,7 +484,7 @@ static void Prepname( int index ) {
 	trap_GetConfigString( CS_PLAYERS + postgameMenuInfo.clientNums[index], info, MAX_INFO_STRING );
 	Q_strncpyz( name, Info_ValueForKey( info, "n" ), sizeof(name) );
 	Q_CleanStr( name );
-	len = strlen( name );
+	len = (int)strlen( name );
 
 	while( len && UI_ProportionalStringWidth( name ) > 256 ) {
 		len--;

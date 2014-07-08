@@ -61,7 +61,7 @@ int CG_Text_Width(const char *text, float scale, int limit) {
 	useScale = scale * font->glyphScale;
   out = 0;
   if (text) {
-    len = strlen(text);
+    len = (int)strlen(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -98,7 +98,7 @@ int CG_Text_Height(const char *text, float scale, int limit) {
 	useScale = scale * font->glyphScale;
   max = 0;
   if (text) {
-    len = strlen(text);
+    len = (int)strlen(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -146,7 +146,7 @@ void CG_Text_Paint(float x, float y, float scale, vec4_t color, const char *text
 		const char *s = text;
 		trap_R_SetColor( color );
 		memcpy(&newColor[0], &color[0], sizeof(vec4_t));
-    len = strlen(text);
+    len = (int)strlen(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -243,7 +243,7 @@ static void CG_DrawField (int x, int y, int width, int value) {
 	}
 
 	Com_sprintf (num, sizeof(num), "%i", value);
-	l = strlen(num);
+	l = (int)strlen(num);
 	if (l > width)
 		l = width;
 	x += 2 + CHAR_WIDTH*(width - l);

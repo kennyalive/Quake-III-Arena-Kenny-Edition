@@ -88,7 +88,7 @@ Adds command text at the end of the buffer, does NOT add a final \n
 void Cbuf_AddText( const char *text ) {
 	int		l;
 	
-	l = strlen (text);
+	l = (int)strlen (text);
 
 	if (cmd_text.cursize + l >= cmd_text.maxsize)
 	{
@@ -112,7 +112,7 @@ void Cbuf_InsertText( const char *text ) {
 	int		len;
 	int		i;
 
-	len = strlen( text ) + 1;
+	len = (int)strlen( text ) + 1;
 	if ( len + cmd_text.cursize > cmd_text.maxsize ) {
 		Com_Printf( "Cbuf_InsertText overflowed\n" );
 		return;
@@ -143,7 +143,7 @@ void Cbuf_ExecuteText (int exec_when, const char *text)
 	switch (exec_when)
 	{
 	case EXEC_NOW:
-		if (text && strlen(text) > 0) {
+		if (text && (int)strlen(text) > 0) {
 			Cmd_ExecuteString (text);
 		} else {
 			Cbuf_Execute();

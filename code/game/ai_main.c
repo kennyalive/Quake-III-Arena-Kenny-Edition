@@ -990,19 +990,19 @@ int BotAI(int client, float thinktime) {
 			{ /*ConfigStringModified*/ }
 		else if (!Q_stricmp(buf, "print")) {
 			//remove first and last quote from the chat message
-			memmove(args, args+1, strlen(args));
+			memmove(args, args+1, (int)strlen(args));
 			args[strlen(args)-1] = '\0';
 			trap_BotQueueConsoleMessage(bs->cs, CMS_NORMAL, args);
 		}
 		else if (!Q_stricmp(buf, "chat")) {
 			//remove first and last quote from the chat message
-			memmove(args, args+1, strlen(args));
+			memmove(args, args+1, (int)strlen(args));
 			args[strlen(args)-1] = '\0';
 			trap_BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
 		}
 		else if (!Q_stricmp(buf, "tchat")) {
 			//remove first and last quote from the chat message
-			memmove(args, args+1, strlen(args));
+			memmove(args, args+1, (int)strlen(args));
 			args[strlen(args)-1] = '\0';
 			trap_BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
 		}

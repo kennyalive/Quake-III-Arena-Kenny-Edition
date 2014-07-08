@@ -114,7 +114,7 @@ static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		if ( ( com_dedicated && com_dedicated->integer ) )
 		{
 			cmdString = CopyString( "quit" );
-			Sys_QueEvent( 0, SE_CONSOLE, 0, 0, strlen( cmdString ) + 1, cmdString );
+			Sys_QueEvent( 0, SE_CONSOLE, 0, 0, (int)strlen( cmdString ) + 1, cmdString );
 		}
 		else if ( s_wcd.quitOnClose )
 		{
@@ -177,7 +177,7 @@ static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 			else
 			{
 				cmdString = CopyString( "quit" );
-				Sys_QueEvent( 0, SE_CONSOLE, 0, 0, strlen( cmdString ) + 1, cmdString );
+				Sys_QueEvent( 0, SE_CONSOLE, 0, 0, (int)strlen( cmdString ) + 1, cmdString );
 			}
 		}
 		else if ( wParam == CLEAR_ID )
@@ -276,7 +276,7 @@ LONG WINAPI InputLineWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		if ( wParam == 13 )
 		{
 			GetWindowText( s_wcd.hwndInputLine, inputBuffer, sizeof( inputBuffer ) );
-			strncat( s_wcd.consoleText, inputBuffer, sizeof( s_wcd.consoleText ) - strlen( s_wcd.consoleText ) - 5 );
+			strncat( s_wcd.consoleText, inputBuffer, sizeof( s_wcd.consoleText ) - (int)strlen( s_wcd.consoleText ) - 5 );
 			strcat( s_wcd.consoleText, "\n" );
 			SetWindowText( s_wcd.hwndInputLine, "" );
 
@@ -507,9 +507,9 @@ void Conbuf_AppendText( const char *pMsg )
 	//
 	// if the message is REALLY long, use just the last portion of it
 	//
-	if ( strlen( pMsg ) > CONSOLE_BUFFER_SIZE - 1 )
+	if ( (int)strlen( pMsg ) > CONSOLE_BUFFER_SIZE - 1 )
 	{
-		msg = pMsg + strlen( pMsg ) - CONSOLE_BUFFER_SIZE + 1;
+		msg = pMsg + (int)strlen( pMsg ) - CONSOLE_BUFFER_SIZE + 1;
 	}
 	else
 	{

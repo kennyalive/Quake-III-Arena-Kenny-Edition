@@ -748,13 +748,13 @@ void UI_DrawString( int x, int y, const char* str, int style, vec4_t color )
 	{
 		case UI_CENTER:
 			// center justify at x
-			len = strlen(str);
+			len = (int)strlen(str);
 			x   = x - len*charw/2;
 			break;
 
 		case UI_RIGHT:
 			// right justify at x
-			len = strlen(str);
+			len = (int)strlen(str);
 			x   = x - len*charw;
 			break;
 

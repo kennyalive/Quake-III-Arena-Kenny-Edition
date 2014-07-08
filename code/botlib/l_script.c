@@ -189,7 +189,7 @@ void PS_CreatePunctuationTable(script_t *script, punctuation_t *punctuations)
 		//sort the punctuations in this table entry on length (longer punctuations first)
 		for (p = script->punctuationtable[(unsigned int) newp->p[0]]; p; p = p->next)
 		{
-			if (strlen(p->p) < strlen(newp->p))
+			if (strlen(p->p) < (int)strlen(newp->p))
 			{
 				newp->next = p;
 				if (lastp) lastp->next = newp;
@@ -797,7 +797,7 @@ int PS_ReadPunctuation(script_t *script, token_t *token)
 		punc = &script->punctuations[i];
 #endif //PUNCTABLE
 		p = punc->p;
-		len = strlen(p);
+		len = (int)strlen(p);
 		//if the script contains at least as much characters as the punctuation
 		if (script->script_p + len <= script->end_p)
 		{
@@ -1265,7 +1265,7 @@ int ScriptSkipTo(script_t *script, char *value)
 	char firstchar;
 
 	firstchar = *value;
-	len = strlen(value);
+	len = (int)strlen(value);
 	do
 	{
 		if (!PS_ReadWhiteSpace(script)) return 0;

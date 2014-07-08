@@ -75,7 +75,7 @@ void DeathmatchScoreboardMessage( gentity_t *ent ) {
 			cl->ps.persistant[PERS_ASSIST_COUNT], 
 			perfect,
 			cl->ps.persistant[PERS_CAPTURES]);
-		j = strlen(entry);
+		j = (int)strlen(entry);
 		if (stringlength + j > 1024)
 			break;
 		strcpy (string + stringlength, entry);
@@ -134,7 +134,7 @@ char	*ConcatArgs( int start ) {
 	c = trap_Argc();
 	for ( i = start ; i < c ; i++ ) {
 		trap_Argv( i, arg, sizeof( arg ) );
-		tlen = strlen( arg );
+		tlen = (int)strlen( arg );
 		if ( len + tlen >= MAX_STRING_CHARS - 1 ) {
 			break;
 		}
@@ -1401,7 +1401,7 @@ void Cmd_CallTeamVote_f( gentity_t *ent ) {
 	for ( i = 2; i < trap_Argc(); i++ ) {
 		if (i > 2)
 			strcat(arg2, " ");
-		trap_Argv( i, &arg2[strlen(arg2)], sizeof( arg2 ) - strlen(arg2) );
+		trap_Argv( i, &arg2[strlen(arg2)], sizeof( arg2 ) - (int)strlen(arg2) );
 	}
 
 	if( strchr( arg1, ';' ) || strchr( arg2, ';' ) ) {

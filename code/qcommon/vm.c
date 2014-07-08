@@ -264,7 +264,7 @@ void VM_LoadSymbols( vm_t *vm ) {
 			Com_Printf( "WARNING: incomplete line at end of file\n" );
 			break;
 		}
-		chars = strlen( token );
+		chars = (int)strlen( token );
 		sym = Hunk_Alloc( sizeof( *sym ) + chars, h_high );
 		*prev = sym;
 		prev = &sym->next;
@@ -723,7 +723,7 @@ int	QDECL VM_Call( vm_t *vm, int callnum, ... ) {
 		}
 		va_end(ap);
 
-		r = VM_CallInterpreted( vm, &a );
+		r = VM_CallInterpreted( vm, &a.callnum );
 	}
 
 	if ( oldVM != NULL ) // bk001220 - assert(currentVM!=NULL) for oldVM==NULL

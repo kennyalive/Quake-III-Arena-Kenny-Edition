@@ -318,7 +318,7 @@ char *G_NewString( const char *string ) {
 	char	*newb, *new_p;
 	int		i,l;
 	
-	l = strlen(string) + 1;
+	l = (int)strlen(string) + 1;
 
 	newb = G_Alloc( l );
 
@@ -488,7 +488,7 @@ char *G_AddSpawnVarToken( const char *string ) {
 	int		l;
 	char	*dest;
 
-	l = strlen( string );
+	l = (int)strlen( string );
 	if ( level.numSpawnVarChars + l + 1 > MAX_SPAWN_VARS_CHARS ) {
 		G_Error( "G_AddSpawnVarToken: MAX_SPAWN_CHARS" );
 	}

@@ -75,7 +75,7 @@ void Spk_Printf (const char *text, ...)
 
   va_start (argptr,text);
   vsprintf (buf, text, argptr);
-  write(fh, buf, strlen(buf));
+  write(fh, buf, (int)strlen(buf));
   _commit(fh);
   va_end (argptr);
 
@@ -266,8 +266,8 @@ void Sys_ListFilteredFiles( const char *basedir, char *subdirs, char *filter, ch
 static qboolean strgtr(const char *s0, const char *s1) {
 	int l0, l1, i;
 
-	l0 = strlen(s0);
-	l1 = strlen(s1);
+	l0 = (int)strlen(s0);
+	l1 = (int)strlen(s1);
 
 	if (l1<l0) {
 		l0 = l1;
@@ -971,7 +971,7 @@ sysEvent_t Sys_GetEvent( void ) {
 		char	*b;
 		int		len;
 
-		len = strlen( s ) + 1;
+		len = (int)strlen( s ) + 1;
 		b = Z_Malloc( len );
 		Q_strncpyz( b, s, len-1 );
 		Sys_QueEvent( 0, SE_CONSOLE, 0, 0, len, b );
@@ -1090,7 +1090,7 @@ void Sys_Init( void ) {
 
 	// save out a couple things in rom cvars for the renderer to access
 	Cvar_Get( "win_hinstance", va("%p", (void*)g_wv.hInstance), CVAR_ROM );
-	Cvar_Get( "win_wndproc", va("%p", (void*)MainWndProc), CVAR_ROM );
+	Cvar_Get( "win_wndproc", va("%p", MainWndProc), CVAR_ROM );
 
 	//
 	// figure out our CPU

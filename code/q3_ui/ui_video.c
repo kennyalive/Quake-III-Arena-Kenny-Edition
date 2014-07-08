@@ -208,7 +208,7 @@ static void UI_DriverInfo_Menu( void )
 
 	// safety length strings for display
 	for (i=0; i<s_driverinfo.numstrings; i++) {
-		len = strlen(s_driverinfo.strings[i]);
+		len = (int)strlen(s_driverinfo.strings[i]);
 		if (len > 32) {
 			s_driverinfo.strings[i][len-1] = '>';
 			s_driverinfo.strings[i][len]   = '\0';

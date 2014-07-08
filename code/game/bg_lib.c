@@ -195,7 +195,7 @@ loop:	SWAPINIT(a, es);
 // bk001211 - gcc errors on compiling strcpy:  parse error before `__extension__'
 #if defined ( Q3_VM )
 
-size_t strlen( const char *string ) {
+int strlen( const char *string ) {
 	const char	*s;
 
 	s = string;

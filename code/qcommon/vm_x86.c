@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // vm_x86.c -- load time compiler and execution environment for x86
 
+; // to shut up compiler in x64
+
 #ifndef _WIN64
 
 #include "vm_local.h"

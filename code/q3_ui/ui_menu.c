@@ -246,12 +246,12 @@ static qboolean UI_TeamArenaExists( void ) {
 	numdirs = trap_FS_GetFileList( "$modlist", "", dirlist, sizeof(dirlist) );
 	dirptr  = dirlist;
 	for( i = 0; i < numdirs; i++ ) {
-		dirlen = strlen( dirptr ) + 1;
+		dirlen = (int)strlen( dirptr ) + 1;
     descptr = dirptr + dirlen;
 		if (Q_stricmp(dirptr, "missionpack") == 0) {
 			return qtrue;
 		}
-    dirptr += dirlen + strlen(descptr) + 1;
+    dirptr += dirlen + (int)strlen(descptr) + 1;
 	}
 	return qfalse;
 }

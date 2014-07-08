@@ -372,7 +372,7 @@ static void Action_Init( menuaction_s *a )
 
 	// calculate bounds
 	if (a->generic.name)
-		len = strlen(a->generic.name);
+		len = (int)strlen(a->generic.name);
 	else
 		len = 0;
 
@@ -438,7 +438,7 @@ static void RadioButton_Init( menuradiobutton_s *rb )
 
 	// calculate bounds
 	if (rb->generic.name)
-		len = strlen(rb->generic.name);
+		len = (int)strlen(rb->generic.name);
 	else
 		len = 0;
 
@@ -549,7 +549,7 @@ static void Slider_Init( menuslider_s *s )
 
 	// calculate bounds
 	if (s->generic.name)
-		len = strlen(s->generic.name);
+		len = (int)strlen(s->generic.name);
 	else
 		len = 0;
 
@@ -766,7 +766,7 @@ static void SpinControl_Init( menulist_s *s ) {
 	const char* str;
 
 	if (s->generic.name)
-		len = strlen(s->generic.name) * SMALLCHAR_WIDTH;
+		len = (int)strlen(s->generic.name) * SMALLCHAR_WIDTH;
 	else
 		len = 0;
 
@@ -775,7 +775,7 @@ static void SpinControl_Init( menulist_s *s ) {
 	len = s->numitems = 0;
 	while ( (str = s->itemnames[s->numitems]) != 0 )
 	{
-		l = strlen(str);
+		l = (int)strlen(str);
 		if (l > len)
 			len = l;
 

@@ -100,8 +100,8 @@ static void UI_Mods_ParseInfos( char *modDir, char *modDesc ) {
 	Q_strncpyz( s_mods.descriptionPtr, modDesc, 48 );
 
 	s_mods.list.itemnames[s_mods.list.numitems] = s_mods.descriptionPtr;
-	s_mods.descriptionPtr += strlen( s_mods.descriptionPtr ) + 1;
-	s_mods.fs_gamePtr += strlen( s_mods.fs_gamePtr ) + 1;
+	s_mods.descriptionPtr += (int)strlen( s_mods.descriptionPtr ) + 1;
+	s_mods.fs_gamePtr += (int)strlen( s_mods.fs_gamePtr ) + 1;
 	s_mods.list.numitems++;
 }
 
@@ -132,7 +132,7 @@ static void UI_Mods_LoadModsFromFile( char *filename ) {
 	buf[len] = 0;
 	trap_FS_FCloseFile( f );
 
-	len = strlen( filename );
+	len = (int)strlen( filename );
 	if( !Q_stricmp(filename +  len - 4,".mod") ) {
 		filename[len-4] = '\0';
 	}
@@ -167,10 +167,10 @@ static void UI_Mods_LoadMods( void ) {
 	numdirs = trap_FS_GetFileList( "$modlist", "", dirlist, sizeof(dirlist) );
 	dirptr  = dirlist;
 	for( i = 0; i < numdirs; i++ ) {
-		dirlen = strlen( dirptr ) + 1;
+		dirlen = (int)strlen( dirptr ) + 1;
     descptr = dirptr + dirlen;
   	UI_Mods_ParseInfos( dirptr, descptr);
-    dirptr += dirlen + strlen(descptr) + 1;
+    dirptr += dirlen + (int)strlen(descptr) + 1;
 	}
 
 	trap_Print( va( "%i mods parsed\n", s_mods.list.numitems ) );

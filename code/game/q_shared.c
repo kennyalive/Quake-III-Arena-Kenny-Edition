@@ -79,7 +79,7 @@ void COM_DefaultExtension (char *path, int maxSize, const char *extension ) {
 // if path doesn't have a .EXT, append extension
 // (extension should include the .)
 //
-	src = path + strlen(path) - 1;
+	src = path + (int)strlen(path) - 1;
 
 	while (*src != '/' && src != path) {
 		if ( *src == '.' ) {
@@ -814,7 +814,7 @@ char *Q_strupr( char *s1 ) {
 void Q_strcat( char *dest, int size, const char *src ) {
 	int		l1;
 
-	l1 = strlen( dest );
+	l1 = (int)strlen( dest );
 	if ( l1 >= size ) {
 		Com_Error( ERR_FATAL, "Q_strcat: already overflowed" );
 	}
@@ -942,7 +942,7 @@ char *Info_ValueForKey( const char *s, const char *key ) {
 		return "";
 	}
 
-	if ( strlen( s ) >= BIG_INFO_STRING ) {
+	if ( (int)strlen( s ) >= BIG_INFO_STRING ) {
 		Com_Error( ERR_DROP, "Info_ValueForKey: oversize infostring" );
 	}
 
@@ -1033,7 +1033,7 @@ void Info_RemoveKey( char *s, const char *key ) {
 	char	value[MAX_INFO_VALUE];
 	char	*o;
 
-	if ( strlen( s ) >= MAX_INFO_STRING ) {
+	if ( (int)strlen( s ) >= MAX_INFO_STRING ) {
 		Com_Error( ERR_DROP, "Info_RemoveKey: oversize infostring" );
 	}
 
@@ -1088,7 +1088,7 @@ void Info_RemoveKey_Big( char *s, const char *key ) {
 	char	value[BIG_INFO_VALUE];
 	char	*o;
 
-	if ( strlen( s ) >= BIG_INFO_STRING ) {
+	if ( (int)strlen( s ) >= BIG_INFO_STRING ) {
 		Com_Error( ERR_DROP, "Info_RemoveKey_Big: oversize infostring" );
 	}
 
@@ -1163,7 +1163,7 @@ Changes or adds a key/value pair
 void Info_SetValueForKey( char *s, const char *key, const char *value ) {
 	char	newi[MAX_INFO_STRING];
 
-	if ( strlen( s ) >= MAX_INFO_STRING ) {
+	if ( (int)strlen( s ) >= MAX_INFO_STRING ) {
 		Com_Error( ERR_DROP, "Info_SetValueForKey: oversize infostring" );
 	}
 
@@ -1191,7 +1191,7 @@ void Info_SetValueForKey( char *s, const char *key, const char *value ) {
 
 	Com_sprintf (newi, sizeof(newi), "\\%s\\%s", key, value);
 
-	if (strlen(newi) + strlen(s) > MAX_INFO_STRING)
+	if (strlen(newi) + (int)strlen(s) > MAX_INFO_STRING)
 	{
 		Com_Printf ("Info string length exceeded\n");
 		return;
@@ -1211,7 +1211,7 @@ Changes or adds a key/value pair
 void Info_SetValueForKey_Big( char *s, const char *key, const char *value ) {
 	char	newi[BIG_INFO_STRING];
 
-	if ( strlen( s ) >= BIG_INFO_STRING ) {
+	if ( (int)strlen( s ) >= BIG_INFO_STRING ) {
 		Com_Error( ERR_DROP, "Info_SetValueForKey: oversize infostring" );
 	}
 
@@ -1239,7 +1239,7 @@ void Info_SetValueForKey_Big( char *s, const char *key, const char *value ) {
 
 	Com_sprintf (newi, sizeof(newi), "\\%s\\%s", key, value);
 
-	if (strlen(newi) + strlen(s) > BIG_INFO_STRING)
+	if (strlen(newi) + (int)strlen(s) > BIG_INFO_STRING)
 	{
 		Com_Printf ("BIG Info string length exceeded\n");
 		return;

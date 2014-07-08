@@ -54,7 +54,7 @@ void	srand( unsigned seed );
 int		rand( void );
 
 // String functions
-size_t strlen( const char *string );
+int strlen( const char *string );
 char *strcat( char *strDestination, const char *strSource );
 char *strcpy( char *strDestination, const char *strSource );
 int strcmp( const char *string1, const char *string2 );

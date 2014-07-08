@@ -874,7 +874,7 @@ static void LoadBMP( const char *name, byte **pic, int *width, int *height )
 	{
 		ri.Error( ERR_DROP, "LoadBMP: only Windows-style BMP files supported (%s)\n", name );
 	}
-	if ( bmpHeader.fileSize != length )
+	if ( (int)bmpHeader.fileSize != length )
 	{
 		ri.Error( ERR_DROP, "LoadBMP: header size does not match file size (%d vs. %d) (%s)\n", bmpHeader.fileSize, length, name );
 	}
@@ -1655,7 +1655,7 @@ void term_destination (j_compress_ptr cinfo)
 {
   my_dest_ptr dest = (my_dest_ptr) cinfo->dest;
   size_t datacount = dest->size - dest->pub.free_in_buffer;
-  hackSize = datacount;
+  hackSize = (int)datacount;
 }
 
 
@@ -1811,7 +1811,7 @@ void R_LoadImage( const char *name, byte **pic, int *width, int *height ) {
 	*width = 0;
 	*height = 0;
 
-	len = strlen(name);
+	len = (int)strlen(name);
 	if (len<5) {
 		return;
 	}
@@ -1821,7 +1821,7 @@ void R_LoadImage( const char *name, byte **pic, int *width, int *height ) {
     if (!*pic) {                                    //
 		  char altname[MAX_QPATH];                      // try jpg in place of tga 
       strcpy( altname, name );                      
-      len = strlen( altname );                  
+      len = (int)strlen( altname );                  
       altname[len-3] = 'j';
       altname[len-2] = 'p';
       altname[len-1] = 'g';
@@ -1886,7 +1886,7 @@ image_t	*R_FindImageFile( const char *name, qboolean mipmap, qboolean allowPicmi
 	  char altname[MAX_QPATH];                              // copy the name
     int len;                                              //  
     strcpy( altname, name );                              //
-    len = strlen( altname );                              // 
+    len = (int)strlen( altname );                              // 
     altname[len-3] = toupper(altname[len-3]);             // and try upper case extension for unix systems
     altname[len-2] = toupper(altname[len-2]);             //
     altname[len-1] = toupper(altname[len-1]);             //
@@ -2371,7 +2371,7 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 		return 0;
 	}
 
-	if ( strlen( name ) >= MAX_QPATH ) {
+	if ( (int)strlen( name ) >= MAX_QPATH ) {
 		Com_Printf( "Skin name exceeds MAX_QPATH\n" );
 		return 0;
 	}
@@ -2403,7 +2403,7 @@ qhandle_t RE_RegisterSkin( const char *name ) {
 	R_SyncRenderThread();
 
 	// If not a .skin file, load as a single shader
-	if ( strcmp( name + strlen( name ) - 5, ".skin" ) ) {
+	if ( strcmp( name + (int)strlen( name ) - 5, ".skin" ) ) {
 		skin->numSurfaces = 1;
 		skin->surfaces[0] = ri.Hunk_Alloc( sizeof(skin->surfaces[0]), h_low );
 		skin->surfaces[0]->shader = R_FindShader( name, LIGHTMAP_NONE, qtrue );

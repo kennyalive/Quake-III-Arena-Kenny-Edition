@@ -296,7 +296,7 @@ void DeformText( const char *text ) {
 	VectorScale( width, height[2] * -0.75f, width );
 
 	// determine the starting position
-	len = strlen( text );
+	len = (int)strlen( text );
 	VectorMA( origin, (len-1), width, origin );
 
 	// clear the shader indexes
@@ -511,8 +511,8 @@ static void Autosprite2Deform( void ) {
 			// we need to see which direction this edge
 			// is used to determine direction of projection
 			for ( k = 0 ; k < 5 ; k++ ) {
-				if ( tess.indexes[ indexes + k ] == i + edgeVerts[nums[j]][0]
-					&& tess.indexes[ indexes + k + 1 ] == i + edgeVerts[nums[j]][1] ) {
+				if ( (int)tess.indexes[ indexes + k ] == i + edgeVerts[nums[j]][0]
+					&& (int)tess.indexes[ indexes + k + 1 ] == i + edgeVerts[nums[j]][1] ) {
 					break;
 				}
 			}
