@@ -196,6 +196,11 @@ typedef struct {
 	// normal screens should be 4/3, but wide aspect monitors may be 16/9
 	float					windowAspect;
 
+    // <artem>
+    // Obsolete. Should be here for compatibility with other mods.
+    int displayFrequency;
+    // </artem>
+
 	// synonymous with "does rendering consume the entire screen?", therefore
 	// a Voodoo or Voodoo2 will have this set to TRUE, as will a Win32 ICD that
 	// used CDS.
