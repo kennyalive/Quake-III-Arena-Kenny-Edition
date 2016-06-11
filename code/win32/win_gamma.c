@@ -96,9 +96,9 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 	}
 
 	for ( i = 0; i < 256; i++ ) {
-		table[0][i] = ( ( ( unsigned short ) red[i] ) << 8 );
-		table[1][i] = ( ( ( unsigned short ) green[i] ) << 8 );
-		table[2][i] = ( ( ( unsigned short ) blue[i] ) << 8 );
+		table[0][i] = ( ( ( unsigned short ) red[i] ) << 8 ) | red[i];
+		table[1][i] = ( ( ( unsigned short ) green[i] ) << 8 ) | green[i];
+		table[2][i] = ( ( ( unsigned short ) blue[i] ) << 8 ) | blue[i];
 	}
 
 	// Win2K puts this odd restriction on gamma ramps...
