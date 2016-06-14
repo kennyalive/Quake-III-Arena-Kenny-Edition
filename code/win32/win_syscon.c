@@ -77,7 +77,7 @@ typedef struct
 
 static WinConData s_wcd;
 
-static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static LRESULT WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	char *cmdString;
 	static qboolean s_timePolarity;
@@ -131,20 +131,7 @@ static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		{
 			SetBkColor( ( HDC ) wParam, RGB( 0x00, 0x00, 0xB0 ) );
 			SetTextColor( ( HDC ) wParam, RGB( 0xff, 0xff, 0x00 ) );
-
-#if 0	// this draws a background in the edit box, but there are issues with this
-			if ( ( hdcScaled = CreateCompatibleDC( ( HDC ) wParam ) ) != 0 )
-			{
-				if ( SelectObject( ( HDC ) hdcScaled, s_wcd.hbmLogo ) )
-				{
-					StretchBlt( ( HDC ) wParam, 0, 0, 512, 384, 
-							hdcScaled, 0, 0, 512, 384,
-							SRCCOPY );
-				}
-				DeleteDC( hdcScaled );
-			}
-#endif
-			return ( long ) s_wcd.hbrEditBackground;
+			return ( LRESULT ) s_wcd.hbrEditBackground;
 		}
 		else if ( ( HWND ) lParam == s_wcd.hwndErrorBox )
 		{
@@ -158,7 +145,7 @@ static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 				SetBkColor( ( HDC ) wParam, RGB( 0x80, 0x80, 0x80 ) );
 				SetTextColor( ( HDC ) wParam, RGB( 0x00, 0x0, 0x00 ) );
 			}
-			return ( long ) s_wcd.hbrErrorBackground;
+			return ( LRESULT ) s_wcd.hbrErrorBackground;
 		}
 		break;
 
@@ -188,60 +175,10 @@ static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		}
 		break;
 	case WM_CREATE:
-//		s_wcd.hbmLogo = LoadBitmap( g_wv.hInstance, MAKEINTRESOURCE( IDB_BITMAP1 ) );
-//		s_wcd.hbmClearBitmap = LoadBitmap( g_wv.hInstance, MAKEINTRESOURCE( IDB_BITMAP2 ) );
 		s_wcd.hbrEditBackground = CreateSolidBrush( RGB( 0x00, 0x00, 0xB0 ) );
 		s_wcd.hbrErrorBackground = CreateSolidBrush( RGB( 0x80, 0x80, 0x80 ) );
 		SetTimer( hWnd, 1, 1000, NULL );
 		break;
-	case WM_ERASEBKGND:
-#if 0
-	HDC hdcScaled;
-	HGDIOBJ oldObject;
-
-#if 1	// a single, large image
-		hdcScaled = CreateCompatibleDC( ( HDC ) wParam );
-		assert( hdcScaled != 0 );
-
-		if ( hdcScaled )
-		{
-			oldObject = SelectObject( ( HDC ) hdcScaled, s_wcd.hbmLogo );
-			assert( oldObject != 0 );
-			if ( oldObject )
-			{
-				StretchBlt( ( HDC ) wParam, 0, 0, s_wcd.windowWidth, s_wcd.windowHeight, 
-						hdcScaled, 0, 0, 512, 384,
-						SRCCOPY );
-			}
-			DeleteDC( hdcScaled );
-			hdcScaled = 0;
-		}
-#else	// a repeating brush
-		{
-			HBRUSH hbrClearBrush;
-			RECT r;
-
-			GetWindowRect( hWnd, &r );
-
-			r.bottom = r.bottom - r.top + 1;
-			r.right = r.right - r.left + 1;
-			r.top = 0;
-			r.left = 0;
-
-			hbrClearBrush = CreatePatternBrush( s_wcd.hbmClearBitmap );
-
-			assert( hbrClearBrush != 0 );
-
-			if ( hbrClearBrush )
-			{
-				FillRect( ( HDC ) wParam, &r, hbrClearBrush );
-				DeleteObject( hbrClearBrush );
-			}
-		}
-#endif
-		return 1;
-#endif
-	    return DefWindowProc( hWnd, uMsg, wParam, lParam );
 	case WM_TIMER:
 		if ( wParam == 1 )
 		{
