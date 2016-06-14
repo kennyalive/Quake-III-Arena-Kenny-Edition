@@ -4,3 +4,5 @@ quake3.*.suo
 code/build
 code/win32/vs/*.user
 code/win32/vs/*.log
+*.suo
+*.opendb
