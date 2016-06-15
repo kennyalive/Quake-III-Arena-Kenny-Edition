@@ -1525,7 +1525,7 @@ void Com_InitHunkMemory( void ) {
 		Com_Error( ERR_FATAL, "Hunk data failed to allocate %i megs", s_hunkTotal / (1024*1024) );
 	}
 	// cacheline align
-	s_hunkData = (byte *) ( ( (int)s_hunkData + 31 ) & ~31 );
+	s_hunkData = (byte *) ( ( (intptr_t)s_hunkData + 31 ) & ~31 );
 	Hunk_Clear();
 
 	Cmd_AddCommand( "meminfo", Com_Meminfo_f );
