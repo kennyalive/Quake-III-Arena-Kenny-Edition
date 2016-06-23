@@ -1043,7 +1043,8 @@ int CL_UISystemCalls( int *args ) {
 		return 0;
 
 	case UI_STRNCPY:
-		return (int)strncpy( VMA(1), VMA(2), args[3] );
+		strncpy( VMA(1), VMA(2), args[3] );
+        return args[1];
 
 	case UI_SIN:
 		return FloatAsInt( sin( VMF(1) ) );
