@@ -22,6 +22,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../game/q_shared.h"
 #include "qcommon.h"
 
+// Max number of arguments to pass from a vm to engine's syscall handler function for the vm.
+// syscall number + 15 arguments
+#define MAX_VMSYSCALL_ARGS 16
+
 typedef enum {
 	OP_UNDEF, 
 
@@ -127,7 +131,7 @@ struct vm_s {
     // DO NOT MOVE OR CHANGE THESE WITHOUT CHANGING THE VM_OFFSET_* DEFINES
     // USED BY THE ASM CODE
     int			programStack;		// the vm may be recursively entered
-    int			(*systemCall)( int *parms );
+    intptr_t    (*systemCall)( intptr_t *parms );
 
 	//------------------------------------
    

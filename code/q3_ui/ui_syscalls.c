@@ -28,9 +28,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #error "Do not use in VM build"
 #endif
 
-static int (QDECL *syscall)( int arg, ... ) = (int (QDECL *)( int, ...))-1;
+static intptr_t (QDECL *syscall)( intptr_t arg, ... ) = (intptr_t (QDECL *)( intptr_t, ...))-1;
 
-void dllEntry( int (QDECL *syscallptr)( int arg,... ) ) {
+void dllEntry( intptr_t (QDECL *syscallptr)( intptr_t arg,... ) ) {
 	syscall = syscallptr;
 }
 
