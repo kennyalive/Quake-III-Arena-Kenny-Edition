@@ -174,9 +174,6 @@
     <ClCompile Include="..\..\qcommon\vm_interpreted.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\vm_x86.c">
-      <Filter>Source Files\common</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\game\bg_public.h">

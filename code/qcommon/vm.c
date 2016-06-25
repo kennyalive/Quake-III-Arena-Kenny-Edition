@@ -57,9 +57,9 @@ VM_Init
 ==============
 */
 void VM_Init( void ) {
-	Cvar_Get( "vm_cgame", "2", CVAR_ARCHIVE );	// !@# SHIP WITH SET TO 2
-	Cvar_Get( "vm_game", "2", CVAR_ARCHIVE );	// !@# SHIP WITH SET TO 2
-	Cvar_Get( "vm_ui", "2", CVAR_ARCHIVE );		// !@# SHIP WITH SET TO 2
+	Cvar_Get( "vm_cgame", "1", CVAR_ARCHIVE );
+	Cvar_Get( "vm_game", "1", CVAR_ARCHIVE );
+	Cvar_Get( "vm_ui", "1", CVAR_ARCHIVE );
 
 	Cmd_AddCommand ("vmprofile", VM_VmProfile_f );
 	Cmd_AddCommand ("vminfo", VM_VmInfo_f );
@@ -394,7 +394,7 @@ vm_t *VM_Create( const char *module, intptr_t (*systemCalls)(intptr_t *),
 	// never allow dll loading with a demo
 	if ( interpret == VMI_NATIVE ) {
 		if ( Cvar_VariableValue( "fs_restrict" ) ) {
-			interpret = VMI_COMPILED;
+			interpret = VMI_BYTECODE;
 		}
 	}
 
@@ -407,7 +407,6 @@ vm_t *VM_Create( const char *module, intptr_t (*systemCalls)(intptr_t *),
 		}
 
 		Com_Printf( "Failed to load dll, looking for qvm.\n" );
-		interpret = VMI_COMPILED;
 	}
 
 	// load the image
@@ -461,18 +460,7 @@ vm_t *VM_Create( const char *module, intptr_t (*systemCalls)(intptr_t *),
 	// copy or compile the instructions
 	vm->codeLength = header->codeLength;
 
-#ifdef _WIN64
-	vm->compiled = qfalse;
 	VM_PrepareInterpreter( vm, header );
-#else
-	if ( interpret >= VMI_COMPILED ) {
-		vm->compiled = qtrue;
-		VM_Compile( vm, header );
-	} else {
-		vm->compiled = qfalse;
-		VM_PrepareInterpreter( vm, header );
-	}
-#endif
 
 	// free the original file
 	FS_FreeFile( header );
@@ -624,12 +612,6 @@ intptr_t	QDECL VM_Call( vm_t *vm, int callnum, ... ) {
                             args[8],  args[9], args[10], args[11],
                             args[12], args[13], args[14], args[15]);
 	}
-#ifndef _WIN64
-	else if ( vm->compiled )
-	{
-		r = VM_CallCompiled( vm, &callnum );
-	}
-#endif
 	else
 	{
 		struct {
@@ -736,11 +718,7 @@ void VM_VmInfo_f( void ) {
 			Com_Printf( "native\n" );
 			continue;
 		}
-		if ( vm->compiled ) {
-			Com_Printf( "compiled on load\n" );
-		} else {
-			Com_Printf( "interpreted\n" );
-		}
+        Com_Printf( "interpreted\n" );
 		Com_Printf( "    code length : %7i\n", vm->codeLength );
 		Com_Printf( "    table length: %7i\n", vm->instructionPointersLength );
 		Com_Printf( "    data length : %7i\n", vm->dataMask + 1 );
@@ -765,13 +743,3 @@ void VM_LogSyscalls( int *args ) {
 	fprintf(f, "%i: %i (%i) = %i %i %i %i\n", callnum, (int)(intptr_t)( args - (int *)currentVM->dataBase ),
 		args[0], args[1], args[2], args[3], args[4] );
 }
-
-
-
-#ifdef oDLL_ONLY // bk010215 - for DLL_ONLY dedicated servers/builds w/o VM
-int	VM_CallCompiled( vm_t *vm, int *args ) {
-  return(0); 
-}
-
-void VM_Compile( vm_t *vm, vmHeader_t *header ) {}
-#endif // DLL_ONLY

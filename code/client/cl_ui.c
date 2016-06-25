@@ -1150,7 +1150,7 @@ void CL_InitUI( void ) {
 	// load the dll or bytecode
 	if ( cl_connectedToPureServer != 0 ) {
 		// if sv_pure is set we only allow qvms to be loaded
-		interpret = VMI_COMPILED;
+		interpret = VMI_BYTECODE;
 	}
 	else {
 		interpret = Cvar_VariableValue( "vm_ui" );
