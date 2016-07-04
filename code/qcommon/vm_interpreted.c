@@ -465,31 +465,25 @@ nextInstruction2:
 			programCounter += 1;
 			goto nextInstruction;
 
-		case OP_BLOCK_COPY:
-			{
-				int		*src, *dest;
-				int		i, count, srci, desti;
+        case OP_BLOCK_COPY:
+            {
+                int src = r0;
+                int dest = r1;
+                size_t n = r2;
 
-				count = r2;
-				// MrE: copy range check
-				srci = r0 & dataMask;
-				desti = r1 & dataMask;
-				count = ((srci + count) & dataMask) - srci;
-				count = ((desti + count) & dataMask) - desti;
+                if ((dest & dataMask) != dest
+                    || (src & dataMask) != src
+                    || ((dest + n) & dataMask) != dest + n
+                    || ((src + n) & dataMask) != src + n)
+                {
+                    Com_Error(ERR_DROP, "OP_BLOCK_COPY out of range!");
+                }
 
-				src = (int *)&image[ r0&dataMask ];
-				dest = (int *)&image[ r1&dataMask ];
-				if ( ( (intptr_t)src | (intptr_t)dest | count ) & 3 ) {
-					Com_Error( ERR_DROP, "OP_BLOCK_COPY not dword aligned" );
-				}
-				count >>= 2;
-				for ( i = count-1 ; i>= 0 ; i-- ) {
-					dest[i] = src[i];
-				}
-				programCounter += 4;
-				opStack -= 2;
-			}
-			goto nextInstruction;
+                Com_Memcpy(vm->dataBase + dest, vm->dataBase + src, n);
+                programCounter += 4;
+                opStack -= 2;
+            }
+            goto nextInstruction;
 
 		case OP_CALL:
 			// save current program counter
