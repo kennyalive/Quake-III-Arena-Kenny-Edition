@@ -375,7 +375,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 	case G_ENTITIES_IN_BOX:
 		return SV_AreaEntities( (const vec_t*) VMA(1), (const vec_t*) VMA(2), (int*) VMA(3), args[4] );
 	case G_ENTITY_CONTACT:
-		return SV_EntityContact((vec_t*) VMA(1), (vec_t*) VMA(2), (const sharedEntity_t*) (3), /*int capsule*/ qfalse);
+		return SV_EntityContact((vec_t*) VMA(1), (vec_t*) VMA(2), (const sharedEntity_t*) VMA(3), /*int capsule*/ qfalse);
 	case G_ENTITY_CONTACTCAPSULE:
 		return SV_EntityContact( (vec_t*) VMA(1), (vec_t*) VMA(2), (const sharedEntity_t*) VMA(3), /*int capsule*/ qtrue );
 	case G_TRACE:
@@ -387,7 +387,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 	case G_POINT_CONTENTS:
 		return SV_PointContents( (const vec_t*) VMA(1), args[2] );
 	case G_SET_BRUSH_MODEL:
-		SV_SetBrushModel( (sharedEntity_t*) (1), (const char*) VMA(2) );
+		SV_SetBrushModel( (sharedEntity_t*) VMA(1), (const char*) VMA(2) );
 		return 0;
 	case G_IN_PVS:
 		return SV_inPVS( (const vec_t*) VMA(1), (const vec_t*) VMA(2) );
@@ -410,7 +410,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		SV_GetServerinfo( (char*) VMA(1), args[2] );
 		return 0;
 	case G_ADJUST_AREA_PORTAL_STATE:
-		SV_AdjustAreaPortalState( (sharedEntity_t*) (1), (qboolean) args[2] );
+		SV_AdjustAreaPortalState( (sharedEntity_t*) VMA(1), (qboolean) args[2] );
 		return 0;
 	case G_AREAS_CONNECTED:
 		return CM_AreasConnected( args[1], args[2] );
