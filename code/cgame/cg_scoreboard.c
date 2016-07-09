@@ -157,17 +157,6 @@ static void CG_DrawClientScore( int y, score_t *score, float *color, float fade,
 		CG_DrawHead( headx, y, 16, 16, score->client, headAngles );
 	}
 
-#ifdef MISSIONPACK
-	// draw the team task
-	if ( ci->teamTask != TEAMTASK_NONE ) {
-		if ( ci->teamTask == TEAMTASK_OFFENSE ) {
-			CG_DrawPic( headx + 48, y, 16, 16, cgs.media.assaultShader );
-		}
-		else if ( ci->teamTask == TEAMTASK_DEFENSE ) {
-			CG_DrawPic( headx + 48, y, 16, 16, cgs.media.defendShader );
-		}
-	}
-#endif
 	// draw the score line
 	if ( score->ping == -1 ) {
 		Com_sprintf(string, sizeof(string),

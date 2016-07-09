@@ -46,18 +46,6 @@ static const orderTask_t validOrders[] = {
 
 static const int numValidOrders = sizeof(validOrders) / sizeof(orderTask_t);
 
-#ifdef MISSIONPACK // bk001204
-static int CG_ValidOrder(const char *p) {
-	int i;
-	for (i = 0; i < numValidOrders; i++) {
-		if (Q_stricmp(p, validOrders[i].order) == 0) {
-			return validOrders[i].taskNum;
-		}
-	}
-	return -1;
-}
-#endif
-
 /*
 =================
 CG_ParseScores
@@ -101,10 +89,6 @@ static void CG_ParseScores( void ) {
 
 		cg.scores[i].team = cgs.clientinfo[cg.scores[i].client].team;
 	}
-#ifdef MISSIONPACK
-	CG_SetScoreSelection(NULL);
-#endif
-
 }
 
 /*
@@ -179,11 +163,6 @@ static void CG_ParseWarmup( void ) {
 	if ( warmup == 0 && cg.warmup ) {
 
 	} else if ( warmup > 0 && cg.warmup <= 0 ) {
-#ifdef MISSIONPACK
-		if (cgs.gametype >= GT_CTF && cgs.gametype <= GT_HARVESTER) {
-			trap_S_StartLocalSound( cgs.media.countPrepareTeamSound, CHAN_ANNOUNCER );
-		} else
-#endif
 		{
 			trap_S_StartLocalSound( cgs.media.countPrepareSound, CHAN_ANNOUNCER );
 		}
@@ -210,12 +189,6 @@ void CG_SetConfigValues( void ) {
 		cgs.redflag = s[0] - '0';
 		cgs.blueflag = s[1] - '0';
 	}
-#ifdef MISSIONPACK
-	else if( cgs.gametype == GT_1FCTF ) {
-		s = CG_ConfigString( CS_FLAGSTATUS );
-		cgs.flagStatus = s[0] - '0';
-	}
-#endif
 	cg.warmup = atoi( CG_ConfigString( CS_WARMUP ) );
 }
 
@@ -302,9 +275,6 @@ static void CG_ConfigStringModified( void ) {
 		cgs.voteModified = qtrue;
 	} else if ( num == CS_VOTE_STRING ) {
 		Q_strncpyz( cgs.voteString, str, sizeof( cgs.voteString ) );
-#ifdef MISSIONPACK
-		trap_S_StartLocalSound( cgs.media.voteNow, CHAN_ANNOUNCER );
-#endif //MISSIONPACK
 	} else if ( num >= CS_TEAMVOTE_TIME && num <= CS_TEAMVOTE_TIME + 1) {
 		cgs.teamVoteTime[num-CS_TEAMVOTE_TIME] = atoi( str );
 		cgs.teamVoteModified[num-CS_TEAMVOTE_TIME] = qtrue;
@@ -316,9 +286,6 @@ static void CG_ConfigStringModified( void ) {
 		cgs.teamVoteModified[num-CS_TEAMVOTE_NO] = qtrue;
 	} else if ( num >= CS_TEAMVOTE_STRING && num <= CS_TEAMVOTE_STRING + 1) {
 		Q_strncpyz( cgs.teamVoteString[num-CS_TEAMVOTE_STRING], str, sizeof( cgs.teamVoteString ) );
-#ifdef MISSIONPACK
-		trap_S_StartLocalSound( cgs.media.voteNow, CHAN_ANNOUNCER );
-#endif
 	} else if ( num == CS_INTERMISSION ) {
 		cg.intermissionStarted = atoi( str );
 	} else if ( num >= CS_MODELS && num < CS_MODELS+MAX_MODELS ) {
@@ -336,11 +303,6 @@ static void CG_ConfigStringModified( void ) {
 			cgs.redflag = str[0] - '0';
 			cgs.blueflag = str[1] - '0';
 		}
-#ifdef MISSIONPACK
-		else if( cgs.gametype == GT_1FCTF ) {
-			cgs.flagStatus = str[0] - '0';
-		}
-#endif
 	}
 	else if ( num == CS_SHADERSTATE ) {
 		CG_ShaderStateChanged();
@@ -464,14 +426,6 @@ static void CG_MapRestart( void ) {
 		trap_S_StartLocalSound( cgs.media.countFightSound, CHAN_ANNOUNCER );
 		CG_CenterPrint( "FIGHT!", 120, GIANTCHAR_WIDTH*2 );
 	}
-#ifdef MISSIONPACK
-	if (cg_singlePlayerActive.integer) {
-		trap_Cvar_Set("ui_matchStartTime", va("%i", cg.time));
-		if (cg_recordSPDemo.integer && cg_recordSPDemoName.string && *cg_recordSPDemoName.string) {
-			trap_SendConsoleCommand(va("set g_synchronousclients 1 ; record %s \n", cg_recordSPDemoName.string));
-		}
-	}
-#endif
 	trap_Cvar_Set("cg_thirdPerson", "0");
 }
 
@@ -805,32 +759,6 @@ CG_PlayVoiceChat
 =================
 */
 void CG_PlayVoiceChat( bufferedVoiceChat_t *vchat ) {
-#ifdef MISSIONPACK
-	// if we are going into the intermission, don't start any voices
-	if ( cg.intermissionStarted ) {
-		return;
-	}
-
-	if ( !cg_noVoiceChats.integer ) {
-		trap_S_StartLocalSound( vchat->snd, CHAN_VOICE);
-		if (vchat->clientNum != cg.snap->ps.clientNum) {
-			int orderTask = CG_ValidOrder(vchat->cmd);
-			if (orderTask > 0) {
-				cgs.acceptOrderTime = cg.time + 5000;
-				Q_strncpyz(cgs.acceptVoice, vchat->cmd, sizeof(cgs.acceptVoice));
-				cgs.acceptTask = orderTask;
-				cgs.acceptLeader = vchat->clientNum;
-			}
-			// see if this was an order
-			CG_ShowResponseHead();
-		}
-	}
-	if (!vchat->voiceOnly && !cg_noVoiceText.integer) {
-		CG_AddToTeamChat( vchat->message );
-		CG_Printf( "%s\n", vchat->message );
-	}
-	voiceChatBuffer[cg.voiceChatBufferOut].snd = 0;
-#endif
 }
 
 /*
@@ -839,17 +767,6 @@ CG_PlayBufferedVoieChats
 =====================
 */
 void CG_PlayBufferedVoiceChats( void ) {
-#ifdef MISSIONPACK
-	if ( cg.voiceChatTime < cg.time ) {
-		if (cg.voiceChatBufferOut != cg.voiceChatBufferIn && voiceChatBuffer[cg.voiceChatBufferOut].snd) {
-			//
-			CG_PlayVoiceChat(&voiceChatBuffer[cg.voiceChatBufferOut]);
-			//
-			cg.voiceChatBufferOut = (cg.voiceChatBufferOut + 1) % MAX_VOICECHATBUFFER;
-			cg.voiceChatTime = cg.time + 1000;
-		}
-	}
-#endif
 }
 
 /*
@@ -858,19 +775,6 @@ CG_AddBufferedVoiceChat
 =====================
 */
 void CG_AddBufferedVoiceChat( bufferedVoiceChat_t *vchat ) {
-#ifdef MISSIONPACK
-	// if we are going into the intermission, don't start any voices
-	if ( cg.intermissionStarted ) {
-		return;
-	}
-
-	memcpy(&voiceChatBuffer[cg.voiceChatBufferIn], vchat, sizeof(bufferedVoiceChat_t));
-	cg.voiceChatBufferIn = (cg.voiceChatBufferIn + 1) % MAX_VOICECHATBUFFER;
-	if (cg.voiceChatBufferIn == cg.voiceChatBufferOut) {
-		CG_PlayVoiceChat( &voiceChatBuffer[cg.voiceChatBufferOut] );
-		cg.voiceChatBufferOut++;
-	}
-#endif
 }
 
 /*
@@ -879,47 +783,6 @@ CG_VoiceChatLocal
 =================
 */
 void CG_VoiceChatLocal( int mode, qboolean voiceOnly, int clientNum, int color, const char *cmd ) {
-#ifdef MISSIONPACK
-	char *chat;
-	voiceChatList_t *voiceChatList;
-	clientInfo_t *ci;
-	sfxHandle_t snd;
-	bufferedVoiceChat_t vchat;
-
-	// if we are going into the intermission, don't start any voices
-	if ( cg.intermissionStarted ) {
-		return;
-	}
-
-	if ( clientNum < 0 || clientNum >= MAX_CLIENTS ) {
-		clientNum = 0;
-	}
-	ci = &cgs.clientinfo[ clientNum ];
-
-	cgs.currentVoiceClient = clientNum;
-
-	voiceChatList = CG_VoiceChatListForClient( clientNum );
-
-	if ( CG_GetVoiceChat( voiceChatList, cmd, &snd, &chat ) ) {
-		//
-		if ( mode == SAY_TEAM || !cg_teamChatsOnly.integer ) {
-			vchat.clientNum = clientNum;
-			vchat.snd = snd;
-			vchat.voiceOnly = voiceOnly;
-			Q_strncpyz(vchat.cmd, cmd, sizeof(vchat.cmd));
-			if ( mode == SAY_TELL ) {
-				Com_sprintf(vchat.message, sizeof(vchat.message), "[%s]: %c%c%s", ci->name, Q_COLOR_ESCAPE, color, chat);
-			}
-			else if ( mode == SAY_TEAM ) {
-				Com_sprintf(vchat.message, sizeof(vchat.message), "(%s): %c%c%s", ci->name, Q_COLOR_ESCAPE, color, chat);
-			}
-			else {
-				Com_sprintf(vchat.message, sizeof(vchat.message), "%s: %c%c%s", ci->name, Q_COLOR_ESCAPE, color, chat);
-			}
-			CG_AddBufferedVoiceChat(&vchat);
-		}
-	}
-#endif
 }
 
 /*
@@ -928,26 +791,6 @@ CG_VoiceChat
 =================
 */
 void CG_VoiceChat( int mode ) {
-#ifdef MISSIONPACK
-	const char *cmd;
-	int clientNum, color;
-	qboolean voiceOnly;
-
-	voiceOnly = atoi(CG_Argv(1));
-	clientNum = atoi(CG_Argv(2));
-	color = atoi(CG_Argv(3));
-	cmd = CG_Argv(4);
-
-	if (cg_noTaunt.integer != 0) {
-		if (!strcmp(cmd, VOICECHAT_KILLINSULT)  || !strcmp(cmd, VOICECHAT_TAUNT) || \
-			!strcmp(cmd, VOICECHAT_DEATHINSULT) || !strcmp(cmd, VOICECHAT_KILLGAUNTLET) || \
-			!strcmp(cmd, VOICECHAT_PRAISE)) {
-			return;
-		}
-	}
-
-	CG_VoiceChatLocal( mode, voiceOnly, clientNum, color, cmd );
-#endif
 }
 
 /*
@@ -998,15 +841,6 @@ static void CG_ServerCommand( void ) {
 
 	if ( !strcmp( cmd, "print" ) ) {
 		CG_Printf( "%s", CG_Argv(1) );
-#ifdef MISSIONPACK
-		cmd = CG_Argv(1);			// yes, this is obviously a hack, but so is the way we hear about
-									// votes passing or failing
-		if ( !Q_stricmpn( cmd, "vote failed", 11 ) || !Q_stricmpn( cmd, "team vote failed", 16 )) {
-			trap_S_StartLocalSound( cgs.media.voteFailed, CHAN_ANNOUNCER );
-		} else if ( !Q_stricmpn( cmd, "vote passed", 11 ) || !Q_stricmpn( cmd, "team vote passed", 16 ) ) {
-			trap_S_StartLocalSound( cgs.media.votePassed, CHAN_ANNOUNCER );
-		}
-#endif
 		return;
 	}
 

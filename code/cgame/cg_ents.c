@@ -326,43 +326,10 @@ static void CG_Item( centity_t *cent ) {
 		VectorScale( ent.axis[1], 1.5, ent.axis[1] );
 		VectorScale( ent.axis[2], 1.5, ent.axis[2] );
 		ent.nonNormalizedAxes = qtrue;
-#ifdef MISSIONPACK
-		trap_S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin, cgs.media.weaponHoverSound );
-#endif
 	}
-
-#ifdef MISSIONPACK
-	if ( item->giType == IT_HOLDABLE && item->giTag == HI_KAMIKAZE ) {
-		VectorScale( ent.axis[0], 2, ent.axis[0] );
-		VectorScale( ent.axis[1], 2, ent.axis[1] );
-		VectorScale( ent.axis[2], 2, ent.axis[2] );
-		ent.nonNormalizedAxes = qtrue;
-	}
-#endif
 
 	// add to refresh list
 	trap_R_AddRefEntityToScene(&ent);
-
-#ifdef MISSIONPACK
-	if ( item->giType == IT_WEAPON && wi->barrelModel ) {
-		refEntity_t	barrel;
-
-		memset( &barrel, 0, sizeof( barrel ) );
-
-		barrel.hModel = wi->barrelModel;
-
-		VectorCopy( ent.lightingOrigin, barrel.lightingOrigin );
-		barrel.shadowPlane = ent.shadowPlane;
-		barrel.renderfx = ent.renderfx;
-
-		CG_PositionRotatedEntityOnTag( &barrel, &ent, wi->weaponModel, "tag_barrel" );
-
-		AxisCopy( ent.axis, barrel.axis );
-		barrel.nonNormalizedAxes = ent.nonNormalizedAxes;
-
-		trap_R_AddRefEntityToScene( &barrel );
-	}
-#endif
 
 	// accompanying rings / spheres for powerups
 	if ( !cg_simpleItems.integer ) 
@@ -473,14 +440,6 @@ static void CG_Missile( centity_t *cent ) {
 	ent.hModel = weapon->missileModel;
 	ent.renderfx = weapon->missileRenderfx | RF_NOSHADOW;
 
-#ifdef MISSIONPACK
-	if ( cent->currentState.weapon == WP_PROX_LAUNCHER ) {
-		if (s1->generic1 == TEAM_BLUE) {
-			ent.hModel = cgs.media.blueProxMine;
-		}
-	}
-#endif
-
 	// convert direction of travel into axis
 	if ( VectorNormalize2( s1->pos.trDelta, ent.axis[0] ) == 0 ) {
 		ent.axis[0][2] = 1;
@@ -490,12 +449,6 @@ static void CG_Missile( centity_t *cent ) {
 	if ( s1->pos.trType != TR_STATIONARY ) {
 		RotateAroundDirection( ent.axis, cg.time / 4 );
 	} else {
-#ifdef MISSIONPACK
-		if ( s1->weapon == WP_PROX_LAUNCHER ) {
-			AnglesToAxis( cent->lerpAngles, ent.axis );
-		}
-		else
-#endif
 		{
 			RotateAroundDirection( ent.axis, s1->time );
 		}
@@ -777,15 +730,7 @@ CG_TeamBase
 */
 static void CG_TeamBase( centity_t *cent ) {
 	refEntity_t model;
-#ifdef MISSIONPACK
-	vec3_t angles;
-	int t, h;
-	float c;
-
-	if ( cgs.gametype == GT_CTF || cgs.gametype == GT_1FCTF ) {
-#else
 	if ( cgs.gametype == GT_CTF) {
-#endif
 		// show the flag base
 		memset(&model, 0, sizeof(model));
 		model.reType = RT_MODEL;
@@ -803,124 +748,6 @@ static void CG_TeamBase( centity_t *cent ) {
 		}
 		trap_R_AddRefEntityToScene( &model );
 	}
-#ifdef MISSIONPACK
-	else if ( cgs.gametype == GT_OBELISK ) {
-		// show the obelisk
-		memset(&model, 0, sizeof(model));
-		model.reType = RT_MODEL;
-		VectorCopy( cent->lerpOrigin, model.lightingOrigin );
-		VectorCopy( cent->lerpOrigin, model.origin );
-		AnglesToAxis( cent->currentState.angles, model.axis );
-
-		model.hModel = cgs.media.overloadBaseModel;
-		trap_R_AddRefEntityToScene( &model );
-		// if hit
-		if ( cent->currentState.frame == 1) {
-			// show hit model
-			// modelindex2 is the health value of the obelisk
-			c = cent->currentState.modelindex2;
-			model.shaderRGBA[0] = 0xff;
-			model.shaderRGBA[1] = c;
-			model.shaderRGBA[2] = c;
-			model.shaderRGBA[3] = 0xff;
-			//
-			model.hModel = cgs.media.overloadEnergyModel;
-			trap_R_AddRefEntityToScene( &model );
-		}
-		// if respawning
-		if ( cent->currentState.frame == 2) {
-			if ( !cent->miscTime ) {
-				cent->miscTime = cg.time;
-			}
-			t = cg.time - cent->miscTime;
-			h = (cg_obeliskRespawnDelay.integer - 5) * 1000;
-			//
-			if (t > h) {
-				c = (float) (t - h) / h;
-				if (c > 1)
-					c = 1;
-			}
-			else {
-				c = 0;
-			}
-			// show the lights
-			AnglesToAxis( cent->currentState.angles, model.axis );
-			//
-			model.shaderRGBA[0] = c * 0xff;
-			model.shaderRGBA[1] = c * 0xff;
-			model.shaderRGBA[2] = c * 0xff;
-			model.shaderRGBA[3] = c * 0xff;
-
-			model.hModel = cgs.media.overloadLightsModel;
-			trap_R_AddRefEntityToScene( &model );
-			// show the target
-			if (t > h) {
-				if ( !cent->muzzleFlashTime ) {
-					trap_S_StartSound (cent->lerpOrigin, ENTITYNUM_NONE, CHAN_BODY,  cgs.media.obeliskRespawnSound);
-					cent->muzzleFlashTime = 1;
-				}
-				VectorCopy(cent->currentState.angles, angles);
-				angles[YAW] += (float) 16 * acos(1-c) * 180 / M_PI;
-				AnglesToAxis( angles, model.axis );
-
-				VectorScale( model.axis[0], c, model.axis[0]);
-				VectorScale( model.axis[1], c, model.axis[1]);
-				VectorScale( model.axis[2], c, model.axis[2]);
-
-				model.shaderRGBA[0] = 0xff;
-				model.shaderRGBA[1] = 0xff;
-				model.shaderRGBA[2] = 0xff;
-				model.shaderRGBA[3] = 0xff;
-				//
-				model.origin[2] += 56;
-				model.hModel = cgs.media.overloadTargetModel;
-				trap_R_AddRefEntityToScene( &model );
-			}
-			else {
-				//FIXME: show animated smoke
-			}
-		}
-		else {
-			cent->miscTime = 0;
-			cent->muzzleFlashTime = 0;
-			// modelindex2 is the health value of the obelisk
-			c = cent->currentState.modelindex2;
-			model.shaderRGBA[0] = 0xff;
-			model.shaderRGBA[1] = c;
-			model.shaderRGBA[2] = c;
-			model.shaderRGBA[3] = 0xff;
-			// show the lights
-			model.hModel = cgs.media.overloadLightsModel;
-			trap_R_AddRefEntityToScene( &model );
-			// show the target
-			model.origin[2] += 56;
-			model.hModel = cgs.media.overloadTargetModel;
-			trap_R_AddRefEntityToScene( &model );
-		}
-	}
-	else if ( cgs.gametype == GT_HARVESTER ) {
-		// show harvester model
-		memset(&model, 0, sizeof(model));
-		model.reType = RT_MODEL;
-		VectorCopy( cent->lerpOrigin, model.lightingOrigin );
-		VectorCopy( cent->lerpOrigin, model.origin );
-		AnglesToAxis( cent->currentState.angles, model.axis );
-
-		if ( cent->currentState.modelindex == TEAM_RED ) {
-			model.hModel = cgs.media.harvesterModel;
-			model.customSkin = cgs.media.harvesterRedSkin;
-		}
-		else if ( cent->currentState.modelindex == TEAM_BLUE ) {
-			model.hModel = cgs.media.harvesterModel;
-			model.customSkin = cgs.media.harvesterBlueSkin;
-		}
-		else {
-			model.hModel = cgs.media.harvesterNeutralModel;
-			model.customSkin = 0;
-		}
-		trap_R_AddRefEntityToScene( &model );
-	}
-#endif
 }
 
 /*
