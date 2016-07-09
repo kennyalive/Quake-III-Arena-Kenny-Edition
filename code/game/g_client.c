@@ -367,10 +367,6 @@ just like the existing corpse to leave behind.
 =============
 */
 void CopyToBodyQue( gentity_t *ent ) {
-#ifdef MISSIONPACK
-	gentity_t	*e;
-	int i;
-#endif
 	gentity_t		*body;
 	int			contents;
 
@@ -390,24 +386,6 @@ void CopyToBodyQue( gentity_t *ent ) {
 
 	body->s = ent->s;
 	body->s.eFlags = EF_DEAD;		// clear EF_TALK, etc
-#ifdef MISSIONPACK
-	if ( ent->s.eFlags & EF_KAMIKAZE ) {
-		body->s.eFlags |= EF_KAMIKAZE;
-
-		// check if there is a kamikaze timer around for this owner
-		for (i = 0; i < MAX_GENTITIES; i++) {
-			e = &g_entities[i];
-			if (!e->inuse)
-				continue;
-			if (e->activator != ent)
-				continue;
-			if (strcmp(e->classname, "kamikaze timer"))
-				continue;
-			e->activator = body;
-			break;
-		}
-	}
-#endif
 	body->s.powerups = 0;	// clear powerups
 	body->s.loopSound = 0;	// clear lava burning
 	body->s.number = body - g_entities;
@@ -753,23 +731,11 @@ void ClientUserinfoChanged( int clientNum ) {
 	}
 
 	// set max health
-#ifdef MISSIONPACK
-	if (client->ps.powerups[PW_GUARD]) {
-		client->pers.maxHealth = 200;
-	} else {
-		health = atoi( Info_ValueForKey( userinfo, "handicap" ) );
-		client->pers.maxHealth = health;
-		if ( client->pers.maxHealth < 1 || client->pers.maxHealth > 100 ) {
-			client->pers.maxHealth = 100;
-		}
-	}
-#else
 	health = atoi( Info_ValueForKey( userinfo, "handicap" ) );
 	client->pers.maxHealth = health;
 	if ( client->pers.maxHealth < 1 || client->pers.maxHealth > 100 ) {
 		client->pers.maxHealth = 100;
 	}
-#endif
 	client->ps.stats[STAT_MAX_HEALTH] = client->pers.maxHealth;
 
 	// set model
@@ -818,18 +784,6 @@ void ClientUserinfoChanged( int clientNum ) {
 	}
 */
 
-#ifdef MISSIONPACK
-	if (g_gametype.integer >= GT_TEAM) {
-		client->pers.teamInfo = qtrue;
-	} else {
-		s = Info_ValueForKey( userinfo, "teamoverlay" );
-		if ( ! *s || atoi( s ) != 0 ) {
-			client->pers.teamInfo = qtrue;
-		} else {
-			client->pers.teamInfo = qfalse;
-		}
-	}
-#else
 	// teamInfo
 	s = Info_ValueForKey( userinfo, "teamoverlay" );
 	if ( ! *s || atoi( s ) != 0 ) {
@@ -837,7 +791,6 @@ void ClientUserinfoChanged( int clientNum ) {
 	} else {
 		client->pers.teamInfo = qfalse;
 	}
-#endif
 	/*
 	s = Info_ValueForKey( userinfo, "cg_pmove_fixed" );
 	if ( !*s || atoi( s ) == 0 ) {
@@ -1305,13 +1258,6 @@ void ClientDisconnect( int clientNum ) {
 		// They don't get to take powerups with them!
 		// Especially important for stuff like CTF flags
 		TossClientItems( ent );
-#ifdef MISSIONPACK
-		TossClientPersistantPowerups( ent );
-		if( g_gametype.integer == GT_HARVESTER ) {
-			TossClientCubes( ent );
-		}
-#endif
-
 	}
 
 	G_LogPrintf( "ClientDisconnect: %i\n", clientNum );
