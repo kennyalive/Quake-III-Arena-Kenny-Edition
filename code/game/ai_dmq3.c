@@ -55,7 +55,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "match.h"				//string matching types and vars
 
 // for the voice chats
-#include "../../ui/menudef.h" // sos001205 - for q3_ui also
+#include "menudef.h" // sos001205 - for q3_ui also
 
 // from aasfile.h
 #define AREACONTENTS_MOVER				1024

@@ -54,7 +54,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "match.h"			//string matching types and vars
 
 // for the voice chats
-#include "../../ui/menudef.h"
+#include "menudef.h"
 
 //goal flag, see be_ai_goal.h for the other GFL_*
 #define GFL_AIR			128
