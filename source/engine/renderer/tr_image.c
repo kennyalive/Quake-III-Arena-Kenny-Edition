@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #define JPEG_INTERNALS
-#include "../jpeg-6/jpeglib.h"
+#include "../../../third_party/jpeg-6/jpeglib.h"
 
 
 static void LoadBMP( const char *name, byte **pic, int *width, int *height );

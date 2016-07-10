@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ** QGL_Shutdown() - unloads libraries, NULLs function pointers
 */
 #include <float.h>
-#include "../renderer/tr_local.h"
+#include "../engine/renderer/tr_local.h"
 #include "glw_win.h"
 
 void QGL_EnableLogging( qboolean enable );
