@@ -1,7 +1,7 @@
 binaries
 intermediate
-source/win32/vs/*.user
-source/win32/vs/*.log
+config/vs2015/*.user
+config/vs2015/*.log
 *.opendb
 *.opensdf
 *.sdf
