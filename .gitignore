@@ -1,8 +1,8 @@
-quake3.opensdf
-quake3.sdf
-quake3.*.suo
-code/build
-code/win32/vs/*.user
-code/win32/vs/*.log
-*.suo
+binaries
+intermediate
+source/win32/vs/*.user
+source/win32/vs/*.log
 *.opendb
+*.opensdf
+*.sdf
+*.suo
