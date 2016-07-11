@@ -11,186 +11,186 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\game\ai_chat.c">
+    <ClCompile Include="..\..\source\game\ai_chat.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\ai_cmd.c">
+    <ClCompile Include="..\..\source\game\ai_cmd.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\ai_dmnet.c">
+    <ClCompile Include="..\..\source\game\ai_dmnet.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\ai_dmq3.c">
+    <ClCompile Include="..\..\source\game\ai_dmq3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\ai_main.c">
+    <ClCompile Include="..\..\source\game\ai_main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\ai_team.c">
+    <ClCompile Include="..\..\source\game\ai_team.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\ai_vcmd.c">
+    <ClCompile Include="..\..\source\game\ai_vcmd.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\bg_misc.c">
+    <ClCompile Include="..\..\source\game\bg_misc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\bg_pmove.c">
+    <ClCompile Include="..\..\source\game\bg_pmove.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\bg_slidemove.c">
+    <ClCompile Include="..\..\source\game\bg_slidemove.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_active.c">
+    <ClCompile Include="..\..\source\game\g_active.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_arenas.c">
+    <ClCompile Include="..\..\source\game\g_arenas.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_bot.c">
+    <ClCompile Include="..\..\source\game\g_bot.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_client.c">
+    <ClCompile Include="..\..\source\game\g_client.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_cmds.c">
+    <ClCompile Include="..\..\source\game\g_cmds.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_combat.c">
+    <ClCompile Include="..\..\source\game\g_combat.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_items.c">
+    <ClCompile Include="..\..\source\game\g_items.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_main.c">
+    <ClCompile Include="..\..\source\game\g_main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_mem.c">
+    <ClCompile Include="..\..\source\game\g_mem.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_misc.c">
+    <ClCompile Include="..\..\source\game\g_misc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_missile.c">
+    <ClCompile Include="..\..\source\game\g_missile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_mover.c">
+    <ClCompile Include="..\..\source\game\g_mover.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_session.c">
+    <ClCompile Include="..\..\source\game\g_session.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_spawn.c">
+    <ClCompile Include="..\..\source\game\g_spawn.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_svcmds.c">
+    <ClCompile Include="..\..\source\game\g_svcmds.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_syscalls.c">
+    <ClCompile Include="..\..\source\game\g_syscalls.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_target.c">
+    <ClCompile Include="..\..\source\game\g_target.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_team.c">
+    <ClCompile Include="..\..\source\game\g_team.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_trigger.c">
+    <ClCompile Include="..\..\source\game\g_trigger.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_utils.c">
+    <ClCompile Include="..\..\source\game\g_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\g_weapon.c">
+    <ClCompile Include="..\..\source\game\g_weapon.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\q_math.c">
+    <ClCompile Include="..\..\source\game\q_math.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\q_shared.c">
+    <ClCompile Include="..\..\source\game\q_shared.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\game\ai_chat.h">
+    <ClInclude Include="..\..\source\game\ai_chat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\ai_cmd.h">
+    <ClInclude Include="..\..\source\game\ai_cmd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\ai_dmnet.h">
+    <ClInclude Include="..\..\source\game\ai_dmnet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\ai_dmq3.h">
+    <ClInclude Include="..\..\source\game\ai_dmq3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\ai_main.h">
+    <ClInclude Include="..\..\source\game\ai_main.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\ai_team.h">
+    <ClInclude Include="..\..\source\game\ai_team.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\ai_vcmd.h">
+    <ClInclude Include="..\..\source\game\ai_vcmd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_aas.h">
+    <ClInclude Include="..\..\source\game\be_aas.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_ai_char.h">
+    <ClInclude Include="..\..\source\game\be_ai_char.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_ai_chat.h">
+    <ClInclude Include="..\..\source\game\be_ai_chat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_ai_gen.h">
+    <ClInclude Include="..\..\source\game\be_ai_gen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_ai_goal.h">
+    <ClInclude Include="..\..\source\game\be_ai_goal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_ai_move.h">
+    <ClInclude Include="..\..\source\game\be_ai_move.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_ai_weap.h">
+    <ClInclude Include="..\..\source\game\be_ai_weap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\be_ea.h">
+    <ClInclude Include="..\..\source\game\be_ea.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\bg_local.h">
+    <ClInclude Include="..\..\source\game\bg_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\bg_public.h">
+    <ClInclude Include="..\..\source\game\bg_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\botlib.h">
+    <ClInclude Include="..\..\source\game\botlib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\chars.h">
+    <ClInclude Include="..\..\source\game\chars.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\g_local.h">
+    <ClInclude Include="..\..\source\game\g_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\g_public.h">
+    <ClInclude Include="..\..\source\game\g_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\g_team.h">
+    <ClInclude Include="..\..\source\game\g_team.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\inv.h">
+    <ClInclude Include="..\..\source\game\inv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\match.h">
+    <ClInclude Include="..\..\source\game\match.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\q_shared.h">
+    <ClInclude Include="..\..\source\game\q_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\surfaceflags.h">
+    <ClInclude Include="..\..\source\game\surfaceflags.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\syn.h">
+    <ClInclude Include="..\..\source\game\syn.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
