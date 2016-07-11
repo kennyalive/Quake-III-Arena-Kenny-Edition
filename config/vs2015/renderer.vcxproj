@@ -919,10 +919,10 @@
     <ClInclude Include="..\..\source\engine\qcommon\qcommon.h" />
     <ClInclude Include="..\..\source\engine\qcommon\qfiles.h" />
     <ClInclude Include="..\..\source\engine\renderer\qgl.h" />
-    <ClInclude Include="..\..\game\surfaceflags.h" />
+    <ClInclude Include="..\..\source\game\surfaceflags.h" />
     <ClInclude Include="..\..\source\engine\renderer\tr_local.h" />
     <ClInclude Include="..\..\source\engine\renderer\tr_public.h" />
-    <ClInclude Include="..\..\cgame\tr_types.h" />
+    <ClInclude Include="..\..\source\cgame\tr_types.h" />
     <ClInclude Include="..\..\source\engine\win32\win_local.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jchuff.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jconfig.h" />

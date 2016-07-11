@@ -251,7 +251,7 @@
     <ClInclude Include="..\..\source\engine\win32\win_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\sq3_ui\keycodes.h">
+    <ClInclude Include="..\..\source\q3_ui\keycodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

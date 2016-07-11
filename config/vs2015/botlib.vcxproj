@@ -543,7 +543,7 @@
     <ClInclude Include="..\..\source\engine\botlib\be_ai_weight.h" />
     <ClInclude Include="..\..\source\engine\botlib\be_interface.h" />
     <ClInclude Include="..\..\source\game\bg_public.h" />
-    <ClInclude Include="..\..\source\qcommon\cm_public.h" />
+    <ClInclude Include="..\..\source\engine\qcommon\cm_public.h" />
     <ClInclude Include="..\..\source\game\g_public.h" />
     <ClInclude Include="..\..\source\engine\botlib\l_crc.h" />
     <ClInclude Include="..\..\source\engine\botlib\l_libvar.h" />
@@ -554,9 +554,9 @@
     <ClInclude Include="..\..\source\engine\botlib\l_struct.h" />
     <ClInclude Include="..\..\source\engine\botlib\l_utils.h" />
     <ClInclude Include="..\..\source\game\q_shared.h" />
-    <ClInclude Include="..\..\source\qcommon\qcommon.h" />
-    <ClInclude Include="..\..\source\qcommon\qfiles.h" />
-    <ClInclude Include="..\..\source\server\server.h" />
+    <ClInclude Include="..\..\source\engine\qcommon\qcommon.h" />
+    <ClInclude Include="..\..\source\engine\qcommon\qfiles.h" />
+    <ClInclude Include="..\..\source\engine\server\server.h" />
     <ClInclude Include="..\..\source\game\surfaceflags.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

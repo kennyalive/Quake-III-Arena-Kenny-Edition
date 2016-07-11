@@ -268,10 +268,10 @@
     <ClInclude Include="..\..\third_party\jpeg-6\jversion.h">
       <Filter>jpeg\Header Files No. 1</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\surfaceflags.h">
+    <ClInclude Include="..\..\source\game\surfaceflags.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\cgame\tr_types.h">
+    <ClInclude Include="..\..\source\cgame\tr_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -151,7 +151,7 @@
     <ClInclude Include="..\..\source\game\bg_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\qcommon\cm_public.h">
+    <ClInclude Include="..\..\source\engine\qcommon\cm_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\game\g_public.h">
@@ -184,13 +184,13 @@
     <ClInclude Include="..\..\source\game\q_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\qcommon\qcommon.h">
+    <ClInclude Include="..\..\source\engine\qcommon\qcommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\qcommon\qfiles.h">
+    <ClInclude Include="..\..\source\engine\qcommon\qfiles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\server\server.h">
+    <ClInclude Include="..\..\source\engine\server\server.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\game\surfaceflags.h">

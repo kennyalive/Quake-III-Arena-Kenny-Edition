@@ -747,7 +747,7 @@
     <ClInclude Include="..\..\source\engine\qcommon\cm_polylib.h" />
     <ClInclude Include="..\..\source\engine\qcommon\cm_public.h" />
     <ClInclude Include="..\..\source\game\g_public.h" />
-    <ClInclude Include="..\..\source\sq3_ui\keycodes.h" />
+    <ClInclude Include="..\..\source\q3_ui\keycodes.h" />
     <ClInclude Include="..\..\source\engine\client\keys.h" />
     <ClInclude Include="..\..\source\game\q_shared.h" />
     <ClInclude Include="..\..\source\engine\qcommon\qcommon.h" />
