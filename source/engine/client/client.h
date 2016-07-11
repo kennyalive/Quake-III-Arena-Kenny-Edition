@@ -21,14 +21,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // client.h -- primary header for client
 
-#include "../game/q_shared.h"
+#include "../../game/q_shared.h"
 #include "../qcommon/qcommon.h"
 #include "../renderer/tr_public.h"
-#include "../q3_ui/ui_public.h"
+#include "../../q3_ui/ui_public.h"
 #include "keys.h"
 #include "snd_public.h"
-#include "../cgame/cg_public.h"
-#include "../game/bg_public.h"
+#include "../../cgame/cg_public.h"
+#include "../../game/bg_public.h"
 
 #define	RETRANSMIT_TIMEOUT	3000	// time between connection packet retransmits
 

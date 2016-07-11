@@ -453,7 +453,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="..\..\source\win32\win_gamma.c">
+    <ClCompile Include="..\..\source\engine\win32\win_gamma.c">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Disabled</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Disabled</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -465,7 +465,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="..\..\source\win32\win_glimp.c">
+    <ClCompile Include="..\..\source\engine\win32\win_glimp.c">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Disabled</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Disabled</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -477,7 +477,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="..\..\source\win32\win_qgl.c">
+    <ClCompile Include="..\..\source\engine\win32\win_qgl.c">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Disabled</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Disabled</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -923,17 +923,17 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\source\qcommon\cm_public.h" />
-    <ClInclude Include="..\..\source\win32\glw_win.h" />
+    <ClInclude Include="..\..\source\engine\qcommon\cm_public.h" />
+    <ClInclude Include="..\..\source\engine\win32\glw_win.h" />
     <ClInclude Include="..\..\source\game\q_shared.h" />
-    <ClInclude Include="..\..\source\qcommon\qcommon.h" />
-    <ClInclude Include="..\..\source\qcommon\qfiles.h" />
+    <ClInclude Include="..\..\source\engine\qcommon\qcommon.h" />
+    <ClInclude Include="..\..\source\engine\qcommon\qfiles.h" />
     <ClInclude Include="..\..\source\engine\renderer\qgl.h" />
     <ClInclude Include="..\..\game\surfaceflags.h" />
     <ClInclude Include="..\..\source\engine\renderer\tr_local.h" />
     <ClInclude Include="..\..\source\engine\renderer\tr_public.h" />
     <ClInclude Include="..\..\cgame\tr_types.h" />
-    <ClInclude Include="..\..\source\win32\win_local.h" />
+    <ClInclude Include="..\..\source\engine\win32\win_local.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jchuff.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jconfig.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jdct.h" />

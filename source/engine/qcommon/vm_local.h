@@ -19,7 +19,7 @@ along with Foobar; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
-#include "../game/q_shared.h"
+#include "../../game/q_shared.h"
 #include "qcommon.h"
 
 // Max number of arguments to pass from a vm to engine's syscall handler function for the vm.

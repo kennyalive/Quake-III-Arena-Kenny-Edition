@@ -89,13 +89,13 @@
     <ClCompile Include="..\..\source\engine\renderer\tr_world.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\win32\win_gamma.c">
+    <ClCompile Include="..\..\source\engine\win32\win_gamma.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\win32\win_glimp.c">
+    <ClCompile Include="..\..\source\engine\win32\win_glimp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\win32\win_qgl.c">
+    <ClCompile Include="..\..\source\engine\win32\win_qgl.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\third_party\jpeg-6\jcapimin.c">
@@ -208,19 +208,19 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\source\qcommon\cm_public.h">
+    <ClInclude Include="..\..\source\engine\qcommon\cm_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\win32\glw_win.h">
+    <ClInclude Include="..\..\source\engine\win32\glw_win.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\game\q_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\qcommon\qcommon.h">
+    <ClInclude Include="..\..\source\engine\qcommon\qcommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\qcommon\qfiles.h">
+    <ClInclude Include="..\..\source\engine\qcommon\qfiles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\engine\renderer\qgl.h">
@@ -232,7 +232,7 @@
     <ClInclude Include="..\..\source\engine\renderer\tr_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\win32\win_local.h">
+    <ClInclude Include="..\..\source\engine\win32\win_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\third_party\jpeg-6\jchuff.h">

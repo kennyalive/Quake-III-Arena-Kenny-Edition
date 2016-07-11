@@ -27,247 +27,241 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\server\sv_bot.c">
+    <ClCompile Include="..\..\source\engine\server\sv_bot.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_ccmds.c">
+    <ClCompile Include="..\..\source\engine\server\sv_ccmds.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_client.c">
+    <ClCompile Include="..\..\source\engine\server\sv_client.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_game.c">
+    <ClCompile Include="..\..\source\engine\server\sv_game.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_init.c">
+    <ClCompile Include="..\..\source\engine\server\sv_init.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_main.c">
+    <ClCompile Include="..\..\source\engine\server\sv_main.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_net_chan.c">
+    <ClCompile Include="..\..\source\engine\server\sv_net_chan.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_snapshot.c">
+    <ClCompile Include="..\..\source\engine\server\sv_snapshot.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\server\sv_world.c">
+    <ClCompile Include="..\..\source\engine\server\sv_world.c">
       <Filter>Source Files\server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_cgame.c">
+    <ClCompile Include="..\..\source\engine\client\cl_cgame.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_cin.c">
+    <ClCompile Include="..\..\source\engine\client\cl_cin.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_console.c">
+    <ClCompile Include="..\..\source\engine\client\cl_console.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_input.c">
+    <ClCompile Include="..\..\source\engine\client\cl_input.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_keys.c">
+    <ClCompile Include="..\..\source\engine\client\cl_keys.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_main.c">
+    <ClCompile Include="..\..\source\engine\client\cl_main.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_net_chan.c">
+    <ClCompile Include="..\..\source\engine\client\cl_net_chan.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_parse.c">
+    <ClCompile Include="..\..\source\engine\client\cl_parse.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_scrn.c">
+    <ClCompile Include="..\..\source\engine\client\cl_scrn.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\cl_ui.c">
+    <ClCompile Include="..\..\source\engine\client\cl_ui.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\snd_adpcm.c">
+    <ClCompile Include="..\..\source\engine\client\snd_adpcm.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\snd_dma.c">
+    <ClCompile Include="..\..\source\engine\client\snd_dma.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\snd_mem.c">
+    <ClCompile Include="..\..\source\engine\client\snd_mem.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\snd_mix.c">
+    <ClCompile Include="..\..\source\engine\client\snd_mix.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\client\snd_wavelet.c">
+    <ClCompile Include="..\..\source\engine\client\snd_wavelet.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_input.c">
+    <ClCompile Include="..\..\source\engine\win32\win_input.c">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_main.c">
+    <ClCompile Include="..\..\source\engine\win32\win_main.c">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_net.c">
+    <ClCompile Include="..\..\source\engine\win32\win_net.c">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_shared.c">
+    <ClCompile Include="..\..\source\engine\win32\win_shared.c">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_snd.c">
+    <ClCompile Include="..\..\source\engine\win32\win_snd.c">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_syscon.c">
+    <ClCompile Include="..\..\source\engine\win32\win_syscon.c">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win_wndproc.c">
+    <ClCompile Include="..\..\source\engine\win32\win_wndproc.c">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\cm_load.c">
+    <ClCompile Include="..\..\source\engine\qcommon\cm_load.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\cm_patch.c">
+    <ClCompile Include="..\..\source\engine\qcommon\cm_patch.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\cm_polylib.c">
+    <ClCompile Include="..\..\source\engine\qcommon\cm_polylib.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\cm_test.c">
+    <ClCompile Include="..\..\source\engine\qcommon\cm_test.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\cm_trace.c">
+    <ClCompile Include="..\..\source\engine\qcommon\cm_trace.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\cmd.c">
+    <ClCompile Include="..\..\source\engine\qcommon\cmd.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\common.c">
+    <ClCompile Include="..\..\source\engine\qcommon\common.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\cvar.c">
+    <ClCompile Include="..\..\source\engine\qcommon\cvar.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\files.c">
+    <ClCompile Include="..\..\source\engine\qcommon\files.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\huffman.c">
+    <ClCompile Include="..\..\source\engine\qcommon\huffman.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\md4.c">
+    <ClCompile Include="..\..\source\engine\qcommon\md4.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\msg.c">
+    <ClCompile Include="..\..\source\engine\qcommon\msg.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\net_chan.c">
+    <ClCompile Include="..\..\source\engine\qcommon\net_chan.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\q_math.c">
+    <ClCompile Include="..\..\source\game\q_math.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\game\q_shared.c">
+    <ClCompile Include="..\..\source\game\q_shared.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\unzip.c">
+    <ClCompile Include="..\..\source\engine\qcommon\unzip.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\vm.c">
+    <ClCompile Include="..\..\source\engine\qcommon\vm.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\qcommon\vm_interpreted.c">
+    <ClCompile Include="..\..\source\engine\qcommon\vm_interpreted.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\game\bg_public.h">
+    <ClInclude Include="..\..\source\game\bg_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\cgame\cg_public.h">
+    <ClInclude Include="..\..\source\cgame\cg_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\client\client.h">
+    <ClInclude Include="..\..\source\engine\client\client.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\cm_local.h">
+    <ClInclude Include="..\..\source\engine\qcommon\cm_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\cm_patch.h">
+    <ClInclude Include="..\..\source\engine\qcommon\cm_patch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\cm_polylib.h">
+    <ClInclude Include="..\..\source\engine\qcommon\cm_polylib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\cm_public.h">
+    <ClInclude Include="..\..\source\engine\qcommon\cm_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\g_public.h">
+    <ClInclude Include="..\..\source\game\g_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\q3_ui\keycodes.h">
+    <ClInclude Include="..\..\source\engine\client\keys.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\client\keys.h">
+    <ClInclude Include="..\..\source\game\q_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\q_shared.h">
+    <ClInclude Include="..\..\source\engine\qcommon\qcommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\qcommon.h">
+    <ClInclude Include="..\..\source\engine\qcommon\qfiles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\qfiles.h">
+    <ClInclude Include="..\..\source\engine\renderer\qgl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="renderer\qgl.h">
+    <ClInclude Include="..\..\source\engine\win32\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\resource.h">
+    <ClInclude Include="..\..\source\engine\server\server.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\server\server.h">
+    <ClInclude Include="..\..\source\engine\client\snd_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\client\snd_local.h">
+    <ClInclude Include="..\..\source\engine\client\snd_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\client\snd_public.h">
+    <ClInclude Include="..\..\source\game\surfaceflags.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\game\surfaceflags.h">
+    <ClInclude Include="..\..\source\engine\renderer\tr_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="renderer\tr_local.h">
+    <ClInclude Include="..\..\source\engine\renderer\tr_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="renderer\tr_public.h">
+    <ClInclude Include="..\..\source\cgame\tr_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\cgame\tr_types.h">
+    <ClInclude Include="..\..\source\q3_ui\ui_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\q3_ui\ui_public.h">
+    <ClInclude Include="..\..\source\engine\qcommon\unzip.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\unzip.h">
+    <ClInclude Include="..\..\source\engine\qcommon\vm_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\qcommon\vm_local.h">
+    <ClInclude Include="..\..\source\engine\win32\win_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\win_local.h">
+    <ClInclude Include="..\..\source\sq3_ui\keycodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\cursor2.cur">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\cursor3.cur">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\qe3.ico">
+    <None Include="..\..\source\engine\win32\qe3.ico">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\winquake.rc">
+    <ResourceCompile Include="..\..\source\engine\win32\winquake.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

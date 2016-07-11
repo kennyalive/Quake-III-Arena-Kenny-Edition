@@ -25,8 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define TR_LOCAL_H
 
 #include "../../game/q_shared.h"
-#include "../../qcommon/qfiles.h"
-#include "../../qcommon/qcommon.h"
+#include "../qcommon/qfiles.h"
+#include "../qcommon/qcommon.h"
 #include "tr_public.h"
 #include "qgl.h"
 
