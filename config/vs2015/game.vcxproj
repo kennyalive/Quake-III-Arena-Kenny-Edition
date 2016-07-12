@@ -51,10 +51,10 @@
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>qagamex86</TargetName>
+    <TargetName>qagame</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>qagamex86</TargetName>
+    <TargetName>qagame</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Midl>
@@ -84,7 +84,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <BaseAddress>0x20000000</BaseAddress>
-      <ImportLibrary>$(TargetDir)qagamex86.lib</ImportLibrary>
     </Link>
     <Bscmake>
       <OutputFile>
@@ -120,7 +119,6 @@
       <ModuleDefinitionFile>game.def</ModuleDefinitionFile>
       <SubSystem>Windows</SubSystem>
       <BaseAddress>0x20000000</BaseAddress>
-      <ImportLibrary>$(TargetDir)qagamex86.lib</ImportLibrary>
     </Link>
     <Bscmake>
       <OutputFile>

@@ -543,7 +543,7 @@ void * QDECL Sys_LoadDll( const char *name, char *fqpath , intptr_t (QDECL **ent
 
 	*fqpath = 0 ;		// added 7/20/02 by T.Ray
 
-	Com_sprintf( filename, sizeof( filename ), "%sx86.dll", name );
+	Com_sprintf( filename, sizeof( filename ), "%s.dll", name );
 
 #ifdef NDEBUG
 	timestamp = Sys_Milliseconds();

@@ -53,10 +53,10 @@
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>uix86</TargetName>
+    <TargetName>ui</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>uix86</TargetName>
+    <TargetName>ui</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -84,7 +84,6 @@
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ModuleDefinitionFile>ui.def</ModuleDefinitionFile>
-      <ImportLibrary>$(TargetDir)uix86.lib</ImportLibrary>
     </Link>
     <Bscmake>
       <OutputFile>
@@ -119,7 +118,6 @@
       <ModuleDefinitionFile>ui.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <BaseAddress>0x40000000</BaseAddress>
-      <ImportLibrary>$(TargetDir)uix86.lib</ImportLibrary>
     </Link>
     <Bscmake>
       <OutputFile>
