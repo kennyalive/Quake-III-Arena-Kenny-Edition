@@ -11,7 +11,7 @@
     <Filter Include="Source Files\client">
       <UniqueIdentifier>{ee4ec941-90c2-4111-84e5-3a384ec99170}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\win32">
+    <Filter Include="Source Files\platform">
       <UniqueIdentifier>{f4a5c1df-75fc-4bb6-b7eb-edcec29ede73}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\common">
@@ -99,26 +99,26 @@
     <ClCompile Include="..\..\source\engine\client\snd_wavelet.c">
       <Filter>Source Files\client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_input.c">
-      <Filter>Source Files\win32</Filter>
+    <ClCompile Include="..\..\source\engine\platform\win_input.c">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_main.c">
-      <Filter>Source Files\win32</Filter>
+    <ClCompile Include="..\..\source\engine\platform\win_main.c">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_net.c">
-      <Filter>Source Files\win32</Filter>
+    <ClCompile Include="..\..\source\engine\platform\win_net.c">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_shared.c">
-      <Filter>Source Files\win32</Filter>
+    <ClCompile Include="..\..\source\engine\platform\win_shared.c">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_snd.c">
-      <Filter>Source Files\win32</Filter>
+    <ClCompile Include="..\..\source\engine\platform\win_snd.c">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_syscon.c">
-      <Filter>Source Files\win32</Filter>
+    <ClCompile Include="..\..\source\engine\platform\win_syscon.c">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_wndproc.c">
-      <Filter>Source Files\win32</Filter>
+    <ClCompile Include="..\..\source\engine\platform\win_wndproc.c">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
     <ClCompile Include="..\..\source\engine\qcommon\cm_load.c">
       <Filter>Source Files\common</Filter>
@@ -215,7 +215,7 @@
     <ClInclude Include="..\..\source\engine\renderer\qgl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\win32\resource.h">
+    <ClInclude Include="..\..\source\engine\platform\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\engine\server\server.h">
@@ -248,7 +248,7 @@
     <ClInclude Include="..\..\source\engine\qcommon\vm_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\win32\win_local.h">
+    <ClInclude Include="..\..\source\engine\platform\win_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\q3_ui\keycodes.h">
@@ -256,12 +256,12 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\source\engine\win32\qe3.ico">
+    <None Include="..\..\source\engine\platform\qe3.ico">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\source\engine\win32\winquake.rc">
+    <ResourceCompile Include="..\..\source\engine\platform\winquake.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

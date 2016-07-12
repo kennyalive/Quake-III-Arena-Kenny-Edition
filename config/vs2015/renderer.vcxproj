@@ -253,21 +253,21 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MaxSpeed</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_gamma.c">
+    <ClCompile Include="..\..\source\engine\platform\win_gamma.c">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Disabled</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">EnableFastChecks</BasicRuntimeChecks>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MaxSpeed</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_glimp.c">
+    <ClCompile Include="..\..\source\engine\platform\win_glimp.c">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Disabled</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">EnableFastChecks</BasicRuntimeChecks>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MaxSpeed</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\win32\win_qgl.c">
+    <ClCompile Include="..\..\source\engine\platform\win_qgl.c">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Disabled</Optimization>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">EnableFastChecks</BasicRuntimeChecks>
@@ -529,7 +529,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\engine\qcommon\cm_public.h" />
-    <ClInclude Include="..\..\source\engine\win32\glw_win.h" />
+    <ClInclude Include="..\..\source\engine\platform\glw_win.h" />
     <ClInclude Include="..\..\source\game\q_shared.h" />
     <ClInclude Include="..\..\source\engine\qcommon\qcommon.h" />
     <ClInclude Include="..\..\source\engine\qcommon\qfiles.h" />
@@ -538,7 +538,7 @@
     <ClInclude Include="..\..\source\engine\renderer\tr_local.h" />
     <ClInclude Include="..\..\source\engine\renderer\tr_public.h" />
     <ClInclude Include="..\..\source\cgame\tr_types.h" />
-    <ClInclude Include="..\..\source\engine\win32\win_local.h" />
+    <ClInclude Include="..\..\source\engine\platform\win_local.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jchuff.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jconfig.h" />
     <ClInclude Include="..\..\third_party\jpeg-6\jdct.h" />
