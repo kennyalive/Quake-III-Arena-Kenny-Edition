@@ -29,8 +29,6 @@ WinVars_t	g_wv;
 #define WM_MOUSEWHEEL (WM_MOUSELAST+1)  // message that will be supported by the OS 
 #endif
 
-static UINT MSH_MOUSEWHEEL;
-
 // Console variables that we need to access from this module
 cvar_t		*vid_xpos;			// X coordinate of window position
 cvar_t		*vid_ypos;			// Y coordinate of window position
@@ -232,37 +230,13 @@ LONG WINAPI MainWndProc (
 	static qboolean flip = qtrue;
 	int zDelta, i;
 
-	// http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/winui/windowsuserinterface/userinput/mouseinput/aboutmouseinput.asp
-	// Windows 95, Windows NT 3.51 - uses MSH_MOUSEWHEEL
-	// only relevant for non-DI input
-	//
-	// NOTE: not sure how reliable this is anymore, might trigger double wheel events
-	if (in_mouse->integer != 1)
-	{
-		if ( uMsg == MSH_MOUSEWHEEL )
-		{
-			if ( ( ( int ) wParam ) > 0 )
-			{
-				Sys_QueEvent( g_wv.sysMsgTime, SE_KEY, K_MWHEELUP, qtrue, 0, NULL );
-				Sys_QueEvent( g_wv.sysMsgTime, SE_KEY, K_MWHEELUP, qfalse, 0, NULL );
-			}
-			else
-			{
-				Sys_QueEvent( g_wv.sysMsgTime, SE_KEY, K_MWHEELDOWN, qtrue, 0, NULL );
-				Sys_QueEvent( g_wv.sysMsgTime, SE_KEY, K_MWHEELDOWN, qfalse, 0, NULL );
-			}
-			return DefWindowProc (hWnd, uMsg, wParam, lParam);
-		}
-	}
-
 	switch (uMsg)
 	{
 	case WM_MOUSEWHEEL:
-		// http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/winui/windowsuserinterface/userinput/mouseinput/aboutmouseinput.asp
 		// Windows 98/Me, Windows NT 4.0 and later - uses WM_MOUSEWHEEL
 		// only relevant for non-DI input and when console is toggled in window mode
 		//   if console is toggled in window mode (KEYCATCH_CONSOLE) then mouse is released and DI doesn't see any mouse wheel
-		if (in_mouse->integer != 1 || (!r_fullscreen->integer && (cls.keyCatchers & KEYCATCH_CONSOLE)))
+		if (!r_fullscreen->integer && (cls.keyCatchers & KEYCATCH_CONSOLE))
 		{
 			// 120 increments, might be 240 and multiples if wheel goes too fast
 			// NOTE Logitech: logitech drivers are screwed and send the message twice?
@@ -313,7 +287,6 @@ LONG WINAPI MainWndProc (
 		vid_ypos = Cvar_Get ("vid_ypos", "22", CVAR_ARCHIVE);
 		r_fullscreen = Cvar_Get ("r_fullscreen", "1", CVAR_ARCHIVE | CVAR_LATCH );
 
-		MSH_MOUSEWHEEL = RegisterWindowMessage("MSWHEEL_ROLLMSG"); 
 		if ( r_fullscreen->integer )
 		{
 			WIN_DisableAltTab();

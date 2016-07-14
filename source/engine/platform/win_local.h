@@ -31,9 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 #define	DIRECTSOUND_VERSION	0x0300
-#define	DIRECTINPUT_VERSION	0x0300
 
-#include <dinput.h>
 #include <dsound.h>
 #include <winsock.h>
 #include <wsipx.h>
@@ -53,12 +51,6 @@ qboolean	Sys_GetPacket ( netadr_t *net_from, msg_t *net_message );
 
 void	IN_Init (void);
 void	IN_Shutdown (void);
-void	IN_JoystickCommands (void);
-
-void	IN_Move (usercmd_t *cmd);
-// add additional non keyboard / non mouse movement on top of the keyboard move cmd
-
-void	IN_DeactivateWin32Mouse( void);
 
 void	IN_Activate (qboolean active);
 void	IN_Frame (void);
