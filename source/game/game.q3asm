@@ -1,6 +1,6 @@
--o "\quake3\baseq3\vm\qagame"
+-o "..\..\..\binaries\vm\qagame.qvm"
 g_main
-..\g_syscalls
+..\..\..\source\game\g_syscalls
 bg_misc
 bg_lib
 bg_pmove

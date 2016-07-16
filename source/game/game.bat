@@ -2,87 +2,87 @@ rem make sure we have a safe environement
 set LIBRARY=
 set INCLUDE=
 
-mkdir vm
-cd vm
-set cc=lcc -DQ3_VM -S -Wf-target=bytecode -Wf-g -I..\..\cgame -I..\..\game -I..\..\ui %1
+mkdir ..\..\intermediate\vm\game
+cd ..\..\intermediate\vm\game
 
-rem update PATH variable to point to the quake3 sdk tools
-set PATH=.\..\..\win32\mod-sdk-setup\bin;%PATH%
+set PATH=..\..\..\tools\bin;%PATH%
 
-%cc%  ../g_main.c
-@if errorlevel 1 goto quit
+set src=..\..\..\source
+set cc=lcc -DQ3_VM -S -Wf-target=bytecode -Wf-g -I%src%\cgame -I%src%\game -I%src%\ui %1
 
-%cc%  ../g_syscalls.c
+%cc%  %src%/game/g_main.c
 @if errorlevel 1 goto quit
 
-%cc%  ../bg_misc.c
-@if errorlevel 1 goto quit
-%cc%  ../bg_lib.c
-@if errorlevel 1 goto quit
-%cc%  ../bg_pmove.c
-@if errorlevel 1 goto quit
-%cc%  ../bg_slidemove.c
-@if errorlevel 1 goto quit
-%cc%  ../q_math.c
-@if errorlevel 1 goto quit
-%cc%  ../q_shared.c
+%cc%  %src%/game/g_syscalls.c
 @if errorlevel 1 goto quit
 
-%cc%  ../ai_dmnet.c
+%cc%  %src%/game/bg_misc.c
 @if errorlevel 1 goto quit
-%cc%  ../ai_dmq3.c
+%cc%  %src%/game/bg_lib.c
 @if errorlevel 1 goto quit
-%cc%  ../ai_main.c
+%cc%  %src%/game/bg_pmove.c
 @if errorlevel 1 goto quit
-%cc%  ../ai_chat.c
+%cc%  %src%/game/bg_slidemove.c
 @if errorlevel 1 goto quit
-%cc%  ../ai_cmd.c
+%cc%  %src%/game/q_math.c
 @if errorlevel 1 goto quit
-%cc%  ../ai_team.c
-@if errorlevel 1 goto quit
-
-%cc%  ../g_active.c
-@if errorlevel 1 goto quit
-%cc%  ../g_arenas.c
-@if errorlevel 1 goto quit
-%cc%  ../g_bot.c
-@if errorlevel 1 goto quit
-%cc%  ../g_client.c
-@if errorlevel 1 goto quit
-%cc%  ../g_cmds.c
-@if errorlevel 1 goto quit
-%cc%  ../g_combat.c
-@if errorlevel 1 goto quit
-%cc%  ../g_items.c
-@if errorlevel 1 goto quit
-%cc%  ../g_mem.c
-@if errorlevel 1 goto quit
-%cc%  ../g_misc.c
-@if errorlevel 1 goto quit
-%cc%  ../g_missile.c
-@if errorlevel 1 goto quit
-%cc%  ../g_mover.c
-@if errorlevel 1 goto quit
-%cc%  ../g_session.c
-@if errorlevel 1 goto quit
-%cc%  ../g_spawn.c
-@if errorlevel 1 goto quit
-%cc%  ../g_svcmds.c
-@if errorlevel 1 goto quit
-%cc%  ../g_target.c
-@if errorlevel 1 goto quit
-%cc%  ../g_team.c
-@if errorlevel 1 goto quit
-%cc%  ../g_trigger.c
-@if errorlevel 1 goto quit
-%cc%  ../g_utils.c
-@if errorlevel 1 goto quit
-%cc%  ../g_weapon.c
-@if errorlevel 1 goto quit
-%cc%  ../ai_vcmd.c
+%cc%  %src%/game/q_shared.c
 @if errorlevel 1 goto quit
 
+%cc%  %src%/game/ai_dmnet.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/ai_dmq3.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/ai_main.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/ai_chat.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/ai_cmd.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/ai_team.c
+@if errorlevel 1 goto quit
 
-q3asm -f ../game
+%cc%  %src%/game/g_active.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_arenas.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_bot.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_client.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_cmds.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_combat.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_items.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_mem.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_misc.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_missile.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_mover.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_session.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_spawn.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_svcmds.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_target.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_team.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_trigger.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_utils.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/g_weapon.c
+@if errorlevel 1 goto quit
+%cc%  %src%/game/ai_vcmd.c
+@if errorlevel 1 goto quit
+
+q3asm -f %src%/game/game
 :quit
-cd ..
+cd %src%/game

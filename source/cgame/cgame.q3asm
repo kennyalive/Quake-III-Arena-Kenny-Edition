@@ -1,6 +1,6 @@
--o "\quake3\baseq3\vm\cgame"
+-o "..\..\..\binaries\vm\cgame.qvm"
 cg_main
-..\cg_syscalls
+..\..\..\source\cgame\cg_syscalls
 cg_consolecmds
 cg_draw
 cg_drawtools
