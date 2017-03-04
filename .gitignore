@@ -6,3 +6,4 @@ config/vs2015/*.log
 *.opensdf
 *.sdf
 *.suo
+config/vs2015/quake3.VC.db
