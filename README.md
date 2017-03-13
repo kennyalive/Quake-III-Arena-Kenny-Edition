@@ -1,17 +1,10 @@
 Welcome to the Quake 3 source code!
 ===============================
 
-This is a fork of the official Quake-III-Arena repository.
+Quake 3 is one of my favourite games. This repository is created in order to allow me to enjoy both this game and its source code in a world of chaning standards. I do not modify gameplay code or do the changes that are invariant to gameplay.
 
-The repository is created mostly for educational purposes and is not an attempt
-to provide 'better Quake3 codebase'. Some features were removed (old GPUs,
-non-windows platform code) in order to provide more simple codebase for 
-experiments. Only Windows platform is supported.
+The general direction is towards simplification rather than complexity, so the codebase should be easy to build, executable does not require additional shared libraries to work, no crazy oop or multi-layered abstractions in the code (until I need this, since there is no absolute rules). Only windows platform is supported.
 
-Some of the modifications that were made to the original codebase:
-
-1. Removed support for ancient graphics hardware and drivers.
-1. Removed Unix and Mac OS X platform files. 
-1. Visual Studio project files are updated to target Visual Studio 2013.
+The screeenshot below has no relation to this codebase - just a random screenshot from my early programming experiments. Still it is here to stay.
 
 ![Screenshot](https://github.com/artemalive/Quake-III-Arena/raw/master/Screenshot.jpg)
