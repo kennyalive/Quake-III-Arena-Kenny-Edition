@@ -1,9 +1,8 @@
 binaries
 intermediate
-config/vs2015/*.user
-config/vs2015/*.log
 *.opendb
 *.opensdf
 *.sdf
 *.suo
-config/vs2015/quake3.VC.db
+config/visual-studio/.vs/
+config/visual-studio/quake3.vcxproj.user
