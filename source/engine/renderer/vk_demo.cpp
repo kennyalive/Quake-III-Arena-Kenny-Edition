@@ -462,8 +462,8 @@ void Vulkan_Demo::create_pipeline_layout() {
 }
 
 void Vulkan_Demo::create_pipeline() {
-    Shader_Module vertex_shader("../../shaders/vert.spv");
-    Shader_Module fragment_shader("../../shaders/frag.spv");
+    Shader_Module vertex_shader("../../data/vert.spv");
+    Shader_Module fragment_shader("../../data/frag.spv");
 
     auto get_shader_stage_desc = [](VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry) {
         VkPipelineShaderStageCreateInfo desc;
