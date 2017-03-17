@@ -14,132 +14,132 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\source\engine\renderer\tr_animation.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_animation.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_backend.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_backend.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_bsp.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_bsp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_cmds.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_cmds.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_curve.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_curve.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_flares.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_flares.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_font.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_font.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_image.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_image.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_init.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_init.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_light.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_light.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_main.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_marks.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_marks.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_mesh.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_mesh.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_model.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_model.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_noise.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_noise.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_scene.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_scene.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_shade.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_shade.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_shade_calc.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_shade_calc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_shader.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_shader.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_shadows.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_shadows.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_sky.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_sky.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_surface.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_surface.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\tr_world.c">
+    <ClCompile Include="..\..\src\engine\renderer\tr_world.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\platform\win_gamma.c">
+    <ClCompile Include="..\..\src\engine\platform\win_gamma.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\platform\win_glimp.c">
+    <ClCompile Include="..\..\src\engine\platform\win_glimp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\platform\win_qgl.c">
+    <ClCompile Include="..\..\src\engine\platform\win_qgl.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\vk_resource_manager.cpp">
+    <ClCompile Include="..\..\src\engine\renderer\vk_resource_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\vk_demo.cpp">
+    <ClCompile Include="..\..\src\engine\renderer\vk_demo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\vk_allocator.cpp">
+    <ClCompile Include="..\..\src\engine\renderer\vk_allocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\vk_init.cpp">
+    <ClCompile Include="..\..\src\engine\renderer\vk_init.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\engine\renderer\vk_utils.cpp">
+    <ClCompile Include="..\..\src\engine\renderer\vk_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\source\engine\qcommon\cm_public.h">
+    <ClInclude Include="..\..\src\engine\qcommon\cm_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\platform\glw_win.h">
+    <ClInclude Include="..\..\src\engine\platform\glw_win.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\game\q_shared.h">
+    <ClInclude Include="..\..\src\game\q_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\qcommon\qcommon.h">
+    <ClInclude Include="..\..\src\engine\qcommon\qcommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\qcommon\qfiles.h">
+    <ClInclude Include="..\..\src\engine\qcommon\qfiles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\qgl.h">
+    <ClInclude Include="..\..\src\engine\renderer\qgl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\tr_local.h">
+    <ClInclude Include="..\..\src\engine\renderer\tr_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\tr_public.h">
+    <ClInclude Include="..\..\src\engine\renderer\tr_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\platform\win_local.h">
+    <ClInclude Include="..\..\src\engine\platform\win_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\game\surfaceflags.h">
+    <ClInclude Include="..\..\src\game\surfaceflags.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\cgame\tr_types.h">
+    <ClInclude Include="..\..\src\cgame\tr_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\third_party\stb_image.h">
@@ -148,22 +148,22 @@
     <ClInclude Include="..\..\third_party\tiny_jpeg.h">
       <Filter>jpeg</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\vk_resource_manager.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk_resource_manager.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\vk_definitions.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk_definitions.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\vk_demo.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk_demo.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\vk_allocator.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk_allocator.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\vk_init.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk_init.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\source\engine\renderer\vk_utils.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk_utils.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
