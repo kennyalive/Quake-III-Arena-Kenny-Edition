@@ -3,5 +3,7 @@ bin/
 *.opensdf
 *.sdf
 *.suo
+*.user
 config/visual-studio/.vs/
-config/visual-studio/quake3.vcxproj.user
+
+
