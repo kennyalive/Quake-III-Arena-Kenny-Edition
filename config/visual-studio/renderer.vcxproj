@@ -149,8 +149,6 @@
     <ClInclude Include="..\..\src\engine\renderer\tr_public.h" />
     <ClInclude Include="..\..\src\cgame\tr_types.h" />
     <ClInclude Include="..\..\src\engine\platform\win_local.h" />
-    <ClInclude Include="..\..\third_party\stb_image.h" />
-    <ClInclude Include="..\..\third_party\tiny_jpeg.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

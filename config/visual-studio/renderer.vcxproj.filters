@@ -9,9 +9,6 @@
       <UniqueIdentifier>{b5fac841-7437-493f-ad30-4b4cedd1acfe}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl</Extensions>
     </Filter>
-    <Filter Include="jpeg">
-      <UniqueIdentifier>{b4c9e0fb-736a-4e87-8ece-6bd80adcca7b}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\engine\renderer\tr_animation.c">
@@ -141,12 +138,6 @@
     </ClInclude>
     <ClInclude Include="..\..\src\cgame\tr_types.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\third_party\stb_image.h">
-      <Filter>jpeg</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\third_party\tiny_jpeg.h">
-      <Filter>jpeg</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\engine\renderer\vk_resource_manager.h">
       <Filter>Source Files</Filter>
