@@ -41,6 +41,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "glw_win.h"
 #include "win_local.h"
 
+// VULKAN
+#include "../../engine/renderer/vk_demo.h"
+#define SDL_MAIN_HANDLED
+#include "sdl/SDL.h"
+#include "sdl/SDL_syswm.h"
+
+
 extern void WG_CheckHardwareGamma( void );
 extern void WG_RestoreGamma( void );
 
@@ -677,6 +684,19 @@ static qboolean GLW_CreateWindow( const char *drivername, int width, int height,
 
 	SetForegroundWindow( g_wv.hWnd );
 	SetFocus( g_wv.hWnd );
+
+    // VULKAN
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+        ri.Error(ERR_FATAL, "SDL_Init error");
+    SDL_Window* window = SDL_CreateWindow("Vulkan app", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        width, height, SDL_WINDOW_SHOWN);
+    if (window == nullptr)
+        ri.Error(ERR_FATAL, "failed to create SDL window");
+    SDL_SysWMinfo window_sys_info;
+    SDL_VERSION(&window_sys_info.version)
+        if (SDL_GetWindowWMInfo(window, &window_sys_info) == SDL_FALSE)
+            ri.Error(ERR_FATAL, "failed to get platform specific window information");
+    vulkan_demo = new Vulkan_Demo(width, height, window_sys_info);
 
 	return qtrue;
 }

@@ -22,6 +22,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 
+// VULKAN
+#include "vk_demo.h"
+
 int			r_firstSceneDrawSurf;
 
 int			r_numdlights;
@@ -394,4 +397,7 @@ void RE_RenderScene( const refdef_t *fd ) {
 	r_firstScenePoly = r_numpolys;
 
 	tr.frontEndMsec += ri.Milliseconds() - startTime;
+
+    // VULKAN
+    vulkan_demo->run_frame();
 }
