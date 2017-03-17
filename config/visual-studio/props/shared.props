@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>..\..\binaries\$(PlatformName)\$(Configuration)\</OutDir>
-    <IntDir>..\..\intermediate\$(PlatformName)\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>..\..\bin\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>..\..\bin\$(PlatformName)\$(Configuration)\intermediate\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

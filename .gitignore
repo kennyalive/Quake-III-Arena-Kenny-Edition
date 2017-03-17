@@ -1,5 +1,4 @@
-binaries
-intermediate
+bin/
 *.opendb
 *.opensdf
 *.sdf
