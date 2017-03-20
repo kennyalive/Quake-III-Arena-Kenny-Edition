@@ -178,12 +178,12 @@ typedef struct {
 
 	// <artem>
 	// Obsolete. Should be here for compatibility with other mods.
-	glDriverType_t			driverType;
+	glDriverType_t UNUSED_driverType;
 	// </artem>
 
 	// <artem>
 	// Obsolete. Should be here for compatibility with other mods.
-	glHardwareType_t		hardwareType;
+	glHardwareType_t UNUSED_hardwareType;
 	// </artem>
 
 	qboolean				deviceSupportsGamma;
@@ -198,7 +198,7 @@ typedef struct {
 
     // <artem>
     // Obsolete. Should be here for compatibility with other mods.
-    int displayFrequency;
+    int UNUSED_displayFrequency;
     // </artem>
 
 	// synonymous with "does rendering consume the entire screen?", therefore

@@ -86,7 +86,6 @@ cvar_t	*r_logFile;
 
 cvar_t	*r_stencilbits;
 cvar_t	*r_depthbits;
-cvar_t	*r_colorbits;
 cvar_t	*r_stereo;
 cvar_t	*r_primitives;
 cvar_t	*r_texturebits;
@@ -189,8 +188,6 @@ static void AssertCvarRange( cvar_t *cv, float minVal, float maxVal, qboolean sh
 */
 static void InitOpenGL( void )
 {
-	char renderer_buffer[1024];
-
 	//
 	// initialize OS specific portions of the renderer
 	//
@@ -198,21 +195,16 @@ static void InitOpenGL( void )
 	//		- r_fullscreen
 	//		- r_glDriver
 	//		- r_mode
-	//		- r_(color|depth|stencil)bits
+	//		- r_(depth|stencil)bits
 	//		- r_ignorehwgamma
 	//		- r_gamma
 	//
-	
 	if ( glConfig.vidWidth == 0 )
 	{
-		GLint		temp;
-		
 		GLimp_Init();
 
-		strcpy( renderer_buffer, glConfig.renderer_string );
-		Q_strlwr( renderer_buffer );
-
 		// OpenGL driver constants
+        GLint temp;
 		qglGetIntegerv( GL_MAX_TEXTURE_SIZE, &temp );
 		glConfig.maxTextureSize = temp;
 
@@ -859,7 +851,6 @@ void R_Register( void )
 	AssertCvarRange( r_picmip, 0, 16, qtrue );
 	r_detailTextures = ri.Cvar_Get( "r_detailtextures", "1", CVAR_ARCHIVE | CVAR_LATCH );
 	r_texturebits = ri.Cvar_Get( "r_texturebits", "0", CVAR_ARCHIVE | CVAR_LATCH );
-	r_colorbits = ri.Cvar_Get( "r_colorbits", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_stereo = ri.Cvar_Get( "r_stereo", "0", CVAR_ARCHIVE | CVAR_LATCH );
 #ifdef __linux__
 	r_stencilbits = ri.Cvar_Get( "r_stencilbits", "0", CVAR_ARCHIVE | CVAR_LATCH );

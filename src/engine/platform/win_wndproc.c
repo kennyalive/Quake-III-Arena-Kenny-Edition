@@ -38,45 +38,6 @@ extern cvar_t *r_fullscreen;
 
 LONG WINAPI MainWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
 
-static qboolean s_alttab_disabled;
-
-static void WIN_DisableAltTab( void )
-{
-	if ( s_alttab_disabled )
-		return;
-
-	if ( !Q_stricmp( Cvar_VariableString( "arch" ), "winnt" ) )
-	{
-		RegisterHotKey( 0, 0, MOD_ALT, VK_TAB );
-	}
-	else
-	{
-		BOOL old;
-
-		SystemParametersInfo( SPI_SCREENSAVERRUNNING, 1, &old, 0 );
-	}
-	s_alttab_disabled = qtrue;
-}
-
-static void WIN_EnableAltTab( void )
-{
-	if ( s_alttab_disabled )
-	{
-		if ( !Q_stricmp( Cvar_VariableString( "arch" ), "winnt" ) )
-		{
-			UnregisterHotKey( 0, 0 );
-		}
-		else
-		{
-			BOOL old;
-
-			SystemParametersInfo( SPI_SCREENSAVERRUNNING, 0, &old, 0 );
-		}
-
-		s_alttab_disabled = qfalse;
-	}
-}
-
 /*
 ==================
 VID_AppActivate
@@ -287,15 +248,6 @@ LONG WINAPI MainWndProc (
 		vid_ypos = Cvar_Get ("vid_ypos", "22", CVAR_ARCHIVE);
 		r_fullscreen = Cvar_Get ("r_fullscreen", "1", CVAR_ARCHIVE | CVAR_LATCH );
 
-		if ( r_fullscreen->integer )
-		{
-			WIN_DisableAltTab();
-		}
-		else
-		{
-			WIN_EnableAltTab();
-		}
-
 		break;
 #if 0
 	case WM_DISPLAYCHANGE:
@@ -314,10 +266,6 @@ LONG WINAPI MainWndProc (
 	case WM_DESTROY:
 		// let sound and input know about this?
 		g_wv.hWnd = NULL;
-		if ( r_fullscreen->integer )
-		{
-			WIN_EnableAltTab();
-		}
 		break;
 
 	case WM_CLOSE:

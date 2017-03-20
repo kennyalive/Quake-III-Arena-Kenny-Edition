@@ -3192,25 +3192,10 @@ void QGL_Shutdown( void )
 */
 qboolean QGL_Init( const char *dllname )
 {
-	char systemDir[1024];
-	char libName[1024];
-
-	GetSystemDirectory( systemDir, sizeof( systemDir ) );
-
 	assert( glw_state.hinstOpenGL == 0 );
 
 	ri.Printf( PRINT_ALL, "...initializing QGL\n" );
-
-	if ( dllname[0] != '!' )
-	{
-		Com_sprintf( libName, sizeof( libName ), "%s\\%s", systemDir, dllname );
-	}
-	else
-	{
-		Q_strncpyz( libName, dllname, sizeof( libName ) );
-	}
-
-	ri.Printf( PRINT_ALL, "...calling LoadLibrary( '%s.dll' ): ", libName );
+	ri.Printf( PRINT_ALL, "...calling LoadLibrary('%s'): ", dllname );
 
 	if ( ( glw_state.hinstOpenGL = LoadLibrary( dllname ) ) == 0 )
 	{

@@ -52,7 +52,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define MAX_VIDEO_HANDLES	16
 
-extern glconfig_t glConfig;
 extern	int		s_paintedtime;
 extern	int		s_rawend;
 
