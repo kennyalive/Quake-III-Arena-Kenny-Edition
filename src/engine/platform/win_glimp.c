@@ -506,12 +506,6 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
 */
 static void GLW_InitExtensions( void )
 {
-	if ( !r_allowExtensions->integer )
-	{
-		ri.Printf( PRINT_ALL, "*** IGNORING OPENGL EXTENSIONS ***\n" );
-		return;
-	}
-
 	ri.Printf( PRINT_ALL, "Initializing OpenGL extensions\n" );
 
 	// GL_S3_s3tc
@@ -566,44 +560,24 @@ static void GLW_InitExtensions( void )
 		ri.Printf( PRINT_ALL, "...WGL_EXT_swap_control not found\n" );
 	}
 
-	// GL_ARB_multitexture
-	qglMultiTexCoord2fARB = NULL;
-	qglActiveTextureARB = NULL;
-	qglClientActiveTextureARB = NULL;
-	if ( strstr( glConfig.extensions_string, "GL_ARB_multitexture" )  )
-	{
-		if ( r_ext_multitexture->integer )
-		{
-			qglMultiTexCoord2fARB = ( PFNGLMULTITEXCOORD2FARBPROC ) qwglGetProcAddress( "glMultiTexCoord2fARB" );
-			qglActiveTextureARB = ( PFNGLACTIVETEXTUREARBPROC ) qwglGetProcAddress( "glActiveTextureARB" );
-			qglClientActiveTextureARB = ( PFNGLCLIENTACTIVETEXTUREARBPROC ) qwglGetProcAddress( "glClientActiveTextureARB" );
+    // GL_ARB_multitexture
+    {
+        if (!strstr(glConfig.extensions_string, "GL_ARB_multitexture"))
+            ri.Error(ERR_FATAL, "GL_ARB_multitexture not found");
 
-			if ( qglActiveTextureARB )
-			{
-				qglGetIntegerv( GL_MAX_ACTIVE_TEXTURES_ARB, &glConfig.maxActiveTextures );
+        qglActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)qwglGetProcAddress("glActiveTextureARB");
+        qglClientActiveTextureARB = (PFNGLCLIENTACTIVETEXTUREARBPROC)qwglGetProcAddress("glClientActiveTextureARB");
 
-				if ( glConfig.maxActiveTextures > 1 )
-				{
-					ri.Printf( PRINT_ALL, "...using GL_ARB_multitexture\n" );
-				}
-				else
-				{
-					qglMultiTexCoord2fARB = NULL;
-					qglActiveTextureARB = NULL;
-					qglClientActiveTextureARB = NULL;
-					ri.Printf( PRINT_ALL, "...not using GL_ARB_multitexture, < 2 texture units\n" );
-				}
-			}
-		}
-		else
-		{
-			ri.Printf( PRINT_ALL, "...ignoring GL_ARB_multitexture\n" );
-		}
-	}
-	else
-	{
-		ri.Printf( PRINT_ALL, "...GL_ARB_multitexture not found\n" );
-	}
+        if (!qglActiveTextureARB || !qglClientActiveTextureARB)
+            ri.Error(ERR_FATAL, "GL_ARB_multitexture: could not initialize function pointers");
+
+        qglGetIntegerv(GL_MAX_ACTIVE_TEXTURES_ARB, &glConfig.maxActiveTextures);
+
+        if (glConfig.maxActiveTextures < 2)
+            ri.Error(ERR_FATAL, "GL_ARB_multitexture: < 2 texture units");
+
+        ri.Printf(PRINT_ALL, "...using GL_ARB_multitexture\n");
+    }
 
 	// GL_EXT_compiled_vertex_array
 	qglLockArraysEXT = NULL;
@@ -695,7 +669,7 @@ void GLimp_Init( void )
     // create the window and set up the context
     if (!GLW_SetMode(r_mode->integer, (qboolean)r_fullscreen->integer))
     {
-        ri.Error(ERR_FATAL, "...WARNING: could not set the given mode (%d)\n", r_mode->integer);
+        ri.Error(ERR_FATAL, "GLW_SetMode - could not set the given mode (%d)\n", r_mode->integer);
     }
 
 	// get our config strings
