@@ -99,7 +99,6 @@ typedef struct image_s {
 	int			frameUsed;			// for texture usage in frame statistics
 
 	int			internalFormat;
-	int			TMU;				// only needed for voodoo2
 
 	qboolean	mipmap;
 	qboolean	allowPicmip;
