@@ -13,12 +13,12 @@ public:
 
     void run_frame();
 
-private:
+public:
     void create_command_pool();
     void create_descriptor_pool();
 
     void create_uniform_buffer();
-    void create_texture();
+    VkImage create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
     void create_texture_sampler();
     void create_depth_buffer_resources();
 
@@ -32,6 +32,7 @@ private:
     void upload_geometry();
     void record_render_scene();
     void record_render_frame();
+    void update_descriptor_set();
     void update_uniform_buffer();
 
 private:
@@ -40,6 +41,7 @@ private:
 
     VkSemaphore image_acquired = VK_NULL_HANDLE;
     VkSemaphore rendering_finished = VK_NULL_HANDLE;
+    VkFence rendering_finished_fence = VK_NULL_HANDLE;
 
     VkCommandPool command_pool = VK_NULL_HANDLE;
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
@@ -47,8 +49,7 @@ private:
     VkBuffer uniform_staging_buffer = VK_NULL_HANDLE;
     VkDeviceMemory uniform_staging_buffer_memory = VK_NULL_HANDLE;
     VkBuffer uniform_buffer = VK_NULL_HANDLE;
-    VkImage texture_image = VK_NULL_HANDLE;
-    VkImageView texture_image_view = VK_NULL_HANDLE;
+
     VkSampler texture_image_sampler = VK_NULL_HANDLE;
     VkImage depth_image = VK_NULL_HANDLE;
     VkImageView depth_image_view = VK_NULL_HANDLE;

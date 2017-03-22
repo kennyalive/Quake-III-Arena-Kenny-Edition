@@ -30,6 +30,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_public.h"
 #include "qgl.h"
 
+// VULKAN
+#include "vk_definitions.h"
+
 #define GL_INDEX_TYPE		GL_UNSIGNED_INT
 typedef unsigned int glIndex_t;
 
@@ -103,6 +106,10 @@ typedef struct image_s {
 	qboolean	mipmap;
 	qboolean	allowPicmip;
 	int			wrapClampMode;		// GL_CLAMP or GL_REPEAT
+
+    // VULKAN
+    VkImage     vk_image = VK_NULL_HANDLE;
+    VkImageView vk_image_view = VK_NULL_HANDLE;
 
 	struct image_s*	next;
 } image_t;

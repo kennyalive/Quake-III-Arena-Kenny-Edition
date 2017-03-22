@@ -5,5 +5,5 @@ bin/
 *.suo
 *.user
 config/visual-studio/.vs/
-
-
+config/visual-studio/vk_layer_settings.txt
+config/visual-studio/vk_report
