@@ -11,7 +11,8 @@ public:
     Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinfo& window_sys_info);
     ~Vulkan_Demo();
 
-    void run_frame();
+    void render_view();
+    void render_cinematic_frame();
 
 public:
     void create_command_pool();
@@ -30,12 +31,12 @@ public:
     void create_pipeline();
 
     void upload_geometry();
-    void record_render_scene();
     void record_render_frame();
-    void update_descriptor_set();
-    void update_uniform_buffer();
+    void update_ubo_descriptor();
+    void update_image_descriptor(bool cinematic);
+    void update_uniform_buffer(bool cinematic);
 
-private:
+public:
     const int window_width = 0;
     const int window_height = 0;
 
@@ -65,6 +66,8 @@ private:
     VkBuffer index_buffer = VK_NULL_HANDLE;
     uint32_t model_indices_count = 0;
 
-    std::vector<VkCommandBuffer> render_frame_command_buffers; // command buffer per swapchain image
-    VkCommandBuffer render_scene_command_buffer;
+    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+
+    uint32_t swapchain_image_index = -1;
+    VkImageView cinematic_image_view = VK_NULL_HANDLE;
 };

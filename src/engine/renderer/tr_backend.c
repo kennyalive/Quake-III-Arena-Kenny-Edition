@@ -21,6 +21,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "tr_local.h"
 
+// VULKAN
+#include "vk_init.h"
+#include "vk_demo.h"
+#include "vk_utils.h"
+
 backEndData_t	*backEndData[SMP_FRAMES];
 backEndState_t	backEnd;
 
@@ -639,6 +644,9 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 #ifdef __MACOS__
 	Sys_PumpEvents();		// crutch up the mac's limited buffer queue size
 #endif
+
+    // VULKAN
+    vulkan_demo->render_view();
 }
 
 
@@ -727,11 +735,23 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );	
+
+        // VULKAN
+        vkDestroyImage(get_device(), tr.scratchImage[client]->vk_image, nullptr);
+        vkDestroyImageView(get_device(), tr.scratchImage[client]->vk_image_view, nullptr);
+        tr.scratchImage[client]->vk_image = vulkan_demo->create_texture(data, 4, cols, rows, tr.scratchImage[client]->vk_image_view);
+        vulkan_demo->cinematic_image_view = tr.scratchImage[client]->vk_image_view;
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
 			// it and don't try and do a texture compression
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
+
+            // VULKAN
+            vkDestroyImage(get_device(), tr.scratchImage[client]->vk_image, nullptr);
+            vkDestroyImageView(get_device(), tr.scratchImage[client]->vk_image_view, nullptr);
+            tr.scratchImage[client]->vk_image = vulkan_demo->create_texture(data, 4, cols, rows, tr.scratchImage[client]->vk_image_view);
+            vulkan_demo->cinematic_image_view = tr.scratchImage[client]->vk_image_view;
 		}
 	}
 
@@ -754,6 +774,9 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 	qglTexCoord2f ( 0.5f / cols, ( rows - 0.5f ) / rows );
 	qglVertex2f (x, y+h);
 	qglEnd ();
+
+    // VULKAN
+    vulkan_demo->render_cinematic_frame();
 }
 
 void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int client, qboolean dirty) {
@@ -918,6 +941,28 @@ const void	*RB_DrawBuffer( const void *data ) {
 		qglClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 	}
 
+    // VULKAN
+    VkResult result = vkAcquireNextImageKHR(get_device(), get_swapchain(), UINT64_MAX, vulkan_demo->image_acquired, VK_NULL_HANDLE, &vulkan_demo->swapchain_image_index);
+    check_vk_result(result, "vkAcquireNextImageKHR");
+    
+    result = vkWaitForFences(get_device(), 1, &vulkan_demo->rendering_finished_fence, VK_FALSE, 1e9);
+    check_vk_result(result, "vkWaitForFences");
+    result = vkResetFences(get_device(), 1, &vulkan_demo->rendering_finished_fence);
+    check_vk_result(result, "vkResetFences");
+
+    VkCommandBufferBeginInfo begin_info;
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.pNext = nullptr;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    begin_info.pInheritanceInfo = nullptr;
+
+    extern FILE* logfile;
+    fprintf(logfile, "begin\n");
+    fflush(logfile);
+
+    result = vkBeginCommandBuffer(vulkan_demo->command_buffer, &begin_info);
+    check_vk_result(result, "vkBeginCommandBuffer");
+
 	return (const void *)(cmd + 1);
 }
 
@@ -1031,6 +1076,43 @@ const void	*RB_SwapBuffers( const void *data ) {
 	GLimp_EndFrame();
 
 	backEnd.projection2D = qfalse;
+
+    // VULKAN
+    extern FILE* logfile;
+    fprintf(logfile, "present\n");
+    fflush(logfile);
+
+    VkResult result = vkEndCommandBuffer(vulkan_demo->command_buffer);
+    check_vk_result(result, "vkEndCommandBuffer");
+
+    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    VkSubmitInfo submit_info;
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = nullptr;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &vulkan_demo->image_acquired;
+    submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &vulkan_demo->command_buffer;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &vulkan_demo->rendering_finished;
+
+    result = vkQueueSubmit(get_queue(), 1, &submit_info, vulkan_demo->rendering_finished_fence);
+    check_vk_result(result, "vkQueueSubmit");
+
+    VkSwapchainKHR swapchain = get_swapchain();
+    VkPresentInfoKHR present_info;
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.pNext = nullptr;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &vulkan_demo->rendering_finished;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchain;
+    present_info.pImageIndices = &vulkan_demo->swapchain_image_index;
+    present_info.pResults = nullptr;
+    result = vkQueuePresentKHR(get_queue(), &present_info);
+    check_vk_result(result, "vkQueuePresentKHR");
 
 	return (const void *)(cmd + 1);
 }

@@ -101,6 +101,8 @@ static VkFormat find_depth_format(VkPhysicalDevice physical_device) {
         VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
+FILE* logfile;
+
 Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinfo& window_sys_info)
 : window_width(window_width) 
 , window_height(window_height)
@@ -109,6 +111,8 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinf
     get_allocator()->initialize(get_physical_device(), get_device());
     get_resource_manager()->initialize(get_device());
     create_command_pool();
+
+    logfile = fopen("debuglog.txt", "w");
 
     image_acquired = get_resource_manager()->create_semaphore();
     rendering_finished = get_resource_manager()->create_semaphore();
@@ -135,17 +139,7 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinf
     create_pipeline();
 
     upload_geometry();
-
-    {
-        VkCommandBufferAllocateInfo alloc_info;
-        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        alloc_info.pNext = nullptr;
-        alloc_info.commandPool = command_pool;
-        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-        alloc_info.commandBufferCount = 1;
-        result = vkAllocateCommandBuffers(get_device(), &alloc_info, &render_scene_command_buffer);
-        check_vk_result(result, "vkAllocateCommandBuffers");
-    }
+    update_ubo_descriptor();
 
     {
         VkCommandBufferAllocateInfo alloc_info;
@@ -153,9 +147,8 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinf
         alloc_info.pNext = nullptr;
         alloc_info.commandPool = command_pool;
         alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        alloc_info.commandBufferCount = static_cast<uint32_t>(get_swapchain_image_views().size());
-        render_frame_command_buffers.resize(get_swapchain_image_views().size());
-        result = vkAllocateCommandBuffers(get_device(), &alloc_info, render_frame_command_buffers.data());
+        alloc_info.commandBufferCount = 1;
+        result = vkAllocateCommandBuffers(get_device(), &alloc_info, &command_buffer);
         check_vk_result(result, "vkAllocateCommandBuffers");
     }
 }
@@ -482,7 +475,7 @@ void Vulkan_Demo::create_pipeline() {
     rasterization_state.depthClampEnable = VK_FALSE;
     rasterization_state.rasterizerDiscardEnable = VK_FALSE;
     rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization_state.cullMode = VK_CULL_MODE_NONE/*VK_CULL_MODE_BACK_BIT*/;
     rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterization_state.depthBiasEnable = VK_FALSE;
     rasterization_state.depthBiasConstantFactor = 0.0f;
@@ -600,57 +593,12 @@ void Vulkan_Demo::upload_geometry() {
     }
 }
 
-void Vulkan_Demo::record_render_scene() {
-    VkCommandBufferInheritanceInfo inheritance_info;
-    inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance_info.pNext = nullptr;
-    inheritance_info.renderPass = render_pass;
-    inheritance_info.subpass = 0;
-    inheritance_info.framebuffer = VK_NULL_HANDLE;
-    inheritance_info.occlusionQueryEnable = VK_FALSE;
-    inheritance_info.queryFlags = 0;
-    inheritance_info.pipelineStatistics = 0;
-
-    VkCommandBufferBeginInfo begin_info;
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.pNext = nullptr;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    begin_info.pInheritanceInfo = &inheritance_info;
-
-    VkResult result = vkBeginCommandBuffer(render_scene_command_buffer, &begin_info);
-    check_vk_result(result, "vkBeginCommandBuffer");
-
-    const VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(render_scene_command_buffer, 0, 1, &vertex_buffer, &offset);
-    vkCmdBindIndexBuffer(render_scene_command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdBindDescriptorSets(render_scene_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
-    vkCmdBindPipeline(render_scene_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    vkCmdDrawIndexed(render_scene_command_buffer, model_indices_count, 1, 0, 0, 0);
-
-    result = vkEndCommandBuffer(render_scene_command_buffer);
-    check_vk_result(result, "vkEndCommandBuffer");
-}
-
 void Vulkan_Demo::record_render_frame() {
-    VkCommandBufferBeginInfo begin_info;
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.pNext = nullptr;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    begin_info.pInheritanceInfo = nullptr;
-
-    std::array<VkClearValue, 2> clear_values;
-    clear_values[0].color = {0.3f, 0.2f, 0.1f, 0.0f};
-    clear_values[1].depthStencil = {1.0, 0};
-
-    VkRenderPassBeginInfo render_pass_begin_info;
-    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.pNext = nullptr;
-    render_pass_begin_info.renderPass = render_pass;
-    render_pass_begin_info.framebuffer = VK_NULL_HANDLE; // will be initialized later in the recording loop
-    render_pass_begin_info.renderArea.offset = {0, 0};
-    render_pass_begin_info.renderArea.extent = {(uint32_t)window_width, (uint32_t)window_height};
-    render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-    render_pass_begin_info.pClearValues = clear_values.data();
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = sizeof(Uniform_Buffer_Object);
+    vkCmdCopyBuffer(command_buffer, uniform_staging_buffer, uniform_buffer, 1, &region);
 
     VkBufferMemoryBarrier barrier;
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -663,51 +611,42 @@ void Vulkan_Demo::record_render_frame() {
     barrier.offset = 0;
     barrier.size = sizeof(Uniform_Buffer_Object);
 
-    for (std::size_t i = 0; i < render_frame_command_buffers.size(); i++) {
-        VkResult result = vkBeginCommandBuffer(render_frame_command_buffers[i], &begin_info);
-        check_vk_result(result, "vkBeginCommandBuffer");
+    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0,
+        0, nullptr, 1, &barrier, 0, nullptr);
 
-        VkBufferCopy region;
-        region.srcOffset = 0;
-        region.dstOffset = 0;
-        region.size = sizeof(Uniform_Buffer_Object);
-        vkCmdCopyBuffer(render_frame_command_buffers[i], uniform_staging_buffer, uniform_buffer, 1, &region);
+    std::array<VkClearValue, 2> clear_values;
+    clear_values[0].color = {0.3f, 0.2f, 0.1f, 0.0f};
+    clear_values[1].depthStencil = {1.0, 0};
 
-        vkCmdPipelineBarrier(render_frame_command_buffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0,
-            0, nullptr, 1, &barrier, 0, nullptr);
+    VkRenderPassBeginInfo render_pass_begin_info;
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.pNext = nullptr;
+    render_pass_begin_info.renderPass = render_pass;
+    render_pass_begin_info.framebuffer = framebuffers[swapchain_image_index];
+    render_pass_begin_info.renderArea.offset = {0, 0};
+    render_pass_begin_info.renderArea.extent = {(uint32_t)window_width, (uint32_t)window_height};
+    render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+    render_pass_begin_info.pClearValues = clear_values.data();
 
-        render_pass_begin_info.framebuffer = framebuffers[i];
-        vkCmdBeginRenderPass(render_frame_command_buffers[i], &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-        vkCmdExecuteCommands(render_frame_command_buffers[i], 1, &render_scene_command_buffer);
-        vkCmdEndRenderPass(render_frame_command_buffers[i]);
+    vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-        result = vkEndCommandBuffer(render_frame_command_buffers[i]);
-        check_vk_result(result, "vkEndCommandBuffer");
-    }
+    const VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, &vertex_buffer, &offset);
+    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdDrawIndexed(command_buffer, model_indices_count, 1, 0, 0, 0);
+
+    vkCmdEndRenderPass(command_buffer);
 }
 
-void Vulkan_Demo::update_descriptor_set() {
-    static auto start_time = std::chrono::high_resolution_clock::now();
-    auto current_time = std::chrono::high_resolution_clock::now();
-    int time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
-    static int image_index = 0;
-
-    if (time > 500) {
-        start_time = current_time;
-        image_index = 37 + (image_index + 1) % (tr.numImages - 37);
-    }
-
+void Vulkan_Demo::update_ubo_descriptor() {
     VkDescriptorBufferInfo buffer_info;
     buffer_info.buffer = uniform_buffer;
     buffer_info.offset = 0;
     buffer_info.range = sizeof(Uniform_Buffer_Object);
 
-    VkDescriptorImageInfo image_info;
-    image_info.sampler = texture_image_sampler;
-    image_info.imageView = tr.images[image_index]->vk_image_view;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    std::array<VkWriteDescriptorSet, 2> descriptor_writes;
+    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
     descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_writes[0].pNext = nullptr;
     descriptor_writes[0].dstSet = descriptor_set;
@@ -719,26 +658,53 @@ void Vulkan_Demo::update_descriptor_set() {
     descriptor_writes[0].pBufferInfo = &buffer_info;
     descriptor_writes[0].pTexelBufferView = nullptr;
 
-    descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[1].dstSet = descriptor_set;
-    descriptor_writes[1].dstBinding = 1;
-    descriptor_writes[1].dstArrayElement = 0;
-    descriptor_writes[1].descriptorCount = 1;
-    descriptor_writes[1].pNext = nullptr;
-    descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_writes[1].pImageInfo = &image_info;
-    descriptor_writes[1].pBufferInfo = nullptr;
-    descriptor_writes[1].pTexelBufferView = nullptr;
+    vkUpdateDescriptorSets(get_device(), (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+}
+
+void Vulkan_Demo::update_image_descriptor(bool cinematic) {
+    VkImageView image_view;
+
+    if (cinematic) {
+        image_view = cinematic_image_view;
+    } else {
+        static auto start_time = std::chrono::high_resolution_clock::now();
+        auto current_time = std::chrono::high_resolution_clock::now();
+        int time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
+        static int image_index = 0;
+        
+        if (time > 200) {
+            start_time = current_time;
+            image_index = (image_index + 1) % tr.numImages;
+        }
+        image_view = tr.images[image_index]->vk_image_view;
+    }
+
+    VkDescriptorImageInfo image_info;
+    image_info.sampler = texture_image_sampler;
+    image_info.imageView = image_view;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
+    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes[0].dstSet = descriptor_set;
+    descriptor_writes[0].dstBinding = 1;
+    descriptor_writes[0].dstArrayElement = 0;
+    descriptor_writes[0].descriptorCount = 1;
+    descriptor_writes[0].pNext = nullptr;
+    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes[0].pImageInfo = &image_info;
+    descriptor_writes[0].pBufferInfo = nullptr;
+    descriptor_writes[0].pTexelBufferView = nullptr;
 
     vkUpdateDescriptorSets(get_device(), (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 }
 
-void Vulkan_Demo::update_uniform_buffer() {
+void Vulkan_Demo::update_uniform_buffer(bool cinematic) {
     static auto start_time = std::chrono::high_resolution_clock::now();
 
     auto current_time = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count() / 1000.f;
-    time = 0.0;
+    if (cinematic) time = 0.0;
 
     Uniform_Buffer_Object ubo;
     ubo.model = glm::rotate(glm::mat4(), time * glm::radians(30.0f), glm::vec3(0, 1, 0));
@@ -761,48 +727,20 @@ void Vulkan_Demo::update_uniform_buffer() {
     vkUnmapMemory(get_device(), uniform_staging_buffer_memory);
 }
 
-void Vulkan_Demo::run_frame() {
-    VkResult result = vkWaitForFences(get_device(), 1, &rendering_finished_fence, VK_FALSE, 1e9);
-    check_vk_result(result, "vkWaitForFences");
-    result = vkResetFences(get_device(), 1, &rendering_finished_fence);
-    check_vk_result(result, "vkResetFences");
-    update_descriptor_set();
-    record_render_scene(); // record secondary command buffer before primary ones
+void Vulkan_Demo::render_view() {
+    fprintf(logfile, "render_view\n");
+    fflush(logfile);
+
+    update_image_descriptor(false);
     record_render_frame();
+    update_uniform_buffer(false);
+}
 
-    update_uniform_buffer();
+void Vulkan_Demo::render_cinematic_frame() {
+    fprintf(logfile, "render_cinematic_frame\n");
+    fflush(logfile);
 
-    uint32_t swapchain_image_index;
-    result = vkAcquireNextImageKHR(get_device(), get_swapchain(), UINT64_MAX, image_acquired, VK_NULL_HANDLE, &swapchain_image_index);
-    check_vk_result(result, "vkAcquireNextImageKHR");
-
-    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-    VkSubmitInfo submit_info;
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.pNext = nullptr;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &image_acquired;
-    submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &render_frame_command_buffers[swapchain_image_index];
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &rendering_finished;
-
-    result = vkQueueSubmit(get_queue(), 1, &submit_info, rendering_finished_fence);
-    check_vk_result(result, "vkQueueSubmit");
-    
-    VkSwapchainKHR swapchain = get_swapchain();
-    VkPresentInfoKHR present_info;
-    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    present_info.pNext = nullptr;
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &rendering_finished;
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = &swapchain;
-    present_info.pImageIndices = &swapchain_image_index;
-    present_info.pResults = nullptr;
-
-    result = vkQueuePresentKHR(get_queue(), &present_info);
-    check_vk_result(result, "vkQueuePresentKHR");
+    update_image_descriptor(true);
+    record_render_frame();
+    update_uniform_buffer(true);
 }

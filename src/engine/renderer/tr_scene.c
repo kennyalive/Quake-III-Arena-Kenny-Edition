@@ -397,7 +397,4 @@ void RE_RenderScene( const refdef_t *fd ) {
 	r_firstScenePoly = r_numpolys;
 
 	tr.frontEndMsec += ri.Milliseconds() - startTime;
-
-    // VULKAN
-    vulkan_demo->run_frame();
 }
