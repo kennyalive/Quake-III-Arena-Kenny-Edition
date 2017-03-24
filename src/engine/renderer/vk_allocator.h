@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vk_definitions.h"
+#include "vk.h"
 #include <vector>
 
 class Shared_Staging_Memory {

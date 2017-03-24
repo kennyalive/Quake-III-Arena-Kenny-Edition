@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <vector>
-#include "vk_definitions.h"
+#include "vk.h"
 
 struct SDL_SysWMinfo;
 

@@ -1,6 +1,6 @@
 #include "vk_allocator.h"
 #include "vk_resource_manager.h"
-#include "vk_init.h"
+#include "vk.h"
 #include "vk_utils.h"
 #include <iostream>
 #include <fstream>

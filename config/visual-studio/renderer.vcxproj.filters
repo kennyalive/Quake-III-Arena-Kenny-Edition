@@ -98,10 +98,10 @@
     <ClCompile Include="..\..\src\engine\renderer\vk_allocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\engine\renderer\vk_init.cpp">
+    <ClCompile Include="..\..\src\engine\renderer\vk_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\engine\renderer\vk_utils.cpp">
+    <ClCompile Include="..\..\src\engine\renderer\vk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -142,19 +142,16 @@
     <ClInclude Include="..\..\src\engine\renderer\vk_resource_manager.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\engine\renderer\vk_definitions.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\engine\renderer\vk_demo.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\engine\renderer\vk_allocator.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\engine\renderer\vk_init.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk_utils.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\engine\renderer\vk_utils.h">
+    <ClInclude Include="..\..\src\engine\renderer\vk.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

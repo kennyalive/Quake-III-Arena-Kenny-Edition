@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_local.h"
 
 // VULKAN
-#include "vk_init.h"
+#include "vk.h"
 #include "vk_demo.h"
 #include "vk_utils.h"
 

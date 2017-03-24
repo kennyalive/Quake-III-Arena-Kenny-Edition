@@ -1,4 +1,4 @@
-#include "vk_init.h"
+#include "vk.h"
 #include "vk_utils.h"
 
 #define SDL_MAIN_HANDLED

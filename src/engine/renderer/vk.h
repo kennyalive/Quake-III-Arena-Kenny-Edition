@@ -1,6 +1,12 @@
 #pragma once
 
-#include "vk_definitions.h"
+#ifdef _WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#define NOMINMAX
+#endif
+
+#include "vulkan/vulkan.h"
+
 #include <vector>
 
 struct SDL_SysWMinfo;
