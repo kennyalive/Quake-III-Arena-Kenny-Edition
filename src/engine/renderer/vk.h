@@ -21,3 +21,13 @@ VkQueue get_queue();
 VkSwapchainKHR get_swapchain();
 VkFormat get_swapchain_image_format();
 const std::vector<VkImageView>& get_swapchain_image_views();
+
+struct Vk_Staging_Buffer {
+    VkBuffer handle = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE; // memory associated with a buffer
+    VkDeviceSize offset = -1;
+    VkDeviceSize size = 0;
+};
+
+VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer);
+void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels);

@@ -110,6 +110,7 @@ typedef struct image_s {
     // VULKAN
     VkImage     vk_image = VK_NULL_HANDLE;
     VkImageView vk_image_view = VK_NULL_HANDLE;
+    Vk_Staging_Buffer vk_staging_buffer; // for cinematic images
 
 	struct image_s*	next;
 } image_t;

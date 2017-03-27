@@ -1,5 +1,8 @@
 #include "vk.h"
 #include "vk_utils.h"
+#include "vk_allocator.h"
+#include "tr_local.h"
+#include "vk_demo.h"
 
 #define SDL_MAIN_HANDLED
 #include "sdl/SDL_syswm.h"
@@ -330,4 +333,88 @@ VkFormat get_swapchain_image_format() {
 
 const std::vector<VkImageView>& get_swapchain_image_views() {
     return vulkan_globals.swapchain_image_views;
+}
+
+VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer) {
+    VkBufferCreateInfo buffer_desc;
+    buffer_desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_desc.pNext = nullptr;
+    buffer_desc.flags = 0;
+    buffer_desc.size = width * height * 4;
+    buffer_desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    buffer_desc.queueFamilyIndexCount = 0;
+    buffer_desc.pQueueFamilyIndices = nullptr;
+
+    VkBuffer buffer;
+    VkResult result = vkCreateBuffer(get_device(), &buffer_desc, nullptr, &buffer);
+    check_vk_result(result, "vkCreateBuffer");
+
+    VkDeviceMemory buffer_memory = get_allocator()->allocate_staging_memory(buffer);
+    result = vkBindBufferMemory(get_device(), buffer, buffer_memory, 0);
+    check_vk_result(result, "vkBindBufferMemory");
+
+    VkImageCreateInfo image_desc;
+    image_desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_desc.pNext = nullptr;
+    image_desc.flags = 0;
+    image_desc.imageType = VK_IMAGE_TYPE_2D;
+    image_desc.format = VK_FORMAT_R8G8B8A8_UNORM;
+    image_desc.extent.width = width;
+    image_desc.extent.height = height;
+    image_desc.extent.depth = 1;
+    image_desc.mipLevels = 1;
+    image_desc.arrayLayers = 1;
+    image_desc.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_desc.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image_desc.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    image_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    image_desc.queueFamilyIndexCount = 0;
+    image_desc.pQueueFamilyIndices = nullptr;
+    image_desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkImage image;
+    result = vkCreateImage(get_device(), &image_desc, nullptr, &image);
+    check_vk_result(result, "vkCreateImage");
+
+    VkDeviceMemory image_memory = get_allocator()->allocate_memory(image);
+    result = vkBindImageMemory(get_device(), image, image_memory, 0);
+    check_vk_result(result, "vkBindImageMemory");
+
+    staging_buffer.handle = buffer;
+    staging_buffer.memory = buffer_memory;
+    staging_buffer.offset = 0;
+    staging_buffer.size = width * height * 4;
+    return image;
+}
+
+void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels) {
+    void* buffer_data;
+    VkResult result = vkMapMemory(get_device(), staging_buffer.memory, staging_buffer.offset, staging_buffer.size, 0, &buffer_data);
+    check_vk_result(result, "vkMapMemory");
+    memcpy(buffer_data, rgba_pixels, staging_buffer.size);
+    vkUnmapMemory(get_device(), staging_buffer.memory);
+
+    record_and_run_commands(vulkan_demo->command_pool, get_queue(),
+        [&image, &staging_buffer, &width, &height](VkCommandBuffer command_buffer) {
+
+        record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
+            0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        VkBufferImageCopy region;
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = VkOffset3D{ 0, 0, 0 };
+        region.imageExtent = VkExtent3D{ (uint32_t)width, (uint32_t)height, 1 };
+
+        vkCmdCopyBufferToImage(command_buffer, staging_buffer.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+        record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    });
 }

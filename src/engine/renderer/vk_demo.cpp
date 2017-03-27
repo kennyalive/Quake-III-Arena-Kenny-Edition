@@ -107,12 +107,12 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinf
 : window_width(window_width) 
 , window_height(window_height)
 {
+    logfile = fopen("vk_dev.log", "w");
+
     initialize_vulkan(window_sys_info);
     get_allocator()->initialize(get_physical_device(), get_device());
     get_resource_manager()->initialize(get_device());
     create_command_pool();
-
-    logfile = fopen("debuglog.txt", "w");
 
     image_acquired = get_resource_manager()->create_semaphore();
     rendering_finished = get_resource_manager()->create_semaphore();
@@ -204,7 +204,7 @@ VkImage Vulkan_Demo::create_texture(const uint8_t* pixels, int bytes_per_pixel, 
     Defer_Action destroy_staging_image([this, &staging_image]() {
         vkDestroyImage(get_device(), staging_image, nullptr);
     });
-    
+
     VkImage texture_image = ::create_texture(image_width, image_height,
         bytes_per_pixel == 3 ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
 

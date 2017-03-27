@@ -739,8 +739,10 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
         // VULKAN
         vkDestroyImage(get_device(), tr.scratchImage[client]->vk_image, nullptr);
         vkDestroyImageView(get_device(), tr.scratchImage[client]->vk_image_view, nullptr);
-        tr.scratchImage[client]->vk_image = vulkan_demo->create_texture(data, 4, cols, rows, tr.scratchImage[client]->vk_image_view);
+        tr.scratchImage[client]->vk_image = vk_create_cinematic_image(cols, rows, tr.scratchImage[client]->vk_staging_buffer);
+        tr.scratchImage[client]->vk_image_view = create_image_view(tr.scratchImage[client]->vk_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
         vulkan_demo->cinematic_image_view = tr.scratchImage[client]->vk_image_view;
+        vk_update_cinematic_image(tr.scratchImage[client]->vk_image, tr.scratchImage[client]->vk_staging_buffer, cols, rows, data);
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
@@ -748,10 +750,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 
             // VULKAN
-            vkDestroyImage(get_device(), tr.scratchImage[client]->vk_image, nullptr);
-            vkDestroyImageView(get_device(), tr.scratchImage[client]->vk_image_view, nullptr);
-            tr.scratchImage[client]->vk_image = vulkan_demo->create_texture(data, 4, cols, rows, tr.scratchImage[client]->vk_image_view);
-            vulkan_demo->cinematic_image_view = tr.scratchImage[client]->vk_image_view;
+            vk_update_cinematic_image(tr.scratchImage[client]->vk_image, tr.scratchImage[client]->vk_staging_buffer, cols, rows, data);
 		}
 	}
 
