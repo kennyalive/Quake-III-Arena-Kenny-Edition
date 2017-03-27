@@ -526,7 +526,6 @@ static void Upload32( unsigned *data,
 	int			i, c;
 	byte		*scan;
 	GLenum		internalFormat = GL_RGB;
-	float		rMax = 0, gMax = 0, bMax = 0;
 
 	//
 	// convert to exact power of 2 sizes
@@ -589,18 +588,6 @@ static void Upload32( unsigned *data,
 	if (!lightMap) {
 		for ( i = 0; i < c; i++ )
 		{
-			if ( scan[i*4+0] > rMax )
-			{
-				rMax = scan[i*4+0];
-			}
-			if ( scan[i*4+1] > gMax )
-			{
-				gMax = scan[i*4+1];
-			}
-			if ( scan[i*4+2] > bMax )
-			{
-				bMax = scan[i*4+2];
-			}
 			if ( scan[i*4 + 3] != 255 ) 
 			{
 				samples = 4;
