@@ -1219,7 +1219,6 @@ qhandle_t RE_RegisterShaderFromImage(const char *name, int lightmapIndex, image_
 
 shader_t	*R_FindShader( const char *name, int lightmapIndex, qboolean mipRawImage );
 shader_t	*R_GetShaderByHandle( qhandle_t hShader );
-shader_t	*R_GetShaderByState( int index, long *cycleTime );
 shader_t *R_FindShaderByName( const char *name );
 void		R_InitShaders( void );
 void		R_ShaderList_f( void );
@@ -1375,8 +1374,6 @@ SKIES
 
 void R_BuildCloudData( shaderCommands_t *shader );
 void R_InitSkyTexCoords( float cloudLayerHeight );
-void R_DrawSkyBox( shaderCommands_t *shader );
-void RB_DrawSun( void );
 void RB_ClipSkyPolygons( shaderCommands_t *shader );
 
 /*
