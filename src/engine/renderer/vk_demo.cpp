@@ -70,14 +70,30 @@ struct Model {
 };
 
 static Model load_model() {
-    float s = 1;
     Model model;
+
+    /*float s = 1;
     model.vertices = {
         { {-s, -s, 0}, {1, 1, 1}, {0, 1} },
         { { s, -s, 0}, {1, 1, 1}, {1, 1} },
         { { s,  s, 0}, {1, 1, 1}, {1, 0} },
         { {-s,  s, 0}, {1, 1, 1}, {0, 0} },
+    };*/
+    
+    model.vertices = {
+        { {0, glConfig.vidHeight, 0},
+          {1, 1, 1}, {0, 1} },
+
+        { {glConfig.vidWidth, glConfig.vidHeight, 0},
+          {1, 1, 1}, {1, 1} },
+
+        { {glConfig.vidWidth,  0, 0},
+          {1, 1, 1}, {1, 0} },
+
+        { {0, 0, 0},
+          {1, 1, 1}, {0, 0} },
     };
+
     model.indices = { 0, 1, 2, 0, 2, 3 };
     return model;
 }
@@ -707,18 +723,28 @@ void Vulkan_Demo::update_uniform_buffer(bool cinematic) {
     if (cinematic) time = 0.0;
 
     Uniform_Buffer_Object ubo;
-    ubo.model = glm::rotate(glm::mat4(), time * glm::radians(30.0f), glm::vec3(0, 1, 0));
+    //ubo.model = glm::rotate(glm::mat4(), time * glm::radians(30.0f), glm::vec3(0, 1, 0));
+    //ubo.view = glm::lookAt(glm::vec3(0.0, 0.0, 2.8), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-    ubo.view = glm::lookAt(glm::vec3(0.0, 0.0, 2.8), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+    ubo.model = glm::mat4();
+    ubo.view = glm::mat4();
 
     // Vulkan clip space has inverted Y and half Z.
-    const glm::mat4 clip(
+    /*const glm::mat4 clip(
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, -1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 0.5f, 0.0f,
-        0.0f, 0.0f, 0.5f, 1.0f);
+        0.0f, 0.0f, 0.5f, 1.0f);*/
 
-    ubo.proj = clip * glm::perspective(glm::radians(45.0f), window_width / (float)window_height, 0.1f, 50.0f);
+    const glm::mat4 ortho_proj(
+        2.0f / glConfig.vidWidth, 0.0f, 0.f, 0.0f,
+        0.0, 2.0f / glConfig.vidHeight, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f, 1.0f
+    );
+
+    //ubo.proj = clip * glm::perspective(glm::radians(45.0f), window_width / (float)window_height, 0.1f, 50.0f);
+    ubo.proj = ortho_proj;
 
     void* data;
     VkResult result = vkMapMemory(get_device(), uniform_staging_buffer_memory, 0, sizeof(ubo), 0, &data);
