@@ -11,7 +11,9 @@ public:
     Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinfo& window_sys_info);
     ~Vulkan_Demo();
 
-    void render_view();
+    void begin_frame();
+    void end_frame();
+    void render_tess();
     void render_cinematic_frame();
 
 public:
@@ -65,6 +67,13 @@ public:
     VkBuffer vertex_buffer = VK_NULL_HANDLE;
     VkBuffer index_buffer = VK_NULL_HANDLE;
     uint32_t model_indices_count = 0;
+
+    VkBuffer tess_vertex_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory tess_vertex_buffer_memory = VK_NULL_HANDLE;
+    VkDeviceSize tess_vertex_buffer_offset = 0;
+    VkBuffer tess_index_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory tess_index_buffer_memory = VK_NULL_HANDLE;
+    VkDeviceSize tess_index_buffer_offset = 0;
 
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 

@@ -619,9 +619,6 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 
 	// add light flares on lights that aren't obscured
 	RB_RenderFlares();
-
-    // VULKAN
-    vulkan_demo->render_view();
 }
 
 
@@ -936,6 +933,7 @@ const void	*RB_DrawBuffer( const void *data ) {
 
     result = vkBeginCommandBuffer(vulkan_demo->command_buffer, &begin_info);
     check_vk_result(result, "vkBeginCommandBuffer");
+    vulkan_demo->begin_frame();
 
 	return (const void *)(cmd + 1);
 }
@@ -1053,14 +1051,15 @@ const void	*RB_SwapBuffers( const void *data ) {
 
     // VULKAN
     extern FILE* logfile;
-    fprintf(logfile, "present\n");
-    fflush(logfile);
 
+    vulkan_demo->end_frame();
     VkResult result = vkEndCommandBuffer(vulkan_demo->command_buffer);
     check_vk_result(result, "vkEndCommandBuffer");
 
-    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    fprintf(logfile, "present\n");
+    fflush(logfile);
 
+    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info;
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.pNext = nullptr;

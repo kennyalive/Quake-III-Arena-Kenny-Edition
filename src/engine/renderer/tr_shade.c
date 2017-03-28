@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 
+// VULKAN
+#include "vk_demo.h"
+
 /*
 
   THIS ENTIRE FILE IS BACK END
@@ -1185,6 +1188,9 @@ void RB_EndSurface( void ) {
 	// call off to shader specific tess end function
 	//
 	tess.currentStageIteratorFunc();
+
+    // VULKAN
+    vulkan_demo->render_tess();
 
 	//
 	// draw debugging stuff

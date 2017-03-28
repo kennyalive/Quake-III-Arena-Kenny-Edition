@@ -514,7 +514,7 @@ void Vulkan_Demo::create_pipeline() {
     depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depth_stencil_state.pNext = nullptr;
     depth_stencil_state.flags = 0;
-    depth_stencil_state.depthTestEnable = VK_TRUE;
+    depth_stencil_state.depthTestEnable = VK_FALSE /*VK_TRUE*/;
     depth_stencil_state.depthWriteEnable = VK_TRUE;
     depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS;
     depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
@@ -607,53 +607,49 @@ void Vulkan_Demo::upload_geometry() {
             vkCmdCopyBuffer(command_buffer, staging_buffer, index_buffer, 1, &region);
         });
     }
+
+    {
+        VkBufferCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.size = 16 * 1024 * 1024;
+        desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        desc.queueFamilyIndexCount = 0;
+        desc.pQueueFamilyIndices = nullptr;
+
+        tess_vertex_buffer = get_resource_manager()->create_buffer(desc);
+        tess_vertex_buffer_memory = get_allocator()->allocate_staging_memory(tess_vertex_buffer);
+        VkResult result = vkBindBufferMemory(get_device(), tess_vertex_buffer, tess_vertex_buffer_memory, 0);
+        check_vk_result(result, "vkBindBufferMemory");
+    }
+
+    {
+        VkBufferCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.size = 16 * 1024 * 1024;
+        desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        desc.queueFamilyIndexCount = 0;
+        desc.pQueueFamilyIndices = nullptr;
+
+        tess_index_buffer = get_resource_manager()->create_buffer(desc);
+        tess_index_buffer_memory = get_allocator()->allocate_staging_memory(tess_index_buffer);
+        VkResult result = vkBindBufferMemory(get_device(), tess_index_buffer, tess_index_buffer_memory, 0);
+        check_vk_result(result, "vkBindBufferMemory");
+    }
 }
 
 void Vulkan_Demo::record_render_frame() {
-    VkBufferCopy region;
-    region.srcOffset = 0;
-    region.dstOffset = 0;
-    region.size = sizeof(Uniform_Buffer_Object);
-    vkCmdCopyBuffer(command_buffer, uniform_staging_buffer, uniform_buffer, 1, &region);
-
-    VkBufferMemoryBarrier barrier;
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    barrier.pNext = nullptr;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.buffer = uniform_buffer;
-    barrier.offset = 0;
-    barrier.size = sizeof(Uniform_Buffer_Object);
-
-    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0,
-        0, nullptr, 1, &barrier, 0, nullptr);
-
-    std::array<VkClearValue, 2> clear_values;
-    clear_values[0].color = {0.3f, 0.2f, 0.1f, 0.0f};
-    clear_values[1].depthStencil = {1.0, 0};
-
-    VkRenderPassBeginInfo render_pass_begin_info;
-    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.pNext = nullptr;
-    render_pass_begin_info.renderPass = render_pass;
-    render_pass_begin_info.framebuffer = framebuffers[swapchain_image_index];
-    render_pass_begin_info.renderArea.offset = {0, 0};
-    render_pass_begin_info.renderArea.extent = {(uint32_t)window_width, (uint32_t)window_height};
-    render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-    render_pass_begin_info.pClearValues = clear_values.data();
-
-    vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
     const VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &vertex_buffer, &offset);
     vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     vkCmdDrawIndexed(command_buffer, model_indices_count, 1, 0, 0, 0);
-
-    vkCmdEndRenderPass(command_buffer);
 }
 
 void Vulkan_Demo::update_ubo_descriptor() {
@@ -753,12 +749,91 @@ void Vulkan_Demo::update_uniform_buffer(bool cinematic) {
     vkUnmapMemory(get_device(), uniform_staging_buffer_memory);
 }
 
-void Vulkan_Demo::render_view() {
-    fprintf(logfile, "render_view\n");
+void Vulkan_Demo::begin_frame() {
+    fprintf(logfile, "begin_frame\n");
+    fflush(logfile);
+    //update_image_descriptor(false);
+
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = sizeof(Uniform_Buffer_Object);
+    vkCmdCopyBuffer(command_buffer, uniform_staging_buffer, uniform_buffer, 1, &region);
+
+    VkBufferMemoryBarrier barrier;
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    barrier.pNext = nullptr;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.buffer = uniform_buffer;
+    barrier.offset = 0;
+    barrier.size = sizeof(Uniform_Buffer_Object);
+
+    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0,
+        0, nullptr, 1, &barrier, 0, nullptr);
+
+    std::array<VkClearValue, 2> clear_values;
+    clear_values[0].color = {1.0f, 0.3f, 0.3f, 0.0f};
+    clear_values[1].depthStencil = {1.0, 0};
+
+    VkRenderPassBeginInfo render_pass_begin_info;
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.pNext = nullptr;
+    render_pass_begin_info.renderPass = render_pass;
+    render_pass_begin_info.framebuffer = framebuffers[swapchain_image_index];
+    render_pass_begin_info.renderArea.offset = {0, 0};
+    render_pass_begin_info.renderArea.extent = {(uint32_t)window_width, (uint32_t)window_height};
+    render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+    render_pass_begin_info.pClearValues = clear_values.data();
+
+    vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    tess_vertex_buffer_offset = 0;
+    tess_index_buffer_offset = 0;
+}
+
+void Vulkan_Demo::end_frame() {
+    fprintf(logfile, "end_frame (vb_size %d, ib_size %d)\n", (int)tess_vertex_buffer_offset, (int)tess_index_buffer_offset);
+    fflush(logfile);
+    vkCmdEndRenderPass(command_buffer);
+}
+
+void Vulkan_Demo::render_tess() {
+    fprintf(logfile, "render_tess (vert %d, inds %d)\n", tess.numVertexes, tess.numIndexes);
     fflush(logfile);
 
-    update_image_descriptor(false);
-    record_render_frame();
+    void* data;
+    VkResult result = vkMapMemory(get_device(), tess_vertex_buffer_memory, tess_vertex_buffer_offset, tess.numVertexes * sizeof(Vertex), 0, &data);
+    check_vk_result(result, "vkMapMemory");
+    Vertex* v = (Vertex*)data;
+    for (int i = 0; i < tess.numVertexes; i++, v++) {
+        v->pos.x = tess.xyz[i][0];
+        v->pos.y = tess.xyz[i][1];
+        v->pos.z = tess.xyz[i][2];
+        v->tex_coord[0] = tess.texCoords[i][0][0];
+        v->tex_coord[1] = tess.texCoords[i][0][1];
+    }
+    vkUnmapMemory(get_device(), tess_vertex_buffer_memory);
+
+    result = vkMapMemory(get_device(), tess_index_buffer_memory, tess_index_buffer_offset, tess.numIndexes * sizeof(uint32_t), 0, &data);
+    check_vk_result(result, "vkMapMemory");
+    uint32_t* ind = (uint32_t*)data;
+    for (int i = 0; i < tess.numIndexes; i++, ind++) {
+        *ind = tess.indexes[i];
+    }
+    vkUnmapMemory(get_device(), tess_index_buffer_memory);
+
+    const VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
+    vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
+    tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
+    tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
+
     update_uniform_buffer(false);
 }
 
