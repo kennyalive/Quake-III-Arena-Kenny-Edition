@@ -1190,7 +1190,7 @@ void RB_EndSurface( void ) {
 	tess.currentStageIteratorFunc();
 
     // VULKAN
-    vulkan_demo->render_tess();
+    vulkan_demo->render_tess(tess.shader->stages[0]->bundle[0].image[0]);
 
 	//
 	// draw debugging stuff

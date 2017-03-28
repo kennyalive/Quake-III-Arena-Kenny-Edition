@@ -155,7 +155,7 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinf
     create_pipeline();
 
     upload_geometry();
-    update_ubo_descriptor();
+    update_ubo_descriptor(descriptor_set);
 
     {
         VkCommandBufferAllocateInfo alloc_info;
@@ -192,15 +192,15 @@ void Vulkan_Demo::create_command_pool() {
 void Vulkan_Demo::create_descriptor_pool() {
     std::array<VkDescriptorPoolSize, 2> pool_sizes;
     pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_sizes[0].descriptorCount = 1;
+    pool_sizes[0].descriptorCount = 1024;
     pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_sizes[1].descriptorCount = 1;
+    pool_sizes[1].descriptorCount = 1024;
 
     VkDescriptorPoolCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     desc.pNext = nullptr;
     desc.flags = 0;
-    desc.maxSets = 1;
+    desc.maxSets = 1024;
     desc.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
     desc.pPoolSizes = pool_sizes.data();
 
@@ -330,6 +330,42 @@ void Vulkan_Demo::create_descriptor_set() {
 
     VkResult result = vkAllocateDescriptorSets(get_device(), &desc, &descriptor_set);
     check_vk_result(result, "vkAllocateDescriptorSets");
+}
+
+void Vulkan_Demo::create_image_descriptor_set(const image_t* image) {
+    VkDescriptorSetAllocateInfo desc;
+    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    desc.pNext = nullptr;
+    desc.descriptorPool = descriptor_pool;
+    desc.descriptorSetCount = 1;
+    desc.pSetLayouts = &descriptor_set_layout;
+
+    VkDescriptorSet set;
+    VkResult result = vkAllocateDescriptorSets(get_device(), &desc, &set);
+    check_vk_result(result, "vkAllocateDescriptorSets");
+
+    VkDescriptorImageInfo image_info;
+    image_info.sampler = texture_image_sampler;
+    image_info.imageView = image->vk_image_view;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
+    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes[0].dstSet = set;
+    descriptor_writes[0].dstBinding = 1;
+    descriptor_writes[0].dstArrayElement = 0;
+    descriptor_writes[0].descriptorCount = 1;
+    descriptor_writes[0].pNext = nullptr;
+    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes[0].pImageInfo = &image_info;
+    descriptor_writes[0].pBufferInfo = nullptr;
+    descriptor_writes[0].pTexelBufferView = nullptr;
+
+    vkUpdateDescriptorSets(get_device(), (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+
+    update_ubo_descriptor(set);
+
+    image_descriptor_sets[image] = set;
 }
 
 void Vulkan_Demo::create_render_pass() {
@@ -643,16 +679,7 @@ void Vulkan_Demo::upload_geometry() {
     }
 }
 
-void Vulkan_Demo::record_render_frame() {
-    const VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(command_buffer, 0, 1, &vertex_buffer, &offset);
-    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    vkCmdDrawIndexed(command_buffer, model_indices_count, 1, 0, 0, 0);
-}
-
-void Vulkan_Demo::update_ubo_descriptor() {
+void Vulkan_Demo::update_ubo_descriptor(VkDescriptorSet set) {
     VkDescriptorBufferInfo buffer_info;
     buffer_info.buffer = uniform_buffer;
     buffer_info.offset = 0;
@@ -661,7 +688,7 @@ void Vulkan_Demo::update_ubo_descriptor() {
     std::array<VkWriteDescriptorSet, 1> descriptor_writes;
     descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_writes[0].pNext = nullptr;
-    descriptor_writes[0].dstSet = descriptor_set;
+    descriptor_writes[0].dstSet = set;
     descriptor_writes[0].dstBinding = 0;
     descriptor_writes[0].dstArrayElement = 0;
     descriptor_writes[0].descriptorCount = 1;
@@ -752,7 +779,7 @@ void Vulkan_Demo::update_uniform_buffer(bool cinematic) {
 void Vulkan_Demo::begin_frame() {
     fprintf(logfile, "begin_frame\n");
     fflush(logfile);
-    //update_image_descriptor(false);
+    update_image_descriptor(false);
 
     VkBufferCopy region;
     region.srcOffset = 0;
@@ -800,7 +827,7 @@ void Vulkan_Demo::end_frame() {
     vkCmdEndRenderPass(command_buffer);
 }
 
-void Vulkan_Demo::render_tess() {
+void Vulkan_Demo::render_tess(const image_t* image) {
     fprintf(logfile, "render_tess (vert %d, inds %d)\n", tess.numVertexes, tess.numIndexes);
     fflush(logfile);
 
@@ -828,7 +855,15 @@ void Vulkan_Demo::render_tess() {
     const VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
     vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+
+    VkDescriptorSet* set = &descriptor_set;
+    VkDescriptorSet image_set;
+    if (image != nullptr) {
+        image_set = image_descriptor_sets[image];
+        set = &image_set;
+    }
+
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, set, 0, nullptr);
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
@@ -842,6 +877,13 @@ void Vulkan_Demo::render_cinematic_frame() {
     fflush(logfile);
 
     update_image_descriptor(true);
-    record_render_frame();
+
+    const VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, &vertex_buffer, &offset);
+    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdDrawIndexed(command_buffer, model_indices_count, 1, 0, 0, 0);
+   
     update_uniform_buffer(true);
 }

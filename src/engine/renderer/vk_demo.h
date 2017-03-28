@@ -1,8 +1,11 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <vector>
 #include "vk.h"
+
+#include "tr_local.h"
 
 struct SDL_SysWMinfo;
 
@@ -13,7 +16,7 @@ public:
 
     void begin_frame();
     void end_frame();
-    void render_tess();
+    void render_tess(const image_t* image);
     void render_cinematic_frame();
 
 public:
@@ -27,14 +30,14 @@ public:
 
     void create_descriptor_set_layout();
     void create_descriptor_set();
+    void create_image_descriptor_set(const image_t* image);
     void create_render_pass();
     void create_framebuffers();
     void create_pipeline_layout();
     void create_pipeline();
 
     void upload_geometry();
-    void record_render_frame();
-    void update_ubo_descriptor();
+    void update_ubo_descriptor(VkDescriptorSet set);
     void update_image_descriptor(bool cinematic);
     void update_uniform_buffer(bool cinematic);
 
@@ -74,6 +77,8 @@ public:
     VkBuffer tess_index_buffer = VK_NULL_HANDLE;
     VkDeviceMemory tess_index_buffer_memory = VK_NULL_HANDLE;
     VkDeviceSize tess_index_buffer_offset = 0;
+
+    std::map<const image_t*, VkDescriptorSet> image_descriptor_sets; // quick UI prototyping
 
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 
