@@ -38,8 +38,7 @@ public:
 
     void upload_geometry();
     void update_ubo_descriptor(VkDescriptorSet set);
-    void update_image_descriptor(bool cinematic);
-    void update_uniform_buffer(bool cinematic);
+    void update_uniform_buffer();
 
 public:
     const int window_width = 0;
@@ -77,6 +76,9 @@ public:
     VkBuffer tess_index_buffer = VK_NULL_HANDLE;
     VkDeviceMemory tess_index_buffer_memory = VK_NULL_HANDLE;
     VkDeviceSize tess_index_buffer_offset = 0;
+
+    uint32_t tess_ubo_offset = 0;
+    uint32_t tess_ubo_offset_step = -1;
 
     std::map<const image_t*, VkDescriptorSet> image_descriptor_sets; // quick UI prototyping
 
