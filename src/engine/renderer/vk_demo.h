@@ -34,7 +34,7 @@ public:
     void create_render_pass();
     void create_framebuffers();
     void create_pipeline_layout();
-    void create_pipeline();
+    VkPipeline create_pipeline(bool depth_test);
 
     void upload_geometry();
     void update_ubo_descriptor(VkDescriptorSet set);
@@ -64,7 +64,8 @@ public:
     VkRenderPass render_pass = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> framebuffers;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-    VkPipeline pipeline = VK_NULL_HANDLE;
+    VkPipeline pipeline_2d = VK_NULL_HANDLE;
+    VkPipeline pipeline_3d = VK_NULL_HANDLE;
 
     VkBuffer vertex_buffer = VK_NULL_HANDLE;
     VkBuffer index_buffer = VK_NULL_HANDLE;

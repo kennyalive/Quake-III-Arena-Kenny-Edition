@@ -72,14 +72,6 @@ struct Model {
 static Model load_model() {
     Model model;
 
-    /*float s = 1;
-    model.vertices = {
-        { {-s, -s, 0}, {1, 1, 1}, {0, 1} },
-        { { s, -s, 0}, {1, 1, 1}, {1, 1} },
-        { { s,  s, 0}, {1, 1, 1}, {1, 0} },
-        { {-s,  s, 0}, {1, 1, 1}, {0, 0} },
-    };*/
-    
     model.vertices = {
         { {0, glConfig.vidHeight, 0},
           {1, 1, 1}, {0, 1} },
@@ -152,7 +144,8 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinf
     create_render_pass();
     create_framebuffers();
     create_pipeline_layout();
-    create_pipeline();
+    pipeline_2d = create_pipeline(false);
+    pipeline_3d = create_pipeline(true);
 
     upload_geometry();
     update_ubo_descriptor(descriptor_set);
@@ -466,7 +459,7 @@ void Vulkan_Demo::create_pipeline_layout() {
     pipeline_layout = get_resource_manager()->create_pipeline_layout(desc);
 }
 
-void Vulkan_Demo::create_pipeline() {
+VkPipeline Vulkan_Demo::create_pipeline(bool depth_test) {
     Shader_Module vertex_shader("../../data/vert.spv");
     Shader_Module fragment_shader("../../data/frag.spv");
 
@@ -521,9 +514,9 @@ void Vulkan_Demo::create_pipeline() {
     viewport_state.pNext = nullptr;
     viewport_state.flags = 0;
     viewport_state.viewportCount = 1;
-    viewport_state.pViewports = &viewport;
+    viewport_state.pViewports = depth_test ? nullptr : &viewport;
     viewport_state.scissorCount = 1;
-    viewport_state.pScissors = &scissor;
+    viewport_state.pScissors = depth_test ? nullptr : &scissor;
 
     VkPipelineRasterizationStateCreateInfo rasterization_state;
     rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -555,7 +548,7 @@ void Vulkan_Demo::create_pipeline() {
     depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depth_stencil_state.pNext = nullptr;
     depth_stencil_state.flags = 0;
-    depth_stencil_state.depthTestEnable = VK_FALSE /*VK_TRUE*/;
+    depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
     depth_stencil_state.depthWriteEnable = VK_TRUE;
     depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS;
     depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
@@ -590,6 +583,14 @@ void Vulkan_Demo::create_pipeline() {
     blend_state.blendConstants[2] = 0.0f;
     blend_state.blendConstants[3] = 0.0f;
 
+    VkPipelineDynamicStateCreateInfo dynamic_state;
+    dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state.pNext = nullptr;
+    dynamic_state.flags = 0;
+    dynamic_state.dynamicStateCount = 2;
+    VkDynamicState dynamic_state_array[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    dynamic_state.pDynamicStates = dynamic_state_array;
+
     VkGraphicsPipelineCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     desc.pNext = nullptr;
@@ -604,14 +605,14 @@ void Vulkan_Demo::create_pipeline() {
     desc.pMultisampleState = &multisample_state;
     desc.pDepthStencilState = &depth_stencil_state;
     desc.pColorBlendState = &blend_state;
-    desc.pDynamicState = nullptr;
+    desc.pDynamicState = depth_test ? &dynamic_state : nullptr;
     desc.layout = pipeline_layout;
     desc.renderPass = render_pass;
     desc.subpass = 0;
     desc.basePipelineHandle = VK_NULL_HANDLE;
     desc.basePipelineIndex = -1;
 
-    pipeline = get_resource_manager()->create_graphics_pipeline(desc);
+    return get_resource_manager()->create_graphics_pipeline(desc);
 }
 
 void Vulkan_Demo::upload_geometry() {
@@ -708,16 +709,41 @@ void Vulkan_Demo::update_ubo_descriptor(VkDescriptorSet set) {
 void Vulkan_Demo::update_uniform_buffer() {
     Uniform_Buffer_Object ubo;
 
-    ubo.model = glm::mat4();
-    ubo.view = glm::mat4();
+    if (backEnd.projection2D) {
+        ubo.model = glm::mat4();
+        ubo.view = glm::mat4();
+        const glm::mat4 ortho_proj(
+            2.0f / glConfig.vidWidth, 0.0f, 0.f, 0.0f,
+            0.0, 2.0f / glConfig.vidHeight, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f, 1.0f
+        );
+        ubo.proj = ortho_proj;
+    } else {
+        const float* p = backEnd.or.modelMatrix;
+        ubo.model = glm::mat4(
+            p[0], p[1], p[2], p[3],
+            p[4], p[5], p[6], p[7],
+            p[8], p[9], p[10], p[11],
+            p[12], p[13], p[14], p[15]);
 
-    const glm::mat4 ortho_proj(
-        2.0f / glConfig.vidWidth, 0.0f, 0.f, 0.0f,
-        0.0, 2.0f / glConfig.vidHeight, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        -1.0f, -1.0f, 0.0f, 1.0f
-    );
-    ubo.proj = ortho_proj;
+        ubo.view = glm::mat4();
+
+        p = backEnd.viewParms.projectionMatrix;
+
+        // update q3's proj matrix (opengl) to vulkan conventions: z - [0, 1] instead of [-1, 1] and invert y direction
+        float zNear	= r_znear->value;
+        float zFar = tr.viewParms.zFar;
+        float p10 = -zFar / (zFar - zNear);
+        float p14 = -zFar*zNear / (zFar - zNear);
+        float p5 = -p[5];
+
+        ubo.proj = glm::mat4(
+            p[0], p[1], p[2], p[3],
+            p[4], p5, p[6], p[7],
+            p[8], p[9], p10, p[11],
+            p[12], p[13], p14, p[15]);
+    }
 
     void* data;
     VkResult result = vkMapMemory(get_device(), uniform_staging_buffer_memory, tess_ubo_offset, sizeof(ubo), 0, &data);
@@ -814,11 +840,41 @@ void Vulkan_Demo::render_tess(const image_t* image) {
     }
 
     update_uniform_buffer();
-
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, set, 1, &tess_ubo_offset);
     tess_ubo_offset += tess_ubo_offset_step;
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    VkViewport viewport;
+    VkRect2D scissor;
+
+    if (backEnd.projection2D) {
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (float) glConfig.vidWidth;
+        viewport.height = (float)glConfig.vidHeight;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        scissor.offset = {0, 0};
+        scissor.extent = {(uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight};
+    } else {
+        viewport.x = backEnd.viewParms.viewportX;
+        viewport.y = (float)(glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight));
+        viewport.width = (float) backEnd.viewParms.viewportWidth;
+        viewport.height = (float)backEnd.viewParms.viewportHeight;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+   
+        scissor.offset = {backEnd.viewParms.viewportX, (glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight))};
+        if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
+        scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
+    }
+
+    if (!backEnd.projection2D) {
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    }
+
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backEnd.projection2D ? pipeline_2d : pipeline_3d);
 
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
@@ -856,6 +912,6 @@ void Vulkan_Demo::render_cinematic_frame() {
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 1, &tess_ubo_offset);
     tess_ubo_offset += tess_ubo_offset_step;
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_2d);
     vkCmdDrawIndexed(command_buffer, model_indices_count, 1, 0, 0, 0);
 }
