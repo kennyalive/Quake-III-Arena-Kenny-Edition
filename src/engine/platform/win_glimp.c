@@ -47,13 +47,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "sdl/SDL.h"
 #include "sdl/SDL_syswm.h"
 
-
 extern void WG_CheckHardwareGamma( void );
 extern void WG_RestoreGamma( void );
 
-#define	WINDOW_CLASS_NAME	"Quake 3: Arena"
+#define	MAIN_WINDOW_CLASS_NAME	"Quake 3: Arena"
+#define	API_COMPARE_WINDOW_CLASS_NAME	"Quake 3: Arena [API compare]"
 
-static qboolean s_classRegistered = qfalse;
+static bool s_main_window_class_registered = false;
+static bool s_api_compare_window_class_registered = false;
 
 //
 // function declaration
@@ -202,7 +203,7 @@ static int GLW_ChoosePixelFormat(HDC hDC, const PIXELFORMATDESCRIPTOR *pPFD)
 	return bestMatch;
 }
 
-static bool GLW_SetPixelFormat(PIXELFORMATDESCRIPTOR *pPFD, int colorbits, int depthbits, int stencilbits, qboolean stereo) {
+static bool GLW_SetPixelFormat(HDC hdc, PIXELFORMATDESCRIPTOR *pPFD, int colorbits, int depthbits, int stencilbits, qboolean stereo) {
     const PIXELFORMATDESCRIPTOR pfd_base =
     {
         sizeof(PIXELFORMATDESCRIPTOR),	// size of this pfd
@@ -237,92 +238,85 @@ static bool GLW_SetPixelFormat(PIXELFORMATDESCRIPTOR *pPFD, int colorbits, int d
         pPFD->dwFlags |= PFD_STEREO;
     }
 
-    int pixelformat = GLW_ChoosePixelFormat(glw_state.hDC, pPFD);
+    int pixelformat = GLW_ChoosePixelFormat(hdc, pPFD);
 	if (pixelformat == 0) {
 		ri.Printf( PRINT_ALL, "...GLW_ChoosePixelFormat failed\n");
 		return false;
 	}
 	ri.Printf( PRINT_ALL, "...PIXELFORMAT %d selected\n", pixelformat );
 
-	DescribePixelFormat( glw_state.hDC, pixelformat, sizeof( *pPFD ), pPFD );
-	if (SetPixelFormat( glw_state.hDC, pixelformat, pPFD ) == FALSE) {
-		ri.Printf (PRINT_ALL, "...SetPixelFormat failed\n", glw_state.hDC);
+	DescribePixelFormat(hdc, pixelformat, sizeof( *pPFD ), pPFD);
+	if (SetPixelFormat(hdc, pixelformat, pPFD ) == FALSE) {
+		ri.Printf (PRINT_ALL, "...SetPixelFormat failed\n", hdc);
 		return false;
 	}
     return true;
 }
 
-
-// Sets pixel format and creates opengl context.
-static qboolean GLW_InitDriver() {
-
+// Sets pixel format and creates opengl context for the given window.
+static qboolean GLW_InitDriver(HWND hwnd) {
 	ri.Printf( PRINT_ALL, "Initializing OpenGL driver\n" );
 
-	//
-	// get a DC for our window if we don't already have one allocated
-	//
-	if (glw_state.hDC == NULL) {
-		ri.Printf( PRINT_ALL, "...getting DC: " );
+    glw_state.hDC = NULL;
+    glw_state.hGLRC = NULL;
 
-        glw_state.hDC = GetDC(g_wv.hWnd);
-		if (glw_state.hDC == NULL ) {
-			ri.Printf( PRINT_ALL, "failed\n" );
-			return qfalse;
-		}
-		ri.Printf( PRINT_ALL, "succeeded\n" );
+	//
+	// get a DC for our window
+	//
+	ri.Printf(PRINT_ALL, "...getting DC: ");
+    HDC hdc = GetDC(hwnd);
+	if (hdc == NULL) {
+		ri.Printf(PRINT_ALL, "failed\n");
+		return qfalse;
 	}
-
-    int colorbits = glw_state.desktopBitsPixel;
-    int depthbits = (r_depthbits->integer == 0) ? 24 : r_depthbits->integer;
-    int stencilbits = r_stencilbits->integer;
+	ri.Printf(PRINT_ALL, "succeeded\n");
 
 	//
 	// set pixel format
 	//
+    int colorbits = glw_state.desktopBitsPixel;
+    int depthbits = (r_depthbits->integer == 0) ? 24 : r_depthbits->integer;
+    int stencilbits = r_stencilbits->integer;
+
     PIXELFORMATDESCRIPTOR pfd;
-	if (!glw_state.pixelFormatSet) {
+    if (!GLW_SetPixelFormat(hdc, &pfd, colorbits, depthbits, stencilbits, (qboolean)r_stereo->integer)) {
+        ReleaseDC(hwnd, hdc);
+        ri.Printf(PRINT_ALL, "...failed to find an appropriate PIXELFORMAT\n");
+        return qfalse;
+	}
 
-        if (!GLW_SetPixelFormat(&pfd, colorbits, depthbits, stencilbits, (qboolean)r_stereo->integer)) {
-            ReleaseDC(g_wv.hWnd, glw_state.hDC);
-            glw_state.hDC = NULL;
-
-            ri.Printf(PRINT_ALL, "...failed to find an appropriate PIXELFORMAT\n");
-            return qfalse;
-		}
-
-        // report if stereo is desired but unavailable
-		if (!(pfd.dwFlags & PFD_STEREO) && (r_stereo->integer != 0)) {
-			ri.Printf(PRINT_ALL, "...failed to select stereo pixel format\n");
-		}
-
-        glw_state.pixelFormatSet = qtrue;
+    // report if stereo is desired but unavailable
+	if (!(pfd.dwFlags & PFD_STEREO) && (r_stereo->integer != 0)) {
+		ri.Printf(PRINT_ALL, "...failed to select stereo pixel format\n");
 	}
 
     //
     // startup the OpenGL subsystem by creating a context and making it current
     //
-    if (!glw_state.hGLRC) {
-        ri.Printf(PRINT_ALL, "...creating GL context: ");
-        glw_state.hGLRC = qwglCreateContext(glw_state.hDC);
-        if (glw_state.hGLRC == NULL) {
-            ri.Printf(PRINT_ALL, "failed\n");
-            return qfalse;
-        }
-        ri.Printf(PRINT_ALL, "succeeded\n");
-
-        ri.Printf(PRINT_ALL, "...making context current: ");
-        if (!qwglMakeCurrent(glw_state.hDC, glw_state.hGLRC)) {
-            qwglDeleteContext(glw_state.hGLRC);
-            glw_state.hGLRC = NULL;
-            ri.Printf(PRINT_ALL, "failed\n");
-            return qfalse;
-        }
-        ri.Printf(PRINT_ALL, "succeeded\n");
+    ri.Printf(PRINT_ALL, "...creating GL context: ");
+    HGLRC hglrc = qwglCreateContext(hdc);
+    if (hglrc == NULL) {
+        ReleaseDC(hwnd, hdc);
+        ri.Printf(PRINT_ALL, "failed\n");
+        return qfalse;
     }
+    ri.Printf(PRINT_ALL, "succeeded\n");
+
+    ri.Printf(PRINT_ALL, "...making context current: ");
+    if (!qwglMakeCurrent(hdc, hglrc)) {
+        qwglDeleteContext(hglrc);
+        ReleaseDC(hwnd, hdc);
+        ri.Printf(PRINT_ALL, "failed\n");
+        return qfalse;
+    }
+    ri.Printf(PRINT_ALL, "succeeded\n");
 
     //
-	// store PFD specifics 
+	// update global state and return
 	//
+    glw_state.hDC = hdc;
+    glw_state.hGLRC = hglrc;
+
 	glConfig.colorBits = ( int ) pfd.cColorBits;
 	glConfig.depthBits = ( int ) pfd.cDepthBits;
 	glConfig.stencilBits = ( int ) pfd.cStencilBits;
@@ -331,12 +325,12 @@ static qboolean GLW_InitDriver() {
 	return qtrue;
 }
 
-static void GLW_CreateWindow(int width, int height, qboolean fullscreen)
+static HWND create_main_window(int width, int height, qboolean fullscreen)
 {
 	//
 	// register the window class if necessary
 	//
-	if ( !s_classRegistered )
+	if (!s_main_window_class_registered)
 	{
 		WNDCLASS wc;
 
@@ -351,99 +345,183 @@ static void GLW_CreateWindow(int width, int height, qboolean fullscreen)
 		wc.hCursor       = LoadCursor (NULL,IDC_ARROW);
 		wc.hbrBackground = (HBRUSH) (void *)COLOR_GRAYTEXT;
 		wc.lpszMenuName  = 0;
-		wc.lpszClassName = WINDOW_CLASS_NAME;
+		wc.lpszClassName = MAIN_WINDOW_CLASS_NAME;
 
 		if ( !RegisterClass( &wc ) )
 		{
-			ri.Error( ERR_FATAL, "GLW_CreateWindow: could not register window class" );
+			ri.Error( ERR_FATAL, "create_main_window: could not register window class" );
 		}
-		s_classRegistered = qtrue;
+		s_main_window_class_registered = true;
 		ri.Printf( PRINT_ALL, "...registered window class\n" );
 	}
 
 	//
-	// create the HWND if one does not already exist
+	// compute width and height
 	//
-	if ( !g_wv.hWnd )
+    RECT r;
+	r.left = 0;
+	r.top = 0;
+	r.right  = width;
+	r.bottom = height;
+
+    int	stylebits;
+	if ( fullscreen )
 	{
-		//
-		// compute width and height
-		//
-        RECT r;
-		r.left = 0;
-		r.top = 0;
-		r.right  = width;
-		r.bottom = height;
-
-        int	stylebits;
-		if ( fullscreen )
-		{
-			stylebits = WS_POPUP|WS_VISIBLE|WS_SYSMENU;
-		}
-		else
-		{
-			stylebits = WS_OVERLAPPED | WS_BORDER | WS_CAPTION | WS_VISIBLE | WS_SYSMENU;
-			AdjustWindowRect (&r, stylebits, FALSE);
-		}
-
-		int w = r.right - r.left;
-		int h = r.bottom - r.top;
-
-        int x, y;
-
-		if ( fullscreen  )
-		{
-			x = 0;
-			y = 0;
-		}
-		else
-		{
-			cvar_t* vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
-			cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
-			x = vid_xpos->integer;
-			y = vid_ypos->integer;
-
-			// adjust window coordinates if necessary 
-			// so that the window is completely on screen
-			if ( x < 0 )
-				x = 0;
-			if ( y < 0 )
-				y = 0;
-
-			if ( w < glw_state.desktopWidth &&
-				 h < glw_state.desktopHeight )
-			{
-				if ( x + w > glw_state.desktopWidth )
-					x = ( glw_state.desktopWidth - w );
-				if ( y + h > glw_state.desktopHeight )
-					y = ( glw_state.desktopHeight - h );
-			}
-		}
-
-		g_wv.hWnd = CreateWindowEx (
-			 0, 
-			 WINDOW_CLASS_NAME,
-			 "Quake 3: Arena",
-			 stylebits,
-			 x, y, w, h,
-			 NULL,
-			 NULL,
-			 g_wv.hInstance,
-			 NULL);
-
-		if ( !g_wv.hWnd )
-		{
-			ri.Error (ERR_FATAL, "GLW_CreateWindow() - Couldn't create window");
-		}
-	
-		ShowWindow( g_wv.hWnd, SW_SHOW );
-		UpdateWindow( g_wv.hWnd );
-		ri.Printf( PRINT_ALL, "...created window@%d,%d (%dx%d)\n", x, y, w, h );
+		stylebits = WS_POPUP|WS_VISIBLE|WS_SYSMENU;
 	}
 	else
 	{
-		ri.Printf( PRINT_ALL, "...window already present, CreateWindowEx skipped\n" );
+		stylebits = WS_OVERLAPPED | WS_BORDER | WS_CAPTION | WS_VISIBLE | WS_SYSMENU;
+		AdjustWindowRect (&r, stylebits, FALSE);
 	}
+
+	int w = r.right - r.left;
+	int h = r.bottom - r.top;
+
+    int x, y;
+
+	if ( fullscreen  )
+	{
+		x = 0;
+		y = 0;
+	}
+	else
+	{
+		cvar_t* vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
+		cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
+		x = vid_xpos->integer;
+		y = vid_ypos->integer;
+
+		// adjust window coordinates if necessary 
+		// so that the window is completely on screen
+		if ( x < 0 )
+			x = 0;
+		if ( y < 0 )
+			y = 0;
+
+		if ( w < glw_state.desktopWidth &&
+				h < glw_state.desktopHeight )
+		{
+			if ( x + w > glw_state.desktopWidth )
+				x = ( glw_state.desktopWidth - w );
+			if ( y + h > glw_state.desktopHeight )
+				y = ( glw_state.desktopHeight - h );
+		}
+	}
+
+	HWND hwnd = CreateWindowEx(
+			0, 
+			MAIN_WINDOW_CLASS_NAME,
+			"Quake 3: Arena",
+			stylebits,
+			x, y, w, h,
+			NULL,
+			NULL,
+			g_wv.hInstance,
+			NULL);
+
+	if (!hwnd)
+	{
+		ri.Error (ERR_FATAL, "create_main_window() - Couldn't create window");
+	}
+
+	ShowWindow(hwnd, SW_SHOW);
+	UpdateWindow(hwnd);
+	ri.Printf(PRINT_ALL, "...created window@%d,%d (%dx%d)\n", x, y, w, h);
+    return hwnd;
+}
+
+static HWND create_api_compare_window(int width, int height)
+{
+    //
+    // register the window class if necessary
+    //
+    if (!s_api_compare_window_class_registered)
+    {
+        WNDCLASS wc;
+
+        memset( &wc, 0, sizeof( wc ) );
+
+        wc.style         = 0;
+        wc.lpfnWndProc   = DefWindowProc;
+        wc.cbClsExtra    = 0;
+        wc.cbWndExtra    = 0;
+        wc.hInstance     = g_wv.hInstance;
+        wc.hIcon         = LoadIcon( g_wv.hInstance, MAKEINTRESOURCE(IDI_ICON1));
+        wc.hCursor       = LoadCursor (NULL,IDC_ARROW);
+        wc.hbrBackground = (HBRUSH) (void *)COLOR_GRAYTEXT;
+        wc.lpszMenuName  = 0;
+        wc.lpszClassName = API_COMPARE_WINDOW_CLASS_NAME;
+
+        if ( !RegisterClass( &wc ) )
+        {
+            ri.Error( ERR_FATAL, "create_api_compare_window: could not register window class" );
+        }
+        s_api_compare_window_class_registered = true;
+        ri.Printf( PRINT_ALL, "...registered api compare window class\n" );
+    }
+
+    //
+    // compute width and height
+    //
+    RECT r;
+    r.left = 0;
+    r.top = 0;
+    r.right  = width;
+    r.bottom = height;
+
+    int stylebits = WS_OVERLAPPED | WS_BORDER | WS_CAPTION | WS_VISIBLE | WS_SYSMENU;
+    AdjustWindowRect (&r, stylebits, FALSE);
+
+    int w = r.right - r.left;
+    int h = r.bottom - r.top;
+
+    cvar_t* vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
+    cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
+    int x = vid_xpos->integer + width + 5; // offset to the right of the main window
+    int y = vid_ypos->integer;
+
+    // adjust window coordinates if necessary 
+    // so that the window is completely on screen
+    if ( x < 0 )
+        x = 0;
+    if ( y < 0 )
+        y = 0;
+
+    if ( w < glw_state.desktopWidth &&
+        h < glw_state.desktopHeight )
+    {
+        if ( x + w > glw_state.desktopWidth )
+            x = ( glw_state.desktopWidth - w );
+        if ( y + h > glw_state.desktopHeight )
+            y = ( glw_state.desktopHeight - h );
+    }
+
+    // If r_renderAPI = 0 (OpenGL) then compare window uses Vulkan API.
+    // If r_renderAPI = 1 (Vulkan) then compare window uses OpenGL API.
+    char window_name[1024];
+    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, r_renderAPI->integer ? "OpenGL" : "Vulkan");
+
+    HWND hwnd = CreateWindowEx(
+        0, 
+        API_COMPARE_WINDOW_CLASS_NAME,
+        window_name,
+        stylebits,
+        x, y, w, h,
+        NULL,
+        NULL,
+        g_wv.hInstance,
+        NULL);
+
+    if (!hwnd)
+    {
+        ri.Error (ERR_FATAL, "create_api_compare_window() - Couldn't create window");
+    }
+
+    ShowWindow(hwnd, SW_SHOW);
+    UpdateWindow(hwnd);
+    ri.Printf(PRINT_ALL, "...created api compare window@%d,%d (%dx%d)\n", x, y, w, h);
+    return hwnd;
 }
 
 /*
@@ -474,30 +552,57 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
     glConfig.isFullscreen = fullscreen;
 	ri.Printf( PRINT_ALL, " %d %d %s\n", glConfig.vidWidth, glConfig.vidHeight, fullscreen ? "FS" : "W");
 
-    GLW_CreateWindow(glConfig.vidWidth, glConfig.vidHeight, fullscreen);
+    g_wv.hWnd = NULL;
+    g_wv.hWnd_opengl = NULL;
+    g_wv.hWnd_vulkan = NULL;
 
-    if (!GLW_InitDriver()) {
-        ShowWindow(g_wv.hWnd, SW_HIDE);
-        DestroyWindow(g_wv.hWnd);
-        g_wv.hWnd = NULL;
-        return false;
+    HWND hwnd = create_main_window(glConfig.vidWidth, glConfig.vidHeight, fullscreen);
+
+    if (r_renderAPI->integer == 0) { // opengl
+        if (!GLW_InitDriver(hwnd)) {
+            ShowWindow(hwnd, SW_HIDE);
+            DestroyWindow(hwnd);
+            return false;
+        }
+        g_wv.hWnd = hwnd;
+        g_wv.hWnd_opengl = hwnd;
+
+        if (r_renderAPICompareWindow->integer) {
+            HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
+            if (!initialize_vulkan(hwnd2)) {
+                ShowWindow(hwnd2, SW_HIDE);
+                DestroyWindow(hwnd2);
+                ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
+            } else {
+                g_wv.hWnd_vulkan = hwnd2;
+                vulkan_demo = new Vulkan_Demo(glConfig.vidWidth, glConfig.vidHeight);
+            }
+        }
+    } else { // vulkan
+        if (!initialize_vulkan(hwnd)) {
+            ShowWindow(hwnd, SW_HIDE);
+            DestroyWindow(hwnd);
+            return false;
+        }
+        vulkan_demo = new Vulkan_Demo(glConfig.vidWidth, glConfig.vidHeight);
+
+        g_wv.hWnd = hwnd;
+        g_wv.hWnd_vulkan = hwnd;
+
+        if (r_renderAPICompareWindow->integer) {
+            HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
+            if (!GLW_InitDriver(hwnd2)) {
+                ShowWindow(hwnd2, SW_HIDE);
+                DestroyWindow(hwnd2);
+                ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
+            } else {
+                g_wv.hWnd_opengl = hwnd2;
+            }
+        }
     }
+
     SetForegroundWindow(g_wv.hWnd);
     SetFocus(g_wv.hWnd);
-
-    // VULKAN
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-        ri.Error(ERR_FATAL, "SDL_Init error");
-    SDL_Window* window = SDL_CreateWindow("Vulkan app", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        glConfig.vidWidth, glConfig.vidHeight, SDL_WINDOW_SHOWN);
-    if (window == nullptr)
-        ri.Error(ERR_FATAL, "failed to create SDL window");
-    SDL_SysWMinfo window_sys_info;
-    SDL_VERSION(&window_sys_info.version)
-        if (SDL_GetWindowWMInfo(window, &window_sys_info) == SDL_FALSE)
-            ri.Error(ERR_FATAL, "failed to get platform specific window information");
-    vulkan_demo = new Vulkan_Demo(glConfig.vidWidth, glConfig.vidHeight, window_sys_info);
-
 	return true;
 }
 
@@ -700,66 +805,60 @@ void GLimp_Init( void )
 */
 void GLimp_Shutdown( void )
 {
-//	const char *strings[] = { "soft", "hard" };
 	const char *success[] = { "failed", "success" };
 	int retVal;
 
-	// FIXME: Brian, we need better fallbacks from partially initialized failures
-	if ( !qwglMakeCurrent ) {
-		return;
-	}
-
-	ri.Printf( PRINT_ALL, "Shutting down OpenGL subsystem\n" );
+	ri.Printf(PRINT_ALL, "Shutting down OpenGL subsystem\n");
 
 	// restore gamma.  We do this first because 3Dfx's extension needs a valid OGL subsystem
 	WG_RestoreGamma();
 
 	// set current context to NULL
-	if ( qwglMakeCurrent )
-	{
-		retVal = qwglMakeCurrent( NULL, NULL ) != 0;
-
-		ri.Printf( PRINT_ALL, "...wglMakeCurrent( NULL, NULL ): %s\n", success[retVal] );
+	if (qwglMakeCurrent) {
+		retVal = qwglMakeCurrent(NULL, NULL) != 0;
+		ri.Printf(PRINT_ALL, "...wglMakeCurrent( NULL, NULL ): %s\n", success[retVal]);
 	}
 
 	// delete HGLRC
-	if ( glw_state.hGLRC )
-	{
-		retVal = qwglDeleteContext( glw_state.hGLRC ) != 0;
-		ri.Printf( PRINT_ALL, "...deleting GL context: %s\n", success[retVal] );
+	if (glw_state.hGLRC) {
+		retVal = qwglDeleteContext(glw_state.hGLRC) != 0;
+		ri.Printf(PRINT_ALL, "...deleting GL context: %s\n", success[retVal]);
 		glw_state.hGLRC = NULL;
 	}
 
 	// release DC
-	if ( glw_state.hDC )
-	{
-		retVal = ReleaseDC( g_wv.hWnd, glw_state.hDC ) != 0;
-		ri.Printf( PRINT_ALL, "...releasing DC: %s\n", success[retVal] );
-		glw_state.hDC   = NULL;
+	if (glw_state.hDC) {
+		retVal = ReleaseDC(g_wv.hWnd_opengl, glw_state.hDC) != 0;
+		ri.Printf(PRINT_ALL, "...releasing DC: %s\n", success[retVal]);
+		glw_state.hDC = NULL;
 	}
 
 	// destroy window
-	if ( g_wv.hWnd )
-	{
-		ri.Printf( PRINT_ALL, "...destroying window\n" );
-		ShowWindow( g_wv.hWnd, SW_HIDE );
-		DestroyWindow( g_wv.hWnd );
-		g_wv.hWnd = NULL;
-		glw_state.pixelFormatSet = qfalse;
+	if (g_wv.hWnd_opengl) {
+		ri.Printf(PRINT_ALL, "...destroying opengl window\n");
+		ShowWindow(g_wv.hWnd_opengl, SW_HIDE);
+		DestroyWindow(g_wv.hWnd_opengl);
+		g_wv.hWnd_opengl = NULL;
 	}
+    if (g_wv.hWnd_vulkan) {
+        ri.Printf(PRINT_ALL, "...destroying vulkan window\n");
+        ShowWindow(g_wv.hWnd_vulkan, SW_HIDE);
+        DestroyWindow(g_wv.hWnd_vulkan);
+        g_wv.hWnd_vulkan = NULL;
+    }
+    g_wv.hWnd = NULL;
 
 	// close the r_logFile
-	if ( glw_state.log_fp )
-	{
-		fclose( glw_state.log_fp );
+	if (glw_state.log_fp) {
+		fclose(glw_state.log_fp);
 		glw_state.log_fp = 0;
 	}
 
 	// shutdown QGL subsystem
 	QGL_Shutdown();
 
-	memset( &glConfig, 0, sizeof( glConfig ) );
-	memset( &glState, 0, sizeof( glState ) );
+	memset(&glConfig, 0, sizeof(glConfig));
+	memset(&glState, 0, sizeof(glState));
 }
 
 /*

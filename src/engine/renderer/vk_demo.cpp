@@ -111,13 +111,11 @@ static VkFormat find_depth_format(VkPhysicalDevice physical_device) {
 
 FILE* logfile;
 
-Vulkan_Demo::Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinfo& window_sys_info)
+Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
 : window_width(window_width) 
 , window_height(window_height)
 {
     logfile = fopen("vk_dev.log", "w");
-
-    initialize_vulkan(window_sys_info);
     get_allocator()->initialize(get_physical_device(), get_device());
     get_resource_manager()->initialize(get_device());
     create_command_pool();

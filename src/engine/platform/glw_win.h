@@ -35,8 +35,6 @@ typedef struct
 
 	HINSTANCE hinstOpenGL;	// HINSTANCE for the OpenGL library
 
-	qboolean pixelFormatSet;
-
 	int		 desktopBitsPixel;
 	int		 desktopWidth, desktopHeight;
 

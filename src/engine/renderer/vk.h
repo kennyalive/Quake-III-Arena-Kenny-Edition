@@ -9,9 +9,7 @@
 
 #include <vector>
 
-struct SDL_SysWMinfo;
-
-void initialize_vulkan(const SDL_SysWMinfo& window_sys_info);
+bool initialize_vulkan(HWND hwnd);
 void deinitialize_vulkan();
 
 VkPhysicalDevice get_physical_device();

@@ -28,6 +28,9 @@ glstate_t	glState;
 
 static void GfxInfo_f( void );
 
+cvar_t *r_renderAPI;
+cvar_t *r_renderAPICompareWindow;
+
 cvar_t	*r_flareSize;
 cvar_t	*r_flareFade;
 
@@ -794,6 +797,9 @@ R_Register
 */
 void R_Register( void ) 
 {
+    r_renderAPI = ri.Cvar_Get( "r_renderAPI", "0", CVAR_ARCHIVE | CVAR_LATCH ) ;
+    r_renderAPICompareWindow = ri.Cvar_Get( "r_renderAPICompareWindow", "0", 0 ) ;
+
 	//
 	// latched and archived variables
 	//

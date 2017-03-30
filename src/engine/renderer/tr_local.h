@@ -979,6 +979,8 @@ extern Vulkan_Demo* vulkan_demo;
 //
 // cvars
 //
+extern cvar_t   *r_renderAPI;
+extern cvar_t   *r_renderAPICompareWindow;
 extern cvar_t	*r_flareSize;
 extern cvar_t	*r_flareFade;
 

@@ -109,13 +109,13 @@ static VkPhysicalDevice select_physical_device(VkInstance instance) {
     return physical_devices[0]; // just get the first one
 }
 
-static VkSurfaceKHR create_surface(VkInstance instance, const SDL_SysWMinfo& window_sys_info) {
+static VkSurfaceKHR create_surface(VkInstance instance, HWND hwnd) {
     VkWin32SurfaceCreateInfoKHR desc;
     desc.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     desc.pNext = nullptr;
     desc.flags = 0;
     desc.hinstance = ::GetModuleHandle(nullptr);
-    desc.hwnd = window_sys_info.info.win.window;
+    desc.hwnd = hwnd;
 
     VkSurfaceKHR surface;
     VkResult result = vkCreateWin32SurfaceKHR(instance, &desc, nullptr, &surface);
@@ -251,48 +251,53 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
     return swapchain;
 }
 
-void initialize_vulkan(const SDL_SysWMinfo& window_sys_info) {
-    auto& g = vulkan_globals;
+bool initialize_vulkan(HWND hwnd) {
+    try {
+        auto& g = vulkan_globals;
 
-    g.instance = create_instance();
-    g.physical_device = select_physical_device(g.instance);
-    g.surface = create_surface(g.instance, window_sys_info);
-    g.queue_family_index = select_queue_family(g.physical_device, g.surface);
-    g.device = create_device(g.physical_device, g.queue_family_index);
+        g.instance = create_instance();
+        g.physical_device = select_physical_device(g.instance);
+        g.surface = create_surface(g.instance, hwnd);
+        g.queue_family_index = select_queue_family(g.physical_device, g.surface);
+        g.device = create_device(g.physical_device, g.queue_family_index);
 
-    vkGetDeviceQueue(g.device, g.queue_family_index, 0, &g.queue);
+        vkGetDeviceQueue(g.device, g.queue_family_index, 0, &g.queue);
 
-    g.surface_format = select_surface_format(g.physical_device, g.surface);
-    g.swapchain = create_swapchain(g.physical_device, g.device, g.surface, g.surface_format);
+        g.surface_format = select_surface_format(g.physical_device, g.surface);
+        g.swapchain = create_swapchain(g.physical_device, g.device, g.surface, g.surface_format);
 
-    uint32_t image_count;
-    VkResult result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &image_count, nullptr);
-    check_vk_result(result, "vkGetSwapchainImagesKHR");
-    g.swapchain_images.resize(image_count);
-    result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &image_count, g.swapchain_images.data());
-    check_vk_result(result, "vkGetSwapchainImagesKHR");
+        uint32_t image_count;
+        VkResult result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &image_count, nullptr);
+        check_vk_result(result, "vkGetSwapchainImagesKHR");
+        g.swapchain_images.resize(image_count);
+        result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &image_count, g.swapchain_images.data());
+        check_vk_result(result, "vkGetSwapchainImagesKHR");
 
-    g.swapchain_image_views.resize(image_count);
-    for (std::size_t i = 0; i < image_count; i++) {
-        VkImageViewCreateInfo desc;
-        desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        desc.pNext = nullptr;
-        desc.flags = 0;
-        desc.image = g.swapchain_images[i];
-        desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        desc.format = g.surface_format.format;
-        desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        desc.subresourceRange.baseMipLevel = 0;
-        desc.subresourceRange.levelCount = 1;
-        desc.subresourceRange.baseArrayLayer = 0;
-        desc.subresourceRange.layerCount = 1;
-        result = vkCreateImageView(g.device, &desc, nullptr, &g.swapchain_image_views[i]);
-        check_vk_result(result, "vkCreateImageView");
+        g.swapchain_image_views.resize(image_count);
+        for (std::size_t i = 0; i < image_count; i++) {
+            VkImageViewCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.image = g.swapchain_images[i];
+            desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            desc.format = g.surface_format.format;
+            desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            desc.subresourceRange.baseMipLevel = 0;
+            desc.subresourceRange.levelCount = 1;
+            desc.subresourceRange.baseArrayLayer = 0;
+            desc.subresourceRange.layerCount = 1;
+            result = vkCreateImageView(g.device, &desc, nullptr, &g.swapchain_image_views[i]);
+            check_vk_result(result, "vkCreateImageView");
+        }
+    } catch (const std::exception&) {
+        return false;
     }
+    return true;
 }
 
 void deinitialize_vulkan() {

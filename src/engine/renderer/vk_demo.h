@@ -11,7 +11,7 @@ struct SDL_SysWMinfo;
 
 class Vulkan_Demo {
 public:
-    Vulkan_Demo(int window_width, int window_height, const SDL_SysWMinfo& window_sys_info);
+    Vulkan_Demo(int window_width, int window_height);
     ~Vulkan_Demo();
 
     void begin_frame();
