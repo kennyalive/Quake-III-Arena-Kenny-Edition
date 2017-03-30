@@ -43,9 +43,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // VULKAN
 #include "../../engine/renderer/vk_demo.h"
-#define SDL_MAIN_HANDLED
-#include "sdl/SDL.h"
-#include "sdl/SDL_syswm.h"
 
 extern void WG_CheckHardwareGamma( void );
 extern void WG_RestoreGamma( void );

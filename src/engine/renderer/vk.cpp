@@ -4,9 +4,6 @@
 #include "tr_local.h"
 #include "vk_demo.h"
 
-#define SDL_MAIN_HANDLED
-#include "sdl/SDL_syswm.h"
-
 #include <algorithm>
 #include <cassert>
 #include <iostream>
