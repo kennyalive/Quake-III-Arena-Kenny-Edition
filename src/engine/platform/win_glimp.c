@@ -650,10 +650,7 @@ void GLimp_Init( void )
 
 	ri.Printf( PRINT_ALL, "Initializing OpenGL subsystem\n" );
 
-	// save off hInstance and wndproc
-	cv = ri.Cvar_Get( "win_hinstance", "", 0 );
-	sscanf( cv->string, "%p", (void **)&g_wv.hInstance );
-
+	// save wndproc
 	cv = ri.Cvar_Get( "win_wndproc", "", 0 );
 	sscanf( cv->string, "%p", (void **)&glw_state.wndproc );
 
