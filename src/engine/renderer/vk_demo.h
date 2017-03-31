@@ -7,8 +7,6 @@
 
 #include "tr_local.h"
 
-struct SDL_SysWMinfo;
-
 class Vulkan_Demo {
 public:
     Vulkan_Demo(int window_width, int window_height);

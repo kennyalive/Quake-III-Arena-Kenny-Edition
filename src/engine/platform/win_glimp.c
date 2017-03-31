@@ -667,8 +667,8 @@ static void GLW_InitExtensions( void )
         if (!strstr(glConfig.extensions_string, "GL_ARB_multitexture"))
             ri.Error(ERR_FATAL, "GL_ARB_multitexture not found");
 
-        qglActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)qwglGetProcAddress("glActiveTextureARB");
-        qglClientActiveTextureARB = (PFNGLCLIENTACTIVETEXTUREARBPROC)qwglGetProcAddress("glClientActiveTextureARB");
+        qglActiveTextureARB = ( void (APIENTRY * ) (GLenum target) ) qwglGetProcAddress("glActiveTextureARB");
+        qglClientActiveTextureARB = ( void (APIENTRY * ) (GLenum target) ) qwglGetProcAddress("glClientActiveTextureARB");
 
         if (!qglActiveTextureARB || !qglClientActiveTextureARB)
             ri.Error(ERR_FATAL, "GL_ARB_multitexture: could not initialize function pointers");
