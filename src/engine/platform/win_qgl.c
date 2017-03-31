@@ -44,7 +44,6 @@ void ( APIENTRY * qglAlphaFunc )(GLenum func, GLclampf ref);
 void ( APIENTRY * qglBegin )(GLenum mode);
 void ( APIENTRY * qglBindTexture )(GLenum target, GLuint texture);
 void ( APIENTRY * qglBlendFunc )(GLenum sfactor, GLenum dfactor);
-void ( APIENTRY * qglCallList )(GLuint list);
 void ( APIENTRY * qglClear )(GLbitfield mask);
 void ( APIENTRY * qglClearColor )(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 void ( APIENTRY * qglClearDepth )(GLclampd depth);
@@ -105,7 +104,6 @@ static void ( APIENTRY * dllAlphaFunc )(GLenum func, GLclampf ref);
 static void ( APIENTRY * dllBegin )(GLenum mode);
 static void ( APIENTRY * dllBindTexture )(GLenum target, GLuint texture);
 static void ( APIENTRY * dllBlendFunc )(GLenum sfactor, GLenum dfactor);
-static void ( APIENTRY * dllCallList )(GLuint list);
 static void ( APIENTRY * dllClear )(GLbitfield mask);
 static void ( APIENTRY * dllClearColor )(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 static void ( APIENTRY * dllClearDepth )(GLclampd depth);
@@ -337,11 +335,6 @@ static void APIENTRY logBlendFunc(GLenum sfactor, GLenum dfactor)
 
 	fprintf( glw_state.log_fp, "glBlendFunc( %s, %s )\n", sf, df );
 	dllBlendFunc( sfactor, dfactor );
-}
-static void APIENTRY logCallList(GLuint list)
-{
-	fprintf( glw_state.log_fp, "glCallList( %u )\n", list );
-	dllCallList( list );
 }
 static void APIENTRY logClear(GLbitfield mask)
 {
@@ -653,7 +646,6 @@ void QGL_Shutdown( void )
 	qglBegin                     = NULL;
 	qglBindTexture               = NULL;
 	qglBlendFunc                 = NULL;
-	qglCallList                  = NULL;
 	qglClear                     = NULL;
 	qglClearColor                = NULL;
 	qglClearDepth                = NULL;
@@ -747,7 +739,6 @@ qboolean QGL_Init( const char *dllname )
 	qglBegin                     = dllBegin = (decltype(dllBegin))GPA("glBegin");
 	qglBindTexture               = dllBindTexture = (decltype(dllBindTexture))GPA("glBindTexture");
 	qglBlendFunc                 = dllBlendFunc = (decltype(dllBlendFunc))GPA("glBlendFunc");
-	qglCallList                  = dllCallList = (decltype(dllCallList))GPA("glCallList");
 	qglClear                     = dllClear = (decltype(dllClear))GPA("glClear");
 	qglClearColor                = dllClearColor = (decltype(dllClearColor))GPA("glClearColor");
 	qglClearDepth                = dllClearDepth = (decltype(dllClearDepth))GPA("glClearDepth");
@@ -865,7 +856,6 @@ void QGL_EnableLogging( qboolean enable )
 		qglBegin                     = logBegin;
 		qglBindTexture               = logBindTexture;
 		qglBlendFunc                 = logBlendFunc;
-		qglCallList                  = logCallList;
 		qglClear                     = logClear;
 		qglClearColor                = logClearColor;
 		qglClearDepth                = logClearDepth;
@@ -932,7 +922,6 @@ void QGL_EnableLogging( qboolean enable )
 		qglBegin                     = dllBegin;
 		qglBindTexture               = dllBindTexture;
 		qglBlendFunc                 = dllBlendFunc;
-		qglCallList                  = dllCallList;
 		qglClear                     = dllClear;
 		qglClearColor                = dllClearColor;
 		qglClearDepth                = dllClearDepth;

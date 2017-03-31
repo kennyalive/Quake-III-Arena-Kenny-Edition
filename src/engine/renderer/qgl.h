@@ -64,7 +64,6 @@ extern  void ( APIENTRY * qglAlphaFunc )(GLenum func, GLclampf ref);
 extern  void ( APIENTRY * qglBegin )(GLenum mode);
 extern  void ( APIENTRY * qglBindTexture )(GLenum target, GLuint texture);
 extern  void ( APIENTRY * qglBlendFunc )(GLenum sfactor, GLenum dfactor);
-extern  void ( APIENTRY * qglCallList )(GLuint list);
 extern  void ( APIENTRY * qglClear )(GLbitfield mask);
 extern  void ( APIENTRY * qglClearColor )(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 extern  void ( APIENTRY * qglClearDepth )(GLclampd depth);
