@@ -38,8 +38,6 @@ cvar_t	*r_railWidth;
 cvar_t	*r_railCoreWidth;
 cvar_t	*r_railSegmentLength;
 
-cvar_t	*r_ignoreFastPath;
-
 cvar_t	*r_verbose;
 cvar_t	*r_ignore;
 
@@ -829,7 +827,6 @@ void R_Register( void )
 	r_uiFullScreen = ri.Cvar_Get( "r_uifullscreen", "0", 0);
 	r_subdivisions = ri.Cvar_Get ("r_subdivisions", "4", CVAR_ARCHIVE | CVAR_LATCH);
 	r_smp = ri.Cvar_Get( "r_smp", "0", CVAR_ARCHIVE | CVAR_LATCH);
-	r_ignoreFastPath = ri.Cvar_Get( "r_ignoreFastPath", "1", CVAR_ARCHIVE | CVAR_LATCH );
 
 	//
 	// temporary latched variables that can only change over a restart

@@ -1614,88 +1614,6 @@ SHADER OPTIMIZATION AND FOGGING
 ========================================================================================
 */
 
-/*
-===================
-ComputeStageIteratorFunc
-
-See if we can use on of the simple fastpath stage functions,
-otherwise set to the generic stage function
-===================
-*/
-static void ComputeStageIteratorFunc( void )
-{
-	shader.optimalStageIteratorFunc = RB_StageIteratorGeneric;
-
-	//
-	// see if this should go into the sky path
-	//
-	if ( shader.isSky )
-	{
-		shader.optimalStageIteratorFunc = RB_StageIteratorSky;
-		goto done;
-	}
-
-	if ( r_ignoreFastPath->integer )
-	{
-		return;
-	}
-
-	//
-	// see if this can go into the vertex lit fast path
-	//
-	if ( shader.numUnfoggedPasses == 1 )
-	{
-		if ( stages[0].rgbGen == CGEN_LIGHTING_DIFFUSE )
-		{
-			if ( stages[0].alphaGen == AGEN_IDENTITY )
-			{
-				if ( stages[0].bundle[0].tcGen == TCGEN_TEXTURE )
-				{
-					if ( !shader.polygonOffset )
-					{
-						if ( !shader.multitextureEnv )
-						{
-							if ( !shader.numDeforms )
-							{
-								shader.optimalStageIteratorFunc = RB_StageIteratorVertexLitTexture;
-								goto done;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	//
-	// see if this can go into an optimized LM, multitextured path
-	//
-	if ( shader.numUnfoggedPasses == 1 )
-	{
-		if ( ( stages[0].rgbGen == CGEN_IDENTITY ) && ( stages[0].alphaGen == AGEN_IDENTITY ) )
-		{
-			if ( stages[0].bundle[0].tcGen == TCGEN_TEXTURE && 
-				stages[0].bundle[1].tcGen == TCGEN_LIGHTMAP )
-			{
-				if ( !shader.polygonOffset )
-				{
-					if ( !shader.numDeforms )
-					{
-						if ( shader.multitextureEnv )
-						{
-							shader.optimalStageIteratorFunc = RB_StageIteratorLightmappedMultitexture;
-							goto done;
-						}
-					}
-				}
-			}
-		}
-	}
-
-done:
-	return;
-}
-
 typedef struct {
 	int		blendA;
 	int		blendB;
@@ -2244,7 +2162,11 @@ static shader_t *FinishShader( void ) {
 	}
 
 	// determine which stage iterator function is appropriate
-	ComputeStageIteratorFunc();
+    if ( shader.isSky ) {
+        shader.optimalStageIteratorFunc = RB_StageIteratorSky;
+    } else {
+        shader.optimalStageIteratorFunc = RB_StageIteratorGeneric;
+    }
 
 	return GeneratePermanentShader();
 }
@@ -2782,10 +2704,6 @@ void	R_ShaderList_f (void) {
 			ri.Printf( PRINT_ALL, "gen " );
 		} else if ( shader->optimalStageIteratorFunc == RB_StageIteratorSky ) {
 			ri.Printf( PRINT_ALL, "sky " );
-		} else if ( shader->optimalStageIteratorFunc == RB_StageIteratorLightmappedMultitexture ) {
-			ri.Printf( PRINT_ALL, "lmmt" );
-		} else if ( shader->optimalStageIteratorFunc == RB_StageIteratorVertexLitTexture ) {
-			ri.Printf( PRINT_ALL, "vlt " );
 		} else {
 			ri.Printf( PRINT_ALL, "    " );
 		}
