@@ -816,6 +816,9 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		if ( pStage->bundle[1].image[0] != 0 )
 		{
 			DrawMultitextured( input, stage );
+
+            // VULKAN
+            vulkan_demo->render_tess_multi(pStage->bundle[0].image[0], pStage->bundle[1].image[0]);
 		}
 		else
 		{
@@ -834,6 +837,9 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			// draw
 			//
 			R_DrawElements( input->numIndexes, input->indexes );
+
+            // VULKAN
+            vulkan_demo->render_tess(pStage->bundle[0].image[0]);
 		}
 		// allow skipping out to show just lightmaps during development
 		if ( r_lightmap->integer && ( pStage->bundle[0].isLightmap || pStage->bundle[1].isLightmap ) )
@@ -1182,9 +1188,6 @@ void RB_EndSurface( void ) {
 	// call off to shader specific tess end function
 	//
 	tess.currentStageIteratorFunc();
-
-    // VULKAN
-    vulkan_demo->render_tess(tess.shader->stages[0]->bundle[0].image[0]);
 
 	//
 	// draw debugging stuff

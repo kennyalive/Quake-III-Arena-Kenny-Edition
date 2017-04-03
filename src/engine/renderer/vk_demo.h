@@ -15,6 +15,7 @@ public:
     void begin_frame();
     void end_frame();
     void render_tess(const image_t* image);
+    void render_tess_multi(const image_t* image, const image_t* image2);
     void render_cinematic_frame();
 
 public:
@@ -29,10 +30,11 @@ public:
     void create_descriptor_set_layout();
     void create_descriptor_set();
     void create_image_descriptor_set(const image_t* image);
+    void create_multitexture_descriptor_set(const image_t* image, const image_t* image2);
     void create_render_pass();
     void create_framebuffers();
     void create_pipeline_layout();
-    VkPipeline create_pipeline(bool depth_test);
+    VkPipeline create_pipeline(bool depth_test, bool multitexture);
 
     void upload_geometry();
     void update_ubo_descriptor(VkDescriptorSet set);
@@ -62,8 +64,11 @@ public:
     VkRenderPass render_pass = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> framebuffers;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+
     VkPipeline pipeline_2d = VK_NULL_HANDLE;
+    VkPipeline pipeline_2d_multitexture = VK_NULL_HANDLE;
     VkPipeline pipeline_3d = VK_NULL_HANDLE;
+    VkPipeline pipeline_3d_multitexture = VK_NULL_HANDLE;
 
     VkBuffer vertex_buffer = VK_NULL_HANDLE;
     VkBuffer index_buffer = VK_NULL_HANDLE;
@@ -80,6 +85,7 @@ public:
     uint32_t tess_ubo_offset_step = -1;
 
     std::map<const image_t*, VkDescriptorSet> image_descriptor_sets; // quick UI prototyping
+    std::map<std::pair<const image_t*, const image_t*>, VkDescriptorSet> multitexture_descriptor_sets;
 
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 

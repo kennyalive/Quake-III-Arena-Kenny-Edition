@@ -28,10 +28,7 @@ struct Vertex {
     glm::vec3 pos;
     glm::vec3 color;
     glm::vec2 tex_coord;
-
-    bool operator==(const Vertex& other) const {
-        return pos == other.pos && color == other.color && tex_coord == other.tex_coord;
-    }
+    glm::vec2 tex_coord2;
 
     static std::array<VkVertexInputBindingDescription, 1> get_bindings() {
         VkVertexInputBindingDescription binding_desc;
@@ -41,7 +38,7 @@ struct Vertex {
         return {binding_desc};
     }
 
-    static std::array<VkVertexInputAttributeDescription, 3> get_attributes() {
+    static std::array<VkVertexInputAttributeDescription, 4> get_attributes() {
         VkVertexInputAttributeDescription position_attrib;
         position_attrib.location = 0;
         position_attrib.binding = 0;
@@ -60,7 +57,13 @@ struct Vertex {
         tex_coord_attrib.format = VK_FORMAT_R32G32_SFLOAT;
         tex_coord_attrib.offset = offsetof(struct Vertex, tex_coord);
 
-        return {position_attrib, color_attrib, tex_coord_attrib};
+        VkVertexInputAttributeDescription tex_coord2_attrib;
+        tex_coord2_attrib.location = 3;
+        tex_coord2_attrib.binding = 0;
+        tex_coord2_attrib.format = VK_FORMAT_R32G32_SFLOAT;
+        tex_coord2_attrib.offset = offsetof(struct Vertex, tex_coord2);
+
+        return {position_attrib, color_attrib, tex_coord_attrib, tex_coord2_attrib};
     }
 };
 
@@ -142,8 +145,10 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     create_render_pass();
     create_framebuffers();
     create_pipeline_layout();
-    pipeline_2d = create_pipeline(false);
-    pipeline_3d = create_pipeline(true);
+    pipeline_2d = create_pipeline(false, false);
+    pipeline_2d_multitexture = create_pipeline(false, true);
+    pipeline_3d = create_pipeline(true, false);
+    pipeline_3d_multitexture = create_pipeline(true, true);
 
     upload_geometry();
     update_ubo_descriptor(descriptor_set);
@@ -293,7 +298,7 @@ void Vulkan_Demo::create_depth_buffer_resources() {
 }
 
 void Vulkan_Demo::create_descriptor_set_layout() {
-    std::array<VkDescriptorSetLayoutBinding, 2> descriptor_bindings;
+    std::array<VkDescriptorSetLayoutBinding, 3> descriptor_bindings;
     descriptor_bindings[0].binding = 0;
     descriptor_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     descriptor_bindings[0].descriptorCount = 1;
@@ -305,6 +310,12 @@ void Vulkan_Demo::create_descriptor_set_layout() {
     descriptor_bindings[1].descriptorCount = 1;
     descriptor_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptor_bindings[1].pImmutableSamplers = nullptr;
+
+    descriptor_bindings[2].binding = 2;
+    descriptor_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_bindings[2].descriptorCount = 1;
+    descriptor_bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    descriptor_bindings[2].pImmutableSamplers = nullptr;
 
     VkDescriptorSetLayoutCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -362,6 +373,58 @@ void Vulkan_Demo::create_image_descriptor_set(const image_t* image) {
     update_ubo_descriptor(set);
 
     image_descriptor_sets[image] = set;
+}
+
+void Vulkan_Demo::create_multitexture_descriptor_set(const image_t* image, const image_t* image2) {
+    VkDescriptorSetAllocateInfo desc;
+    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    desc.pNext = nullptr;
+    desc.descriptorPool = descriptor_pool;
+    desc.descriptorSetCount = 1;
+    desc.pSetLayouts = &descriptor_set_layout;
+
+    VkDescriptorSet set;
+    VkResult result = vkAllocateDescriptorSets(get_device(), &desc, &set);
+    check_vk_result(result, "vkAllocateDescriptorSets");
+
+    VkDescriptorImageInfo image_info[2];
+    image_info[0].sampler = texture_image_sampler;
+    image_info[0].imageView = image->vk_image_view;
+    image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    image_info[1].sampler = texture_image_sampler;
+    image_info[1].imageView = image2->vk_image_view;
+    image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    std::array<VkWriteDescriptorSet, 2> descriptor_writes;
+    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes[0].dstSet = set;
+    descriptor_writes[0].dstBinding = 1;
+    descriptor_writes[0].dstArrayElement = 0;
+    descriptor_writes[0].descriptorCount = 1;
+    descriptor_writes[0].pNext = nullptr;
+    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes[0].pImageInfo = &image_info[0];
+    descriptor_writes[0].pBufferInfo = nullptr;
+    descriptor_writes[0].pTexelBufferView = nullptr;
+
+    descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes[1].dstSet = set;
+    descriptor_writes[1].dstBinding = 2;
+    descriptor_writes[1].dstArrayElement = 0;
+    descriptor_writes[1].descriptorCount = 1;
+    descriptor_writes[1].pNext = nullptr;
+    descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes[1].pImageInfo = &image_info[1];
+    descriptor_writes[1].pBufferInfo = nullptr;
+    descriptor_writes[1].pTexelBufferView = nullptr;
+
+    vkUpdateDescriptorSets(get_device(), (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+
+    update_ubo_descriptor(set);
+
+    auto images = std::make_pair(image, image2);
+    multitexture_descriptor_sets[images] = set;
 }
 
 void Vulkan_Demo::create_render_pass() {
@@ -457,9 +520,12 @@ void Vulkan_Demo::create_pipeline_layout() {
     pipeline_layout = get_resource_manager()->create_pipeline_layout(desc);
 }
 
-VkPipeline Vulkan_Demo::create_pipeline(bool depth_test) {
-    Shader_Module vertex_shader("../../data/vert.spv");
-    Shader_Module fragment_shader("../../data/frag.spv");
+VkPipeline Vulkan_Demo::create_pipeline(bool depth_test, bool multitexture) {
+    Shader_Module single_texture_vs("../../data/single_texture_vert.spv");
+    Shader_Module single_texture_fs("../../data/single_texture_frag.spv");
+
+    Shader_Module multi_texture_vs("../../data/multi_texture_vert.spv");
+    Shader_Module multi_texture_fs("../../data/multi_texture_frag.spv");
 
     auto get_shader_stage_desc = [](VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry) {
         VkPipelineShaderStageCreateInfo desc;
@@ -472,9 +538,15 @@ VkPipeline Vulkan_Demo::create_pipeline(bool depth_test) {
         desc.pSpecializationInfo = nullptr;
         return desc;
     };
-    std::vector<VkPipelineShaderStageCreateInfo> shader_stages_state {
-        get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, vertex_shader.handle, "main"),
-        get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, fragment_shader.handle, "main")
+
+    std::vector<VkPipelineShaderStageCreateInfo> shader_stages_state;
+
+    if (multitexture) {
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, multi_texture_vs.handle, "main"));
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, multi_texture_fs.handle, "main"));
+    } else {
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, single_texture_vs.handle, "main"));
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, single_texture_fs.handle, "main"));
     };
 
     VkPipelineVertexInputStateCreateInfo vertex_input_state;
@@ -873,6 +945,87 @@ void Vulkan_Demo::render_tess(const image_t* image) {
     }
 
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backEnd.projection2D ? pipeline_2d : pipeline_3d);
+
+    vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
+    tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
+    tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
+}
+
+void Vulkan_Demo::render_tess_multi(const image_t* image, const image_t* image2) {
+    fprintf(logfile, "render_tess_multi (vert %d, inds %d)\n", tess.numVertexes, tess.numIndexes);
+    fflush(logfile);
+
+    void* data;
+    VkResult result = vkMapMemory(get_device(), tess_vertex_buffer_memory, tess_vertex_buffer_offset, tess.numVertexes * sizeof(Vertex), 0, &data);
+    check_vk_result(result, "vkMapMemory");
+    Vertex* v = (Vertex*)data;
+    for (int i = 0; i < tess.numVertexes; i++, v++) {
+        v->pos.x = tess.xyz[i][0];
+        v->pos.y = tess.xyz[i][1];
+        v->pos.z = tess.xyz[i][2];
+        v->tex_coord[0] = tess.texCoords[i][0][0];
+        v->tex_coord[1] = tess.texCoords[i][0][1];
+        v->tex_coord2[0] = tess.texCoords[i][1][0];
+        v->tex_coord2[1] = tess.texCoords[i][1][1];
+    }
+    vkUnmapMemory(get_device(), tess_vertex_buffer_memory);
+
+    result = vkMapMemory(get_device(), tess_index_buffer_memory, tess_index_buffer_offset, tess.numIndexes * sizeof(uint32_t), 0, &data);
+    check_vk_result(result, "vkMapMemory");
+    uint32_t* ind = (uint32_t*)data;
+    for (int i = 0; i < tess.numIndexes; i++, ind++) {
+        *ind = tess.indexes[i];
+    }
+    vkUnmapMemory(get_device(), tess_index_buffer_memory);
+
+    const VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
+    vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
+
+    auto images = std::make_pair(image, image2);
+    auto it = multitexture_descriptor_sets.find(images);
+    if (it == multitexture_descriptor_sets.cend()) {
+        create_multitexture_descriptor_set(image, image2);
+        it = multitexture_descriptor_sets.find(images);
+    }
+    auto set = it->second;
+
+    update_uniform_buffer();
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
+    tess_ubo_offset += tess_ubo_offset_step;
+
+    VkViewport viewport;
+    VkRect2D scissor;
+
+    if (backEnd.projection2D) {
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (float) glConfig.vidWidth;
+        viewport.height = (float)glConfig.vidHeight;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        scissor.offset = {0, 0};
+        scissor.extent = {(uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight};
+    } else {
+        viewport.x = backEnd.viewParms.viewportX;
+        viewport.y = (float)(glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight));
+        viewport.width = (float) backEnd.viewParms.viewportWidth;
+        viewport.height = (float)backEnd.viewParms.viewportHeight;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        scissor.offset = {backEnd.viewParms.viewportX, (glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight))};
+        if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
+        scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
+    }
+
+    if (!backEnd.projection2D) {
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    }
+
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backEnd.projection2D ? pipeline_2d_multitexture : pipeline_3d_multitexture);
 
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
