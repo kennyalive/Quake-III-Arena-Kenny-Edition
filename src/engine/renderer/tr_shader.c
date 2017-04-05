@@ -2161,13 +2161,6 @@ static shader_t *FinishShader( void ) {
 		shader.sort = SS_FOG;
 	}
 
-	// determine which stage iterator function is appropriate
-    if ( shader.isSky ) {
-        shader.optimalStageIteratorFunc = RB_StageIteratorSky;
-    } else {
-        shader.optimalStageIteratorFunc = RB_StageIteratorGeneric;
-    }
-
 	return GeneratePermanentShader();
 }
 
@@ -2700,12 +2693,10 @@ void	R_ShaderList_f (void) {
 			ri.Printf( PRINT_ALL, "  " );
 		}
 
-		if ( shader->optimalStageIteratorFunc == RB_StageIteratorGeneric ) {
+		if ( !shader->isSky ) {
 			ri.Printf( PRINT_ALL, "gen " );
-		} else if ( shader->optimalStageIteratorFunc == RB_StageIteratorSky ) {
-			ri.Printf( PRINT_ALL, "sky " );
 		} else {
-			ri.Printf( PRINT_ALL, "    " );
+			ri.Printf( PRINT_ALL, "sky " );
 		}
 
 		if ( shader->defaultShader ) {
