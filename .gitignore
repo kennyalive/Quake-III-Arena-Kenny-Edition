@@ -8,3 +8,5 @@ config/visual-studio/.vs/
 config/visual-studio/vk_layer_settings.txt
 config/visual-studio/vk_report
 config/visual-studio/*.log
+tools/bin2hex.exe
+tools/bin2hex.obj

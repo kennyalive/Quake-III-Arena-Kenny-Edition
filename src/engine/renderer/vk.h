@@ -29,3 +29,19 @@ struct Vk_Staging_Buffer {
 
 VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer);
 void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels);
+
+// Shaders.
+extern unsigned char single_texture_vert_spv[];
+extern long long single_texture_vert_spv_size;
+
+extern unsigned char single_texture_frag_spv[];
+extern long long single_texture_frag_spv_size;
+
+extern unsigned char multi_texture_vert_spv[];
+extern long long multi_texture_vert_spv_size;
+
+extern unsigned char multi_texture_add_frag_spv[];
+extern long long multi_texture_add_frag_spv_size;
+
+extern unsigned char multi_texture_mul_frag_spv[];
+extern long long multi_texture_mul_frag_spv_size;

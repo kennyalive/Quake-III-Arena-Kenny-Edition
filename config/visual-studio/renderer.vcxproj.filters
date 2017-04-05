@@ -9,6 +9,9 @@
       <UniqueIdentifier>{b5fac841-7437-493f-ad30-4b4cedd1acfe}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl</Extensions>
     </Filter>
+    <Filter Include="Source Files\spirv">
+      <UniqueIdentifier>{b30d21cf-a2ec-44d4-80d2-73c969c32a41}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\engine\renderer\tr_animation.c">
@@ -103,6 +106,21 @@
     </ClCompile>
     <ClCompile Include="..\..\src\engine\renderer\vk.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_add_frag.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_mul_frag.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_vert.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_frag.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_vert.cpp">
+      <Filter>Source Files\spirv</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

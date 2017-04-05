@@ -16,22 +16,10 @@ void error(const std::string& message) {
     throw std::runtime_error(message);
 }
 
-static std::vector<char> read_binary_file_contents(const std::string& file_name) {
-    std::ifstream stream(file_name, std::ios_base::binary | std::ios_base::ate);
-    auto file_size = stream.tellg();
-    stream.seekg(0, std::ios_base::beg);
-
-    std::vector<char> buffer(file_size);
-    stream.read(buffer.data(), file_size);
-    if (!stream)
-        throw std::runtime_error("failed to read file contents: " + file_name);
-    return buffer;
-}
-
-Shader_Module::Shader_Module(const std::string& spirv_file_name) {
-    auto data = read_binary_file_contents(spirv_file_name);
+Shader_Module::Shader_Module(uint8_t bytes[], int size) {
+    std::vector<uint8_t> data(bytes, bytes + size);
     if (data.size() % 4 != 0)
-        error("SPIR-V binary file size is not multiple of 4: " + spirv_file_name);
+        error("SPIR-V binary file size is not multiple of 4");
 
     VkShaderModuleCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

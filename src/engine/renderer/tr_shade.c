@@ -790,9 +790,7 @@ static void ComputeTexCoords( shaderStage_t *pStage ) {
 */
 static void RB_IterateStagesGeneric( shaderCommands_t *input )
 {
-	int stage;
-
-	for ( stage = 0; stage < MAX_SHADER_STAGES; stage++ )
+	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
 		shaderStage_t *pStage = tess.xstages[stage];
 

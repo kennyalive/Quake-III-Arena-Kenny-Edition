@@ -14,7 +14,7 @@ struct Defer_Action {
 };
 
 struct Shader_Module {
-    Shader_Module(const std::string& spriv_file_name);
+    Shader_Module(uint8_t bytes[], int size);
     ~Shader_Module();
     VkShaderModule handle;
 };

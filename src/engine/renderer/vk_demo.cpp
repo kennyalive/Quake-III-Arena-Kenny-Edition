@@ -26,7 +26,7 @@ struct Uniform_Buffer_Object {
 
 struct Vertex {
     glm::vec3 pos;
-    glm::vec3 color;
+    glm::vec4 color;
     glm::vec2 tex_coord;
     glm::vec2 tex_coord2;
 
@@ -48,7 +48,7 @@ struct Vertex {
         VkVertexInputAttributeDescription color_attrib;
         color_attrib.location = 1;
         color_attrib.binding = 0;
-        color_attrib.format = VK_FORMAT_R32G32B32_SFLOAT;
+        color_attrib.format = VK_FORMAT_R32G32B32A32_SFLOAT;
         color_attrib.offset = offsetof(struct Vertex, color);
 
         VkVertexInputAttributeDescription tex_coord_attrib;
@@ -77,16 +77,16 @@ static Model load_model() {
 
     model.vertices = {
         { {0, glConfig.vidHeight, 0},
-          {1, 1, 1}, {0, 1} },
+          {1, 1, 1, 1}, {0, 1} },
 
         { {glConfig.vidWidth, glConfig.vidHeight, 0},
-          {1, 1, 1}, {1, 1} },
+          {1, 1, 1, 1}, {1, 1} },
 
         { {glConfig.vidWidth,  0, 0},
-          {1, 1, 1}, {1, 0} },
+          {1, 1, 1, 1}, {1, 0} },
 
         { {0, 0, 0},
-          {1, 1, 1}, {0, 0} },
+          {1, 1, 1, 1}, {0, 0} },
     };
 
     model.indices = { 0, 1, 2, 0, 2, 3 };
@@ -521,11 +521,11 @@ void Vulkan_Demo::create_pipeline_layout() {
 }
 
 VkPipeline Vulkan_Demo::create_pipeline(bool depth_test, bool multitexture) {
-    Shader_Module single_texture_vs("../../data/single_texture_vert.spv");
-    Shader_Module single_texture_fs("../../data/single_texture_frag.spv");
+    Shader_Module single_texture_vs(single_texture_vert_spv, single_texture_vert_spv_size);
+    Shader_Module single_texture_fs(single_texture_frag_spv, single_texture_frag_spv_size);
 
-    Shader_Module multi_texture_vs("../../data/multi_texture_vert.spv");
-    Shader_Module multi_texture_fs("../../data/multi_texture_frag.spv");
+    Shader_Module multi_texture_vs(multi_texture_vert_spv, multi_texture_vert_spv_size);
+    Shader_Module multi_texture_fs(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
 
     auto get_shader_stage_desc = [](VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry) {
         VkPipelineShaderStageCreateInfo desc;
@@ -885,8 +885,12 @@ void Vulkan_Demo::render_tess(const image_t* image) {
         v->pos.x = tess.xyz[i][0];
         v->pos.y = tess.xyz[i][1];
         v->pos.z = tess.xyz[i][2];
-        v->tex_coord[0] = tess.texCoords[i][0][0];
-        v->tex_coord[1] = tess.texCoords[i][0][1];
+        v->color[0] = tess.svars.colors[i][0] / 255.0f;
+        v->color[1] = tess.svars.colors[i][1] / 255.0f;
+        v->color[2] = tess.svars.colors[i][2] / 255.0f;
+        v->color[3] = tess.svars.colors[i][3] / 255.0f;
+        v->tex_coord[0] = tess.svars.texcoords[0][i][0];
+        v->tex_coord[1] = tess.svars.texcoords[0][i][1];
     }
     vkUnmapMemory(get_device(), tess_vertex_buffer_memory);
 
@@ -963,10 +967,14 @@ void Vulkan_Demo::render_tess_multi(const image_t* image, const image_t* image2)
         v->pos.x = tess.xyz[i][0];
         v->pos.y = tess.xyz[i][1];
         v->pos.z = tess.xyz[i][2];
-        v->tex_coord[0] = tess.texCoords[i][0][0];
-        v->tex_coord[1] = tess.texCoords[i][0][1];
-        v->tex_coord2[0] = tess.texCoords[i][1][0];
-        v->tex_coord2[1] = tess.texCoords[i][1][1];
+        v->color[0] = tess.svars.colors[i][0] / 255.0f;
+        v->color[1] = tess.svars.colors[i][1] / 255.0f;
+        v->color[2] = tess.svars.colors[i][2] / 255.0f;
+        v->color[3] = tess.svars.colors[i][3] / 255.0f;
+        v->tex_coord[0] = tess.svars.texcoords[0][i][0];
+        v->tex_coord[1] = tess.svars.texcoords[0][i][1];
+        v->tex_coord2[0] = tess.svars.texcoords[1][i][0];
+        v->tex_coord2[1] = tess.svars.texcoords[1][i][1];
     }
     vkUnmapMemory(get_device(), tess_vertex_buffer_memory);
 
