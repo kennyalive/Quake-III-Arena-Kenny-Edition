@@ -53,12 +53,10 @@ long myftol( float f );
 // see QSORT_SHADERNUM_SHIFT
 #define	MAX_SHADERS				16384
 
-//#define MAX_SHADER_STATES 2048
-#define MAX_STATES_PER_SHADER 32
-#define MAX_STATE_NAME 32
-
 // can't be increased without changing bit packing for drawsurfs
 
+// VULKAN
+#define MAX_VK_PIPELINES 2048
 
 typedef struct dlight_s {
 	vec3_t	origin;
@@ -324,6 +322,10 @@ typedef struct {
 	acff_t			adjustColorsForFog;
 
 	qboolean		isDetail;
+
+    // VULKAN
+    VkPipeline      vk_pipeline = VK_NULL_HANDLE;
+
 } shaderStage_t;
 
 struct shaderCommands_s;
@@ -411,15 +413,6 @@ typedef struct shader_s {
 
 	struct	shader_s	*next;
 } shader_t;
-
-typedef struct shaderState_s {
-  char shaderName[MAX_QPATH];     // name of shader this state belongs to
-  char name[MAX_STATE_NAME];      // name of this state
-  char stateShader[MAX_QPATH];    // shader this name invokes
-  int cycleTime;                  // time this cycle lasts, <= 0 is forever
-  shader_t *shader;
-} shaderState_t;
-
 
 // trRefdef_t holds everything that comes in refdef_t,
 // as well as the locally generated scene information
@@ -946,6 +939,11 @@ typedef struct {
 	float					sawToothTable[FUNCTABLE_SIZE];
 	float					inverseSawToothTable[FUNCTABLE_SIZE];
 	float					fogTable[FOG_TABLE_SIZE];
+
+    // VULKAN
+    int                     vk_num_pipelines;
+    Vk_Pipeline_Desc        vk_pipeline_desc[MAX_VK_PIPELINES];
+    VkPipeline              vk_pipelines[MAX_VK_PIPELINES];
 } trGlobals_t;
 
 extern backEndState_t	backEnd;
@@ -1075,15 +1073,9 @@ extern	cvar_t	*r_saveFontData;
 float R_NoiseGet4f( float x, float y, float z, float t );
 void  R_NoiseInit( void );
 
-void R_SwapBuffers( int );
-
 void R_RenderView( viewParms_t *parms );
 
 void R_AddMD3Surfaces( trRefEntity_t *e );
-void R_AddNullModelSurfaces( trRefEntity_t *e );
-void R_AddBeamSurfaces( trRefEntity_t *e );
-void R_AddRailSurfaces( trRefEntity_t *e, qboolean isUnderwater );
-void R_AddLightningBoltSurfaces( trRefEntity_t *e );
 
 void R_AddPolygonSurfaces( void );
 

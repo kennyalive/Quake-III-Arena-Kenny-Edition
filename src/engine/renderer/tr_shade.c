@@ -817,7 +817,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			DrawMultitextured( input, stage );
 
             // VULKAN
-            vulkan_demo->render_tess_multi(pStage->bundle[0].image[0], pStage->bundle[1].image[0]);
+            vulkan_demo->render_tess_multi(pStage);
 		}
 		else
 		{
@@ -838,7 +838,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			R_DrawElements( input->numIndexes, input->indexes );
 
             // VULKAN
-            vulkan_demo->render_tess(pStage->bundle[0].image[0]);
+            vulkan_demo->render_tess(pStage);
 		}
 		// allow skipping out to show just lightmaps during development
 		if ( r_lightmap->integer && ( pStage->bundle[0].isLightmap || pStage->bundle[1].isLightmap ) )

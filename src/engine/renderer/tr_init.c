@@ -1045,6 +1045,9 @@ void RE_Shutdown( qboolean destroyWindow ) {
 		R_SyncRenderThread();
 		R_ShutdownCommandBuffers();
 		R_DeleteTextures();
+
+        // VULKAN
+        vk_destroy_pipelines();
 	}
 
 	R_DoneFreeType();

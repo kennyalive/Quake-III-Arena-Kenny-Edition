@@ -2161,6 +2161,26 @@ static shader_t *FinishShader( void ) {
 		shader.sort = SS_FOG;
 	}
 
+    // VULKAN
+    Vk_Pipeline_Desc desc;
+    desc.polygon_offset = (shader.polygonOffset == qtrue);
+
+    for (int i = 0; i < stage; i++) {
+        shaderStage_t *pStage = &stages[i];
+        desc.state_bits = pStage->stateBits;
+
+        if (pStage->bundle[1].image[0] == nullptr)
+            desc.shader_type = Vk_Shader_Type::single_texture;
+        else if (shader.multitextureEnv == GL_MODULATE)
+            desc.shader_type = Vk_Shader_Type::multi_texture_mul;
+        else if (shader.multitextureEnv == GL_ADD)
+            desc.shader_type = Vk_Shader_Type::multi_texture_add;
+        else
+            ri.Error(ERR_DROP, "ERROR: could not determine vulkan shader type for shader '%s'\n", shader.name);
+
+        pStage->vk_pipeline = vk_find_pipeline(desc);
+    }
+
 	return GeneratePermanentShader();
 }
 

@@ -5,6 +5,7 @@
 #include "vk_demo.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -419,4 +420,302 @@ void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_b
         record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     });
+}
+
+static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
+    Shader_Module single_texture_vs(single_texture_vert_spv, single_texture_vert_spv_size);
+    Shader_Module single_texture_fs(single_texture_frag_spv, single_texture_frag_spv_size);
+
+    Shader_Module multi_texture_vs(multi_texture_vert_spv, multi_texture_vert_spv_size);
+    Shader_Module multi_texture_mul_fs(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
+    Shader_Module multi_texture_add_fs(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
+
+    auto get_shader_stage_desc = [](VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry) {
+        VkPipelineShaderStageCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.stage = stage;
+        desc.module = shader_module;
+        desc.pName = entry;
+        desc.pSpecializationInfo = nullptr;
+        return desc;
+    };
+
+    struct Specialization_Data {
+        int32_t alpha_test_func;
+    } specialization_data;
+
+    if ((desc.state_bits & GLS_ATEST_BITS) == 0)
+        specialization_data.alpha_test_func = 0;
+    else if (desc.state_bits & GLS_ATEST_GT_0)
+        specialization_data.alpha_test_func = 1;
+    else if (desc.state_bits & GLS_ATEST_LT_80)
+        specialization_data.alpha_test_func = 2;
+    else if (desc.state_bits & GLS_ATEST_GE_80)
+        specialization_data.alpha_test_func = 3;
+    else
+        ri.Error(ERR_DROP, "create_pipeline: invalid alpha test state bits\n");
+
+    std::array<VkSpecializationMapEntry, 1> specialization_entries;
+    specialization_entries[0].constantID = 0;
+    specialization_entries[0].offset = offsetof(struct Specialization_Data, alpha_test_func);
+    specialization_entries[0].size = sizeof(int32_t);
+
+    VkSpecializationInfo specialization_info;
+    specialization_info.mapEntryCount = uint32_t(specialization_entries.size());
+    specialization_info.pMapEntries = specialization_entries.data();
+    specialization_info.dataSize = sizeof(Specialization_Data);
+    specialization_info.pData = &specialization_data;
+
+    std::vector<VkPipelineShaderStageCreateInfo> shader_stages_state;
+
+    if (desc.shader_type == Vk_Shader_Type::single_texture) {
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, single_texture_vs.handle, "main"));
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, single_texture_fs.handle, "main"));
+    } else if (desc.shader_type == Vk_Shader_Type::multi_texture_mul) {
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, multi_texture_vs.handle, "main"));
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, multi_texture_mul_fs.handle, "main"));
+    } else if (desc.shader_type == Vk_Shader_Type::multi_texture_add) {
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, multi_texture_vs.handle, "main"));
+        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, multi_texture_add_fs.handle, "main"));
+    }
+
+    if (desc.state_bits & GLS_ATEST_BITS)
+        shader_stages_state.back().pSpecializationInfo = &specialization_info;
+
+    VkPipelineVertexInputStateCreateInfo vertex_input_state;
+    vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertex_input_state.pNext = nullptr;
+    vertex_input_state.flags = 0;
+    auto bindings = Vertex::get_bindings();
+    vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
+    vertex_input_state.pVertexBindingDescriptions = bindings.data();
+    auto attribs = Vertex::get_attributes();
+    vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
+    vertex_input_state.pVertexAttributeDescriptions = attribs.data();
+
+    VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
+    input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    input_assembly_state.pNext = nullptr;
+    input_assembly_state.flags = 0;
+    input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly_state.primitiveRestartEnable = VK_FALSE;
+
+    VkPipelineViewportStateCreateInfo viewport_state;
+    viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport_state.pNext = nullptr;
+    viewport_state.flags = 0;
+    viewport_state.viewportCount = 1;
+    viewport_state.pViewports = nullptr; // dynamic viewport state
+    viewport_state.scissorCount = 1;
+    viewport_state.pScissors = nullptr; // dynamic scissor state
+
+    VkPipelineRasterizationStateCreateInfo rasterization_state;
+    rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization_state.pNext = nullptr;
+    rasterization_state.flags = 0;
+    rasterization_state.depthClampEnable = VK_FALSE;
+    rasterization_state.rasterizerDiscardEnable = VK_FALSE;
+    rasterization_state.polygonMode = (desc.state_bits & GLS_POLYMODE_LINE) ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    rasterization_state.cullMode = VK_CULL_MODE_NONE/*VK_CULL_MODE_BACK_BIT*/;
+    rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization_state.depthBiasEnable = desc.polygon_offset ? VK_TRUE : VK_FALSE;
+    rasterization_state.depthBiasConstantFactor = 0.0f; // dynamic depth bias state
+    rasterization_state.depthBiasClamp = 0.0f; // dynamic depth bias state
+    rasterization_state.depthBiasSlopeFactor = 0.0f; // dynamic depth bias state
+    rasterization_state.lineWidth = 1.0f;
+
+    VkPipelineMultisampleStateCreateInfo multisample_state;
+    multisample_state.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample_state.pNext = nullptr;
+    multisample_state.flags = 0;
+    multisample_state.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisample_state.sampleShadingEnable = VK_FALSE;
+    multisample_state.minSampleShading = 1.0f;
+    multisample_state.pSampleMask = nullptr;
+    multisample_state.alphaToCoverageEnable = VK_FALSE;
+    multisample_state.alphaToOneEnable = VK_FALSE;
+
+    VkPipelineDepthStencilStateCreateInfo depth_stencil_state;
+    depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depth_stencil_state.pNext = nullptr;
+    depth_stencil_state.flags = 0;
+    depth_stencil_state.depthTestEnable = (desc.state_bits & GLS_DEPTHTEST_DISABLE) ? VK_FALSE : VK_TRUE;
+    depth_stencil_state.depthWriteEnable = (desc.state_bits & GLS_DEPTHMASK_TRUE) ? VK_TRUE : VK_FALSE;
+    depth_stencil_state.depthCompareOp = (desc.state_bits & GLS_DEPTHFUNC_EQUAL) ? VK_COMPARE_OP_EQUAL : VK_COMPARE_OP_LESS_OR_EQUAL;
+    depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil_state.stencilTestEnable = VK_FALSE;
+    depth_stencil_state.front = {};
+    depth_stencil_state.back = {};
+    depth_stencil_state.minDepthBounds = 0.0;
+    depth_stencil_state.maxDepthBounds = 0.0;
+
+    VkPipelineColorBlendAttachmentState attachment_blend_state = {};
+    attachment_blend_state.blendEnable = (desc.state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? VK_TRUE : VK_FALSE;
+    attachment_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    
+    if (attachment_blend_state.blendEnable) {
+        switch (desc.state_bits & GLS_SRCBLEND_BITS) {
+            case GLS_SRCBLEND_ZERO:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+                break;
+            case GLS_SRCBLEND_ONE:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+                break;
+            case GLS_SRCBLEND_DST_COLOR:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR;
+                break;
+            case GLS_SRCBLEND_ONE_MINUS_DST_COLOR:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+                break;
+            case GLS_SRCBLEND_SRC_ALPHA:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                break;
+            case GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                break;
+            case GLS_SRCBLEND_DST_ALPHA:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+                break;
+            case GLS_SRCBLEND_ONE_MINUS_DST_ALPHA:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+                break;
+            case GLS_SRCBLEND_ALPHA_SATURATE:
+                attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+                break;
+            default:
+                ri.Error( ERR_DROP, "create_pipeline: invalid src blend state bits\n" );
+                break;
+        }
+        switch (desc.state_bits & GLS_DSTBLEND_BITS) {
+            case GLS_DSTBLEND_ZERO:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+                break;
+            case GLS_DSTBLEND_ONE:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+                break;
+            case GLS_DSTBLEND_SRC_COLOR:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
+                break;
+            case GLS_DSTBLEND_ONE_MINUS_SRC_COLOR:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+                break;
+            case GLS_DSTBLEND_SRC_ALPHA:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                break;
+            case GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                break;
+            case GLS_DSTBLEND_DST_ALPHA:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+                break;
+            case GLS_DSTBLEND_ONE_MINUS_DST_ALPHA:
+                attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+                break;
+            default:
+                ri.Error( ERR_DROP, "create_pipeline: invalid dst blend state bits\n" );
+                break;
+        }
+
+        attachment_blend_state.srcAlphaBlendFactor = attachment_blend_state.srcColorBlendFactor;
+        attachment_blend_state.dstAlphaBlendFactor = attachment_blend_state.dstColorBlendFactor;
+        attachment_blend_state.colorBlendOp = VK_BLEND_OP_ADD;
+        attachment_blend_state.alphaBlendOp = VK_BLEND_OP_ADD;
+    }
+
+    VkPipelineColorBlendStateCreateInfo blend_state;
+    blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    blend_state.pNext = nullptr;
+    blend_state.flags = 0;
+    blend_state.logicOpEnable = VK_FALSE;
+    blend_state.logicOp = VK_LOGIC_OP_COPY;
+    blend_state.attachmentCount = 1;
+    blend_state.pAttachments = &attachment_blend_state;
+    blend_state.blendConstants[0] = 0.0f;
+    blend_state.blendConstants[1] = 0.0f;
+    blend_state.blendConstants[2] = 0.0f;
+    blend_state.blendConstants[3] = 0.0f;
+
+    VkPipelineDynamicStateCreateInfo dynamic_state;
+    dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state.pNext = nullptr;
+    dynamic_state.flags = 0;
+    dynamic_state.dynamicStateCount = 3;
+    VkDynamicState dynamic_state_array[3] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_BIAS };
+    dynamic_state.pDynamicStates = dynamic_state_array;
+
+    VkGraphicsPipelineCreateInfo create_info;
+    create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.stageCount = static_cast<uint32_t>(shader_stages_state.size());
+    create_info.pStages = shader_stages_state.data();
+    create_info.pVertexInputState = &vertex_input_state;
+    create_info.pInputAssemblyState = &input_assembly_state;
+    create_info.pTessellationState = nullptr;
+    create_info.pViewportState = &viewport_state;
+    create_info.pRasterizationState = &rasterization_state;
+    create_info.pMultisampleState = &multisample_state;
+    create_info.pDepthStencilState = &depth_stencil_state;
+    create_info.pColorBlendState = &blend_state;
+    create_info.pDynamicState = &dynamic_state;
+    create_info.layout = vulkan_demo->pipeline_layout;
+    create_info.renderPass = vulkan_demo->render_pass;
+    create_info.subpass = 0;
+    create_info.basePipelineHandle = VK_NULL_HANDLE;
+    create_info.basePipelineIndex = -1;
+
+    VkPipeline pipeline;
+    VkResult result = vkCreateGraphicsPipelines(get_device(), VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline);
+    check_vk_result(result, "vkCreateGraphicsPipelines");
+    return pipeline;
+}
+
+static float pipeline_create_time;
+
+struct Timer {
+    using Clock = std::chrono::high_resolution_clock;
+    using Second = std::chrono::duration<float, std::ratio<1>>;
+
+    Clock::time_point start = Clock::now();
+    float Elapsed_Seconds() const {
+        const auto duration = Clock::now() - start;
+        float seconds = std::chrono::duration_cast<Second>(duration).count();
+        return seconds;
+    }
+};
+
+VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc) {
+    for (int i = 0; i < tr.vk_num_pipelines; i++) {
+        if (tr.vk_pipeline_desc[i] == desc) {
+            return tr.vk_pipelines[i];
+        }
+    }
+
+    if (tr.vk_num_pipelines == MAX_VK_PIPELINES) {
+        ri.Error( ERR_DROP, "vk_find_pipeline: MAX_VK_PIPELINES hit\n");
+    }
+
+    Timer t;
+    VkPipeline pipeline = create_pipeline(desc);
+    pipeline_create_time += t.Elapsed_Seconds();
+
+    tr.vk_pipeline_desc[tr.vk_num_pipelines] = desc;
+    tr.vk_pipelines[tr.vk_num_pipelines] = pipeline;
+    tr.vk_num_pipelines++;
+    return pipeline;
+}
+
+void vk_destroy_pipelines() {
+    for (int i = 0; i < tr.vk_num_pipelines; i++) {
+        vkDestroyPipeline(get_device(), tr.vk_pipelines[i], nullptr);
+    }
+
+    tr.vk_num_pipelines = 0;
+
+    Com_Memset(tr.vk_pipelines, 0, sizeof(tr.vk_pipelines));
+    Com_Memset(tr.vk_pipeline_desc, 0, sizeof(tr.vk_pipeline_desc));
+
+    pipeline_create_time = 0.0f;
 }

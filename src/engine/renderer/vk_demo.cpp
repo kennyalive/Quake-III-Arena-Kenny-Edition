@@ -6,10 +6,6 @@
 
 #include "stb_image.h"
 
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtx/hash.hpp"
-
 #include <array>
 #include <chrono>
 #include <iostream>
@@ -22,49 +18,6 @@ struct Uniform_Buffer_Object {
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 proj;
-};
-
-struct Vertex {
-    glm::vec3 pos;
-    glm::vec4 color;
-    glm::vec2 tex_coord;
-    glm::vec2 tex_coord2;
-
-    static std::array<VkVertexInputBindingDescription, 1> get_bindings() {
-        VkVertexInputBindingDescription binding_desc;
-        binding_desc.binding = 0;
-        binding_desc.stride = sizeof(Vertex);
-        binding_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        return {binding_desc};
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 4> get_attributes() {
-        VkVertexInputAttributeDescription position_attrib;
-        position_attrib.location = 0;
-        position_attrib.binding = 0;
-        position_attrib.format = VK_FORMAT_R32G32B32_SFLOAT;
-        position_attrib.offset = offsetof(struct Vertex, pos);
-
-        VkVertexInputAttributeDescription color_attrib;
-        color_attrib.location = 1;
-        color_attrib.binding = 0;
-        color_attrib.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        color_attrib.offset = offsetof(struct Vertex, color);
-
-        VkVertexInputAttributeDescription tex_coord_attrib;
-        tex_coord_attrib.location = 2;
-        tex_coord_attrib.binding = 0;
-        tex_coord_attrib.format = VK_FORMAT_R32G32_SFLOAT;
-        tex_coord_attrib.offset = offsetof(struct Vertex, tex_coord);
-
-        VkVertexInputAttributeDescription tex_coord2_attrib;
-        tex_coord2_attrib.location = 3;
-        tex_coord2_attrib.binding = 0;
-        tex_coord2_attrib.format = VK_FORMAT_R32G32_SFLOAT;
-        tex_coord2_attrib.offset = offsetof(struct Vertex, tex_coord2);
-
-        return {position_attrib, color_attrib, tex_coord_attrib, tex_coord2_attrib};
-    }
 };
 
 struct Model {
@@ -146,9 +99,6 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     create_framebuffers();
     create_pipeline_layout();
     pipeline_2d = create_pipeline(false, false);
-    pipeline_2d_multitexture = create_pipeline(false, true);
-    pipeline_3d = create_pipeline(true, false);
-    pipeline_3d_multitexture = create_pipeline(true, true);
 
     upload_geometry();
     update_ubo_descriptor(descriptor_set);
@@ -584,9 +534,9 @@ VkPipeline Vulkan_Demo::create_pipeline(bool depth_test, bool multitexture) {
     viewport_state.pNext = nullptr;
     viewport_state.flags = 0;
     viewport_state.viewportCount = 1;
-    viewport_state.pViewports = depth_test ? nullptr : &viewport;
+    viewport_state.pViewports = &viewport;
     viewport_state.scissorCount = 1;
-    viewport_state.pScissors = depth_test ? nullptr : &scissor;
+    viewport_state.pScissors = &scissor;
 
     VkPipelineRasterizationStateCreateInfo rasterization_state;
     rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -675,7 +625,7 @@ VkPipeline Vulkan_Demo::create_pipeline(bool depth_test, bool multitexture) {
     desc.pMultisampleState = &multisample_state;
     desc.pDepthStencilState = &depth_stencil_state;
     desc.pColorBlendState = &blend_state;
-    desc.pDynamicState = depth_test ? &dynamic_state : nullptr;
+    desc.pDynamicState = nullptr;
     desc.layout = pipeline_layout;
     desc.renderPass = render_pass;
     desc.subpass = 0;
@@ -873,7 +823,7 @@ void Vulkan_Demo::end_frame() {
     vkCmdEndRenderPass(command_buffer);
 }
 
-void Vulkan_Demo::render_tess(const image_t* image) {
+void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     fprintf(logfile, "render_tess (vert %d, inds %d)\n", tess.numVertexes, tess.numIndexes);
     fflush(logfile);
 
@@ -908,6 +858,8 @@ void Vulkan_Demo::render_tess(const image_t* image) {
 
     VkDescriptorSet* set = &descriptor_set;
     VkDescriptorSet image_set;
+
+    image_t* image = stage->bundle[0].image[0];
     if (image != nullptr) {
         image_set = image_descriptor_sets[image];
         set = &image_set;
@@ -942,20 +894,21 @@ void Vulkan_Demo::render_tess(const image_t* image) {
         if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
         scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
     }
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-    if (!backEnd.projection2D) {
-        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    if (tess.shader->polygonOffset) {
+        vkCmdSetDepthBias(command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backEnd.projection2D ? pipeline_2d : pipeline_3d);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
 }
 
-void Vulkan_Demo::render_tess_multi(const image_t* image, const image_t* image2) {
+void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     fprintf(logfile, "render_tess_multi (vert %d, inds %d)\n", tess.numVertexes, tess.numIndexes);
     fflush(logfile);
 
@@ -990,6 +943,8 @@ void Vulkan_Demo::render_tess_multi(const image_t* image, const image_t* image2)
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
     vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
 
+    image_t* image = stage->bundle[0].image[0];
+    image_t* image2 =  stage->bundle[1].image[0];
     auto images = std::make_pair(image, image2);
     auto it = multitexture_descriptor_sets.find(images);
     if (it == multitexture_descriptor_sets.cend()) {
@@ -1027,13 +982,14 @@ void Vulkan_Demo::render_tess_multi(const image_t* image, const image_t* image2)
         if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
         scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
     }
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-    if (!backEnd.projection2D) {
-        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    if (tess.shader->polygonOffset) {
+        vkCmdSetDepthBias(command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backEnd.projection2D ? pipeline_2d_multitexture : pipeline_3d_multitexture);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
