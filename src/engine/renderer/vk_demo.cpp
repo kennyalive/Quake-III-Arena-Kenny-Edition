@@ -856,17 +856,11 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
     vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
 
-    VkDescriptorSet* set = &descriptor_set;
-    VkDescriptorSet image_set;
-
-    image_t* image = stage->bundle[0].image[0];
-    if (image != nullptr) {
-        image_set = image_descriptor_sets[image];
-        set = &image_set;
-    }
+    image_t* image = glState.vk_current_images[0];
+    VkDescriptorSet set = image_descriptor_sets[image];
 
     update_uniform_buffer();
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, set, 1, &tess_ubo_offset);
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
     tess_ubo_offset += tess_ubo_offset_step;
 
     VkViewport viewport;
@@ -943,8 +937,8 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
     vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
 
-    image_t* image = stage->bundle[0].image[0];
-    image_t* image2 =  stage->bundle[1].image[0];
+    image_t* image = glState.vk_current_images[0];
+    image_t* image2 = glState.vk_current_images[1];
     auto images = std::make_pair(image, image2);
     auto it = multitexture_descriptor_sets.find(images);
     if (it == multitexture_descriptor_sets.cend()) {

@@ -44,23 +44,26 @@ static float	s_flipMatrix[16] = {
 ** GL_Bind
 */
 void GL_Bind( image_t *image ) {
-	int texnum;
+    image_t* final_image = image;
 
-	if ( !image ) {
+	if (!final_image) {
 		ri.Printf( PRINT_WARNING, "GL_Bind: NULL image\n" );
-		texnum = tr.defaultImage->texnum;
-	} else {
-		texnum = image->texnum;
+		final_image = tr.defaultImage;
 	}
 
 	if ( r_nobind->integer && tr.dlightImage ) {		// performance evaluation option
-		texnum = tr.dlightImage->texnum;
+		final_image = tr.dlightImage;
 	}
+
+    int texnum = final_image->texnum;
 
 	if ( glState.currenttextures[glState.currenttmu] != texnum ) {
 		image->frameUsed = tr.frameCount;
 		glState.currenttextures[glState.currenttmu] = texnum;
 		qglBindTexture (GL_TEXTURE_2D, texnum);
+
+        // VULKAN
+        glState.vk_current_images[glState.currenttmu] = final_image;
 	}
 }
 

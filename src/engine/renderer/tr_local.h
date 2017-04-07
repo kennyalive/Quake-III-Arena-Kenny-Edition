@@ -810,6 +810,9 @@ typedef struct {
 	int			texEnv[2];
 	int			faceCulling;
 	unsigned long	glStateBits;
+
+    // VULKAN
+    image_t*    vk_current_images[2];
 } glstate_t;
 
 

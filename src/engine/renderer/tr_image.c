@@ -1853,6 +1853,10 @@ void R_DeleteTextures( void ) {
 	tr.numImages = 0;
 
 	Com_Memset( glState.currenttextures, 0, sizeof( glState.currenttextures ) );
+
+    // VULKAN
+    Com_Memset( glState.vk_current_images, 0, sizeof( glState.vk_current_images ) );
+
 	if ( qglBindTexture ) {
 		GL_SelectTexture( 1 );
 		qglBindTexture( GL_TEXTURE_2D, 0 );
