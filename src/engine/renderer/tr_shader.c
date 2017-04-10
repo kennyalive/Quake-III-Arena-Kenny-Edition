@@ -2162,6 +2162,7 @@ static shader_t *FinishShader( void ) {
 
     // VULKAN
     Vk_Pipeline_Desc desc;
+    desc.face_culling = shader.cullType;
     desc.polygon_offset = (shader.polygonOffset == qtrue);
 
     for (int i = 0; i < stage; i++) {

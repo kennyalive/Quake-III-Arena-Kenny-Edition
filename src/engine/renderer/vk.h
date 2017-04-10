@@ -41,14 +41,16 @@ enum class Vk_Shader_Type {
 };
 
 struct Vk_Pipeline_Desc {
-    Vk_Shader_Type shader_type;
-    unsigned int state_bits; // GLS_XXX flags
-    bool polygon_offset;
+    Vk_Shader_Type  shader_type     = Vk_Shader_Type::single_texture;
+    unsigned int    state_bits      = 0; // GLS_XXX flags
+    int             face_culling    = 0;// cullType_t
+    bool            polygon_offset  = false;
 
     bool operator==(const Vk_Pipeline_Desc& other) const {
         return
             shader_type == other.shader_type &&
             state_bits == other.state_bits &&
+            face_culling == other.face_culling &&
             polygon_offset == other.polygon_offset;
     }
 };

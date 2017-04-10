@@ -527,8 +527,18 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     rasterization_state.depthClampEnable = VK_FALSE;
     rasterization_state.rasterizerDiscardEnable = VK_FALSE;
     rasterization_state.polygonMode = (desc.state_bits & GLS_POLYMODE_LINE) ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
-    rasterization_state.cullMode = VK_CULL_MODE_NONE/*VK_CULL_MODE_BACK_BIT*/;
-    rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    if (desc.face_culling == CT_TWO_SIDED)
+        rasterization_state.cullMode = VK_CULL_MODE_NONE;
+    else if (desc.face_culling == CT_FRONT_SIDED)
+        rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT;
+    else if (desc.face_culling == CT_BACK_SIDED)
+        rasterization_state.cullMode = VK_CULL_MODE_FRONT_BIT;
+    else
+        ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode\n");
+
+    rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE; // Q3 defaults to clockwise vertex order
+
     rasterization_state.depthBiasEnable = desc.polygon_offset ? VK_TRUE : VK_FALSE;
     rasterization_state.depthBiasConstantFactor = 0.0f; // dynamic depth bias state
     rasterization_state.depthBiasClamp = 0.0f; // dynamic depth bias state
