@@ -5,10 +5,6 @@
 #include <memory>
 #include <vector>
 
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtx/hash.hpp"
-
 #include "vk.h"
 #include "tr_local.h"
 

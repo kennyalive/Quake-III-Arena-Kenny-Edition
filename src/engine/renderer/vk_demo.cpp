@@ -15,7 +15,7 @@
 #include "tr_local.h"
 
 struct Uniform_Buffer_Object {
-    glm::mat4 mvp;
+    float mvp[16];
 };
 
 static VkFormat find_format_with_features(VkPhysicalDevice physical_device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -489,22 +489,16 @@ void Vulkan_Demo::update_uniform_buffer() {
     Uniform_Buffer_Object ubo;
 
     if (backEnd.projection2D) {
-        const glm::mat4 ortho_proj(
-            2.0f / glConfig.vidWidth, 0.0f, 0.f, 0.0f,
-            0.0, 2.0f / glConfig.vidHeight, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            -1.0f, -1.0f, 0.0f, 1.0f
-        );
-        ubo.mvp = ortho_proj;
-    } else {
-        const float* p = backEnd.or.modelMatrix;
-        ubo.mvp = glm::mat4(
-            p[0], p[1], p[2], p[3],
-            p[4], p[5], p[6], p[7],
-            p[8], p[9], p[10], p[11],
-            p[12], p[13], p[14], p[15]);
+        float mvp0 = 2.0f / glConfig.vidWidth;
+        float mvp5 = 2.0f / glConfig.vidHeight;
 
-        p = backEnd.viewParms.projectionMatrix;
+        ubo.mvp[0]  =  mvp0; ubo.mvp[1]  =  0.0f; ubo.mvp[2]  = 0.0f; ubo.mvp[3]  = 0.0f;
+        ubo.mvp[4]  =  0.0f; ubo.mvp[5]  =  mvp5; ubo.mvp[6]  = 0.0f; ubo.mvp[7]  = 0.0f;
+        ubo.mvp[8]  =  0.0f; ubo.mvp[9]  =  0.0f; ubo.mvp[10] = 1.0f; ubo.mvp[11] = 0.0f;
+        ubo.mvp[12] = -1.0f; ubo.mvp[13] = -1.0f; ubo.mvp[14] = 0.0f; ubo.mvp[15] = 1.0f;
+
+    } else {
+        const float* p = backEnd.viewParms.projectionMatrix;
 
         // update q3's proj matrix (opengl) to vulkan conventions: z - [0, 1] instead of [-1, 1] and invert y direction
         float zNear	= r_znear->value;
@@ -513,11 +507,15 @@ void Vulkan_Demo::update_uniform_buffer() {
         float p14 = -zFar*zNear / (zFar - zNear);
         float p5 = -p[5];
 
-        ubo.mvp = glm::mat4(
+        float proj[16] = {
             p[0], p[1], p[2], p[3],
             p[4], p5, p[6], p[7],
             p[8], p[9], p10, p[11],
-            p[12], p[13], p14, p[15]) * ubo.mvp;
+            p[12], p[13], p14, p[15]
+        };
+
+        extern void myGlMultMatrix( const float *a, const float *b, float *out );
+        myGlMultMatrix(backEnd.or.modelMatrix, proj, ubo.mvp);
     }
 
     void* data;

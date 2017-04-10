@@ -247,6 +247,10 @@ myGlMultMatrix
 
 ==========================
 */
+//
+// NOTE; out = b * a,
+// a, b and c are specified in column-major order
+//
 void myGlMultMatrix( const float *a, const float *b, float *out ) {
 	int		i, j;
 
