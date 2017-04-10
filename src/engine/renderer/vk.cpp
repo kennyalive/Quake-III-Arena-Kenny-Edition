@@ -488,12 +488,21 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertex_input_state.pNext = nullptr;
     vertex_input_state.flags = 0;
-    auto bindings = Vertex::get_bindings();
-    vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
-    vertex_input_state.pVertexBindingDescriptions = bindings.data();
-    auto attribs = Vertex::get_attributes();
-    vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
-    vertex_input_state.pVertexAttributeDescriptions = attribs.data();
+    if (desc.shader_type == Vk_Shader_Type::single_texture) {
+        auto bindings = Vk_Vertex::get_bindings();
+        vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
+        vertex_input_state.pVertexBindingDescriptions = bindings.data();
+        auto attribs = Vk_Vertex::get_attributes();
+        vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
+        vertex_input_state.pVertexAttributeDescriptions = attribs.data();
+    } else {
+        auto bindings = Vk_Vertex2::get_bindings();
+        vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
+        vertex_input_state.pVertexBindingDescriptions = bindings.data();
+        auto attribs = Vk_Vertex2::get_attributes();
+        vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
+        vertex_input_state.pVertexAttributeDescriptions = attribs.data();
+    }
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
     input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

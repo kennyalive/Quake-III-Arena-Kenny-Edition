@@ -583,19 +583,19 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     fflush(logfile);
 
     void* data;
-    VkResult result = vkMapMemory(get_device(), tess_vertex_buffer_memory, tess_vertex_buffer_offset, tess.numVertexes * sizeof(Vertex), 0, &data);
+    VkResult result = vkMapMemory(get_device(), tess_vertex_buffer_memory, tess_vertex_buffer_offset, tess.numVertexes * sizeof(Vk_Vertex), 0, &data);
     check_vk_result(result, "vkMapMemory");
-    Vertex* v = (Vertex*)data;
+    Vk_Vertex* v = (Vk_Vertex*)data;
     for (int i = 0; i < tess.numVertexes; i++, v++) {
-        v->pos.x = tess.xyz[i][0];
-        v->pos.y = tess.xyz[i][1];
-        v->pos.z = tess.xyz[i][2];
+        v->pos[0] = tess.xyz[i][0];
+        v->pos[1] = tess.xyz[i][1];
+        v->pos[2] = tess.xyz[i][2];
         v->color[0] = tess.svars.colors[i][0] / 255.0f;
         v->color[1] = tess.svars.colors[i][1] / 255.0f;
         v->color[2] = tess.svars.colors[i][2] / 255.0f;
         v->color[3] = tess.svars.colors[i][3] / 255.0f;
-        v->tex_coord[0] = tess.svars.texcoords[0][i][0];
-        v->tex_coord[1] = tess.svars.texcoords[0][i][1];
+        v->st[0] = tess.svars.texcoords[0][i][0];
+        v->st[1] = tess.svars.texcoords[0][i][1];
     }
     vkUnmapMemory(get_device(), tess_vertex_buffer_memory);
 
@@ -653,7 +653,7 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
-    tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
+    tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
 }
 
@@ -662,21 +662,21 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     fflush(logfile);
 
     void* data;
-    VkResult result = vkMapMemory(get_device(), tess_vertex_buffer_memory, tess_vertex_buffer_offset, tess.numVertexes * sizeof(Vertex), 0, &data);
+    VkResult result = vkMapMemory(get_device(), tess_vertex_buffer_memory, tess_vertex_buffer_offset, tess.numVertexes * sizeof(Vk_Vertex2), 0, &data);
     check_vk_result(result, "vkMapMemory");
-    Vertex* v = (Vertex*)data;
+    Vk_Vertex2* v = (Vk_Vertex2*)data;
     for (int i = 0; i < tess.numVertexes; i++, v++) {
-        v->pos.x = tess.xyz[i][0];
-        v->pos.y = tess.xyz[i][1];
-        v->pos.z = tess.xyz[i][2];
+        v->pos[0] = tess.xyz[i][0];
+        v->pos[1] = tess.xyz[i][1];
+        v->pos[2] = tess.xyz[i][2];
         v->color[0] = tess.svars.colors[i][0] / 255.0f;
         v->color[1] = tess.svars.colors[i][1] / 255.0f;
         v->color[2] = tess.svars.colors[i][2] / 255.0f;
         v->color[3] = tess.svars.colors[i][3] / 255.0f;
-        v->tex_coord[0] = tess.svars.texcoords[0][i][0];
-        v->tex_coord[1] = tess.svars.texcoords[0][i][1];
-        v->tex_coord2[0] = tess.svars.texcoords[1][i][0];
-        v->tex_coord2[1] = tess.svars.texcoords[1][i][1];
+        v->st[0] = tess.svars.texcoords[0][i][0];
+        v->st[1] = tess.svars.texcoords[0][i][1];
+        v->st2[0] = tess.svars.texcoords[1][i][0];
+        v->st2[1] = tess.svars.texcoords[1][i][1];
     }
     vkUnmapMemory(get_device(), tess_vertex_buffer_memory);
 
@@ -741,6 +741,6 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
-    tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
+    tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex2);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
 }

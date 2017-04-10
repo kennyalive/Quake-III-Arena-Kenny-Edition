@@ -12,49 +12,6 @@
 #include "vk.h"
 #include "tr_local.h"
 
-struct Vertex {
-    glm::vec3 pos;
-    glm::vec4 color;
-    glm::vec2 tex_coord;
-    glm::vec2 tex_coord2;
-
-    static std::array<VkVertexInputBindingDescription, 1> get_bindings() {
-        VkVertexInputBindingDescription binding_desc;
-        binding_desc.binding = 0;
-        binding_desc.stride = sizeof(Vertex);
-        binding_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        return {binding_desc};
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 4> get_attributes() {
-        VkVertexInputAttributeDescription position_attrib;
-        position_attrib.location = 0;
-        position_attrib.binding = 0;
-        position_attrib.format = VK_FORMAT_R32G32B32_SFLOAT;
-        position_attrib.offset = offsetof(struct Vertex, pos);
-
-        VkVertexInputAttributeDescription color_attrib;
-        color_attrib.location = 1;
-        color_attrib.binding = 0;
-        color_attrib.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        color_attrib.offset = offsetof(struct Vertex, color);
-
-        VkVertexInputAttributeDescription tex_coord_attrib;
-        tex_coord_attrib.location = 2;
-        tex_coord_attrib.binding = 0;
-        tex_coord_attrib.format = VK_FORMAT_R32G32_SFLOAT;
-        tex_coord_attrib.offset = offsetof(struct Vertex, tex_coord);
-
-        VkVertexInputAttributeDescription tex_coord2_attrib;
-        tex_coord2_attrib.location = 3;
-        tex_coord2_attrib.binding = 0;
-        tex_coord2_attrib.format = VK_FORMAT_R32G32_SFLOAT;
-        tex_coord2_attrib.offset = offsetof(struct Vertex, tex_coord2);
-
-        return {position_attrib, color_attrib, tex_coord_attrib, tex_coord2_attrib};
-    }
-};
-
 class Vulkan_Demo {
 public:
     Vulkan_Demo(int window_width, int window_height);
