@@ -806,7 +806,6 @@ typedef struct {
 typedef struct {
 	int			currenttextures[2];
 	int			currenttmu;
-	qboolean	finishCalled;
 	int			texEnv[2];
 	int			faceCulling;
 	unsigned long	glStateBits;
@@ -840,7 +839,6 @@ typedef struct {
 	backEndCounters_t	pc;
 	qboolean	isHyperspace;
 	trRefEntity_t	*currentEntity;
-	qboolean	skyRenderedThisView;	// flag for drawing sun
 
 	qboolean	projection2D;	// if qtrue, drawstretchpic doesn't need to change modes
 	byte		color2D[4];
@@ -883,11 +881,11 @@ typedef struct {
 	image_t					*identityLightImage;	// full of tr.identityLightByte
 
 	shader_t				*defaultShader;
+    shader_t                *cinematicShader;
 	shader_t				*shadowShader;
 	shader_t				*projectionShadowShader;
 
 	shader_t				*flareShader;
-	shader_t				*sunShader;
 
 	int						numLightmaps;
 	image_t					*lightmaps[MAX_LIGHTMAPS];
@@ -947,6 +945,7 @@ typedef struct {
     int                     vk_num_pipelines;
     Vk_Pipeline_Desc        vk_pipeline_desc[MAX_VK_PIPELINES];
     VkPipeline              vk_pipelines[MAX_VK_PIPELINES];
+
 } trGlobals_t;
 
 extern backEndState_t	backEnd;
@@ -1023,7 +1022,6 @@ extern	cvar_t	*r_singleShader;				// make most world faces use default shader
 extern	cvar_t	*r_roundImagesDown;
 extern	cvar_t	*r_colorMipLevels;				// development aid to see texture mip usage
 extern	cvar_t	*r_picmip;						// controls picmip values
-extern	cvar_t	*r_finish;
 extern	cvar_t	*r_drawBuffer;
 extern  cvar_t  *r_glDriver;
 extern	cvar_t	*r_swapInterval;

@@ -408,15 +408,6 @@ to actually render the visible surfaces for this view
 void RB_BeginDrawingView (void) {
 	int clearBits = 0;
 
-	// sync with gl if needed
-	if ( r_finish->integer == 1 && !glState.finishCalled ) {
-		qglFinish ();
-		glState.finishCalled = qtrue;
-	}
-	if ( r_finish->integer == 0 ) {
-		glState.finishCalled = qtrue;
-	}
-
 	// we will need to change the projection matrix before drawing
 	// 2D images again
 	backEnd.projection2D = qfalse;
@@ -458,9 +449,6 @@ void RB_BeginDrawingView (void) {
 
 	glState.faceCulling = -1;		// force face culling to set next time
 
-	// we will only draw a sun if there was sky rendered in this view
-	backEnd.skyRenderedThisView = qfalse;
-
 	// clip to the plane of the portal
 	if ( backEnd.viewParms.isPortal ) {
 		float	plane[4];
@@ -483,9 +471,6 @@ void RB_BeginDrawingView (void) {
 		qglDisable (GL_CLIP_PLANE0);
 	}
 }
-
-
-#define	MAC_EVENT_PUMP_MSEC		5
 
 /*
 ==================
@@ -679,9 +664,6 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 	}
 	R_SyncRenderThread();
 
-	// we definately want to sync every frame for the cinematics
-	qglFinish();
-
 	start = end = 0;
 	if ( r_speeds->integer ) {
 		start = ri.Milliseconds();
@@ -713,8 +695,26 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
         vkDestroyImageView(get_device(), tr.scratchImage[client]->vk_image_view, nullptr);
         tr.scratchImage[client]->vk_image = vk_create_cinematic_image(cols, rows, tr.scratchImage[client]->vk_staging_buffer);
         tr.scratchImage[client]->vk_image_view = create_image_view(tr.scratchImage[client]->vk_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-        vulkan_demo->cinematic_image_view = tr.scratchImage[client]->vk_image_view;
         vk_update_cinematic_image(tr.scratchImage[client]->vk_image, tr.scratchImage[client]->vk_staging_buffer, cols, rows, data);
+
+        VkDescriptorImageInfo image_info;
+        image_info.sampler = vulkan_demo->texture_image_sampler;
+        image_info.imageView = tr.scratchImage[client]->vk_image_view;
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        std::array<VkWriteDescriptorSet, 1> descriptor_writes;
+        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[0].dstSet = vulkan_demo->image_descriptor_sets[ tr.scratchImage[client] ];
+        descriptor_writes[0].dstBinding = 1;
+        descriptor_writes[0].dstArrayElement = 0;
+        descriptor_writes[0].descriptorCount = 1;
+        descriptor_writes[0].pNext = nullptr;
+        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_writes[0].pImageInfo = &image_info;
+        descriptor_writes[0].pBufferInfo = nullptr;
+        descriptor_writes[0].pTexelBufferView = nullptr;
+
+        vkUpdateDescriptorSets(get_device(), (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
@@ -731,23 +731,8 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		ri.Printf( PRINT_ALL, "qglTexSubImage2D %i, %i: %i msec\n", cols, rows, end - start );
 	}
 
-	RB_SetGL2D();
-
-	qglColor3f( tr.identityLight, tr.identityLight, tr.identityLight );
-
-	qglBegin (GL_QUADS);
-	qglTexCoord2f ( 0.5f / cols,  0.5f / rows );
-	qglVertex2f (x, y);
-	qglTexCoord2f ( ( cols - 0.5f ) / cols ,  0.5f / rows );
-	qglVertex2f (x+w, y);
-	qglTexCoord2f ( ( cols - 0.5f ) / cols, ( rows - 0.5f ) / rows );
-	qglVertex2f (x+w, y+h);
-	qglTexCoord2f ( 0.5f / cols, ( rows - 0.5f ) / rows );
-	qglVertex2f (x, y+h);
-	qglEnd ();
-
-    // VULKAN
-    vulkan_demo->render_cinematic_frame();
+    tr.cinematicShader->stages[0]->bundle[0].image[0] = tr.scratchImage[client];
+    RE_StretchPic(x, y, w, h,  0.5f / cols, 0.5f / rows,  1.0f - 0.5f / cols, 1.0f - 0.5 / rows, tr.cinematicShader->index);
 }
 
 void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int client, qboolean dirty) {
@@ -1036,11 +1021,6 @@ const void	*RB_SwapBuffers( const void *data ) {
 
 		backEnd.pc.c_overDraw += sum;
 		ri.Hunk_FreeTempMemory( stencilReadback );
-	}
-
-
-	if ( !glState.finishCalled ) {
-		qglFinish();
 	}
 
 	GLimp_LogComment( "***************** RB_SwapBuffers *****************\n\n\n" );

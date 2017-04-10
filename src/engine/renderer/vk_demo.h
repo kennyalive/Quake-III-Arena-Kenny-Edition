@@ -64,7 +64,6 @@ public:
     void end_frame();
     void render_tess(const shaderStage_t* stage);
     void render_tess_multi(const shaderStage_t* stage);
-    void render_cinematic_frame();
 
 public:
     void create_command_pool();
@@ -76,13 +75,11 @@ public:
     void create_depth_buffer_resources();
 
     void create_descriptor_set_layout();
-    void create_descriptor_set();
     void create_image_descriptor_set(const image_t* image);
     void create_multitexture_descriptor_set(const image_t* image, const image_t* image2);
     void create_render_pass();
     void create_framebuffers();
     void create_pipeline_layout();
-    VkPipeline create_pipeline(bool depth_test, bool multitexture);
 
     void upload_geometry();
     void update_ubo_descriptor(VkDescriptorSet set);
@@ -108,16 +105,9 @@ public:
     VkImageView depth_image_view = VK_NULL_HANDLE;
 
     VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
-    VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
     VkRenderPass render_pass = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> framebuffers;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-
-    VkPipeline pipeline_2d = VK_NULL_HANDLE;
-
-    VkBuffer vertex_buffer = VK_NULL_HANDLE;
-    VkBuffer index_buffer = VK_NULL_HANDLE;
-    uint32_t model_indices_count = 0;
 
     VkBuffer tess_vertex_buffer = VK_NULL_HANDLE;
     VkDeviceMemory tess_vertex_buffer_memory = VK_NULL_HANDLE;
@@ -135,5 +125,4 @@ public:
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 
     uint32_t swapchain_image_index = -1;
-    VkImageView cinematic_image_view = VK_NULL_HANDLE;
 };

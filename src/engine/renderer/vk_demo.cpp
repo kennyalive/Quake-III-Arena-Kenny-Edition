@@ -15,36 +15,8 @@
 #include "tr_local.h"
 
 struct Uniform_Buffer_Object {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 proj;
+    glm::mat4 mvp;
 };
-
-struct Model {
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-};
-
-static Model load_model() {
-    Model model;
-
-    model.vertices = {
-        { {0, glConfig.vidHeight, 0},
-          {1, 1, 1, 1}, {0, 1} },
-
-        { {glConfig.vidWidth, glConfig.vidHeight, 0},
-          {1, 1, 1, 1}, {1, 1} },
-
-        { {glConfig.vidWidth,  0, 0},
-          {1, 1, 1, 1}, {1, 0} },
-
-        { {0, 0, 0},
-          {1, 1, 1, 1}, {0, 0} },
-    };
-
-    model.indices = { 0, 1, 2, 0, 2, 3 };
-    return model;
-}
 
 static VkFormat find_format_with_features(VkPhysicalDevice physical_device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
     for (VkFormat format : candidates) {
@@ -94,14 +66,11 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     create_depth_buffer_resources();
 
     create_descriptor_set_layout();
-    create_descriptor_set();
     create_render_pass();
     create_framebuffers();
     create_pipeline_layout();
-    pipeline_2d = create_pipeline(false, false);
 
     upload_geometry();
-    update_ubo_descriptor(descriptor_set);
 
     {
         VkCommandBufferAllocateInfo alloc_info;
@@ -275,18 +244,6 @@ void Vulkan_Demo::create_descriptor_set_layout() {
     desc.pBindings = descriptor_bindings.data();
 
     descriptor_set_layout = get_resource_manager()->create_descriptor_set_layout(desc);
-}
-
-void Vulkan_Demo::create_descriptor_set() {
-    VkDescriptorSetAllocateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    desc.pNext = nullptr;
-    desc.descriptorPool = descriptor_pool;
-    desc.descriptorSetCount = 1;
-    desc.pSetLayouts = &descriptor_set_layout;
-
-    VkResult result = vkAllocateDescriptorSets(get_device(), &desc, &descriptor_set);
-    check_vk_result(result, "vkAllocateDescriptorSets");
 }
 
 void Vulkan_Demo::create_image_descriptor_set(const image_t* image) {
@@ -470,206 +427,8 @@ void Vulkan_Demo::create_pipeline_layout() {
     pipeline_layout = get_resource_manager()->create_pipeline_layout(desc);
 }
 
-VkPipeline Vulkan_Demo::create_pipeline(bool depth_test, bool multitexture) {
-    Shader_Module single_texture_vs(single_texture_vert_spv, single_texture_vert_spv_size);
-    Shader_Module single_texture_fs(single_texture_frag_spv, single_texture_frag_spv_size);
-
-    Shader_Module multi_texture_vs(multi_texture_vert_spv, multi_texture_vert_spv_size);
-    Shader_Module multi_texture_fs(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
-
-    auto get_shader_stage_desc = [](VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry) {
-        VkPipelineShaderStageCreateInfo desc;
-        desc.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        desc.pNext = nullptr;
-        desc.flags = 0;
-        desc.stage = stage;
-        desc.module = shader_module;
-        desc.pName = entry;
-        desc.pSpecializationInfo = nullptr;
-        return desc;
-    };
-
-    std::vector<VkPipelineShaderStageCreateInfo> shader_stages_state;
-
-    if (multitexture) {
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, multi_texture_vs.handle, "main"));
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, multi_texture_fs.handle, "main"));
-    } else {
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, single_texture_vs.handle, "main"));
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, single_texture_fs.handle, "main"));
-    };
-
-    VkPipelineVertexInputStateCreateInfo vertex_input_state;
-    vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_state.pNext = nullptr;
-    vertex_input_state.flags = 0;
-    auto bindings = Vertex::get_bindings();
-    vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
-    vertex_input_state.pVertexBindingDescriptions = bindings.data();
-    auto attribs = Vertex::get_attributes();
-    vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
-    vertex_input_state.pVertexAttributeDescriptions = attribs.data();
-
-    VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
-    input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    input_assembly_state.pNext = nullptr;
-    input_assembly_state.flags = 0;
-    input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    input_assembly_state.primitiveRestartEnable = VK_FALSE;
-
-    VkViewport viewport;
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float)window_width;
-    viewport.height = (float)window_height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor;
-    scissor.offset = {0, 0};
-    scissor.extent = {(uint32_t)window_width, (uint32_t)window_height};
-
-    VkPipelineViewportStateCreateInfo viewport_state;
-    viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewport_state.pNext = nullptr;
-    viewport_state.flags = 0;
-    viewport_state.viewportCount = 1;
-    viewport_state.pViewports = &viewport;
-    viewport_state.scissorCount = 1;
-    viewport_state.pScissors = &scissor;
-
-    VkPipelineRasterizationStateCreateInfo rasterization_state;
-    rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterization_state.pNext = nullptr;
-    rasterization_state.flags = 0;
-    rasterization_state.depthClampEnable = VK_FALSE;
-    rasterization_state.rasterizerDiscardEnable = VK_FALSE;
-    rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterization_state.cullMode = VK_CULL_MODE_NONE/*VK_CULL_MODE_BACK_BIT*/;
-    rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterization_state.depthBiasEnable = VK_FALSE;
-    rasterization_state.depthBiasConstantFactor = 0.0f;
-    rasterization_state.depthBiasClamp = 0.0f;
-    rasterization_state.depthBiasSlopeFactor = 0.0f;
-    rasterization_state.lineWidth = 1.0f;
-
-    VkPipelineMultisampleStateCreateInfo multisample_state;
-    multisample_state.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisample_state.pNext = nullptr;
-    multisample_state.flags = 0;
-    multisample_state.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisample_state.sampleShadingEnable = VK_FALSE;
-    multisample_state.minSampleShading = 1.0f;
-    multisample_state.pSampleMask = nullptr;
-    multisample_state.alphaToCoverageEnable = VK_FALSE;
-    multisample_state.alphaToOneEnable = VK_FALSE;
-
-    VkPipelineDepthStencilStateCreateInfo depth_stencil_state;
-    depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depth_stencil_state.pNext = nullptr;
-    depth_stencil_state.flags = 0;
-    depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
-    depth_stencil_state.depthWriteEnable = VK_TRUE;
-    depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS;
-    depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
-    depth_stencil_state.stencilTestEnable = VK_FALSE;
-    depth_stencil_state.front = {};
-    depth_stencil_state.back = {};
-    depth_stencil_state.minDepthBounds = 0.0;
-    depth_stencil_state.maxDepthBounds = 0.0;
-
-    VkPipelineColorBlendAttachmentState attachment_blend_state;
-    attachment_blend_state.blendEnable = VK_FALSE;
-    attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-    attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-    attachment_blend_state.colorBlendOp = VK_BLEND_OP_ADD;
-    attachment_blend_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    attachment_blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    attachment_blend_state.alphaBlendOp = VK_BLEND_OP_ADD;
-    attachment_blend_state.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    VkPipelineColorBlendStateCreateInfo blend_state;
-    blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    blend_state.pNext = nullptr;
-    blend_state.flags = 0;
-    blend_state.logicOpEnable = VK_FALSE;
-    blend_state.logicOp = VK_LOGIC_OP_COPY;
-    blend_state.attachmentCount = 1;
-    blend_state.pAttachments = &attachment_blend_state;
-    blend_state.blendConstants[0] = 0.0f;
-    blend_state.blendConstants[1] = 0.0f;
-    blend_state.blendConstants[2] = 0.0f;
-    blend_state.blendConstants[3] = 0.0f;
-
-    VkPipelineDynamicStateCreateInfo dynamic_state;
-    dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamic_state.pNext = nullptr;
-    dynamic_state.flags = 0;
-    dynamic_state.dynamicStateCount = 2;
-    VkDynamicState dynamic_state_array[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-    dynamic_state.pDynamicStates = dynamic_state_array;
-
-    VkGraphicsPipelineCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.stageCount = static_cast<uint32_t>(shader_stages_state.size());
-    desc.pStages = shader_stages_state.data();
-    desc.pVertexInputState = &vertex_input_state;
-    desc.pInputAssemblyState = &input_assembly_state;
-    desc.pTessellationState = nullptr;
-    desc.pViewportState = &viewport_state;
-    desc.pRasterizationState = &rasterization_state;
-    desc.pMultisampleState = &multisample_state;
-    desc.pDepthStencilState = &depth_stencil_state;
-    desc.pColorBlendState = &blend_state;
-    desc.pDynamicState = nullptr;
-    desc.layout = pipeline_layout;
-    desc.renderPass = render_pass;
-    desc.subpass = 0;
-    desc.basePipelineHandle = VK_NULL_HANDLE;
-    desc.basePipelineIndex = -1;
-
-    return get_resource_manager()->create_graphics_pipeline(desc);
-}
-
 void Vulkan_Demo::upload_geometry() {
-    Model model = load_model();
-    model_indices_count = static_cast<uint32_t>(model.indices.size());
-
-    {
-        const VkDeviceSize size = model.vertices.size() * sizeof(model.vertices[0]);
-        vertex_buffer = create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-        VkBuffer staging_buffer = create_staging_buffer(size, model.vertices.data());
-        Defer_Action destroy_staging_buffer([&staging_buffer, this]() {
-            vkDestroyBuffer(get_device(), staging_buffer, nullptr);
-        });
-        record_and_run_commands(command_pool, get_queue(), [&staging_buffer, &size, this](VkCommandBuffer command_buffer) {
-            VkBufferCopy region;
-            region.srcOffset = 0;
-            region.dstOffset = 0;
-            region.size = size;
-            vkCmdCopyBuffer(command_buffer, staging_buffer, vertex_buffer, 1, &region);
-        });
-    }
-    {
-        const VkDeviceSize size = model.indices.size() * sizeof(model.indices[0]);
-        index_buffer = create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-        VkBuffer staging_buffer = create_staging_buffer(size, model.indices.data());
-        Defer_Action destroy_staging_buffer([&staging_buffer, this]() {
-            vkDestroyBuffer(get_device(), staging_buffer, nullptr);
-        });
-        record_and_run_commands(command_pool, get_queue(), [&staging_buffer, &size, this](VkCommandBuffer command_buffer) {
-            VkBufferCopy region;
-            region.srcOffset = 0;
-            region.dstOffset = 0;
-            region.size = size;
-            vkCmdCopyBuffer(command_buffer, staging_buffer, index_buffer, 1, &region);
-        });
-    }
-
+ 
     {
         VkBufferCreateInfo desc;
         desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -730,24 +489,20 @@ void Vulkan_Demo::update_uniform_buffer() {
     Uniform_Buffer_Object ubo;
 
     if (backEnd.projection2D) {
-        ubo.model = glm::mat4();
-        ubo.view = glm::mat4();
         const glm::mat4 ortho_proj(
             2.0f / glConfig.vidWidth, 0.0f, 0.f, 0.0f,
             0.0, 2.0f / glConfig.vidHeight, 0.0f, 0.0f,
             0.0f, 0.0f, 1.0f, 0.0f,
             -1.0f, -1.0f, 0.0f, 1.0f
         );
-        ubo.proj = ortho_proj;
+        ubo.mvp = ortho_proj;
     } else {
         const float* p = backEnd.or.modelMatrix;
-        ubo.model = glm::mat4(
+        ubo.mvp = glm::mat4(
             p[0], p[1], p[2], p[3],
             p[4], p[5], p[6], p[7],
             p[8], p[9], p[10], p[11],
             p[12], p[13], p[14], p[15]);
-
-        ubo.view = glm::mat4();
 
         p = backEnd.viewParms.projectionMatrix;
 
@@ -758,11 +513,11 @@ void Vulkan_Demo::update_uniform_buffer() {
         float p14 = -zFar*zNear / (zFar - zNear);
         float p5 = -p[5];
 
-        ubo.proj = glm::mat4(
+        ubo.mvp = glm::mat4(
             p[0], p[1], p[2], p[3],
             p[4], p5, p[6], p[7],
             p[8], p[9], p10, p[11],
-            p[12], p[13], p14, p[15]);
+            p[12], p[13], p14, p[15]) * ubo.mvp;
     }
 
     void* data;
@@ -988,39 +743,4 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vertex);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
-}
-
-void Vulkan_Demo::render_cinematic_frame() {
-    fprintf(logfile, "render_cinematic_frame\n");
-    fflush(logfile);
-
-    VkDescriptorImageInfo image_info;
-    image_info.sampler = texture_image_sampler;
-    image_info.imageView = cinematic_image_view;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
-    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[0].dstSet = descriptor_set;
-    descriptor_writes[0].dstBinding = 1;
-    descriptor_writes[0].dstArrayElement = 0;
-    descriptor_writes[0].descriptorCount = 1;
-    descriptor_writes[0].pNext = nullptr;
-    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_writes[0].pImageInfo = &image_info;
-    descriptor_writes[0].pBufferInfo = nullptr;
-    descriptor_writes[0].pTexelBufferView = nullptr;
-
-    vkUpdateDescriptorSets(get_device(), (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-
-    const VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(command_buffer, 0, 1, &vertex_buffer, &offset);
-    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    update_uniform_buffer();
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_set, 1, &tess_ubo_offset);
-    tess_ubo_offset += tess_ubo_offset_step;
-
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_2d);
-    vkCmdDrawIndexed(command_buffer, model_indices_count, 1, 0, 0, 0);
 }

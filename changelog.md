@@ -3,6 +3,7 @@ Removed cvars:
 * r_allowSoftwareGL
 * r_colorbits (use desktop color depth)
 * r_ext_multitexture (required)
+* r_finish
 * r_ignoreFastPath
 * r_maskMinidriver
 * r_primitives (always use qglDrawElements)

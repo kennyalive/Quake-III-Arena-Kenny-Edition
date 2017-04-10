@@ -743,8 +743,4 @@ void RB_StageIteratorSky( void ) {
 
 	// back to normal depth range
 	qglDepthRange( 0.0, 1.0 );
-
-	// note that sky was drawn so we will draw a sun later
-	backEnd.skyRenderedThisView = qtrue;
 }
-
