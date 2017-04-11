@@ -494,14 +494,14 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
         if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
         scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
     }
+
+    vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
+
     vkCmdSetViewport(vk_instance.command_buffer, 0, 1, &viewport);
     vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &scissor);
-
     if (tess.shader->polygonOffset) {
         vkCmdSetDepthBias(vk_instance.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
-
-    vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
     vkCmdDrawIndexed(vk_instance.command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex);
@@ -582,14 +582,14 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
         if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
         scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
     }
+
+    vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
+
     vkCmdSetViewport(vk_instance.command_buffer, 0, 1, &viewport);
     vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &scissor);
-
     if (tess.shader->polygonOffset) {
         vkCmdSetDepthBias(vk_instance.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
-
-    vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
     vkCmdDrawIndexed(vk_instance.command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex2);
