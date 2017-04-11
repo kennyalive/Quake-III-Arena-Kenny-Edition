@@ -1051,6 +1051,9 @@ void RE_Shutdown( qboolean destroyWindow ) {
 
 	// shut down platform specific OpenGL stuff
 	if ( destroyWindow ) {
+        // VULKAN
+        vk_deinitialize();
+
 		GLimp_Shutdown();
 	}
 

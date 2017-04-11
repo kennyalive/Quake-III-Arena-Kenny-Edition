@@ -9,7 +9,6 @@ public:
     void release_resources();
 
     VkSemaphore create_semaphore();
-    VkCommandPool create_command_pool(const VkCommandPoolCreateInfo& desc);
     VkDescriptorPool create_descriptor_pool(const VkDescriptorPoolCreateInfo& desc);
     VkBuffer create_buffer(const VkBufferCreateInfo& desc);
     VkImage create_image(const VkImageCreateInfo& desc);
@@ -24,7 +23,6 @@ public:
 private:
     VkDevice device = VK_NULL_HANDLE;
     std::vector<VkSemaphore> semaphores;
-    std::vector<VkCommandPool> command_pools;
     std::vector<VkDescriptorPool> descriptor_pools;
     std::vector<VkBuffer> buffers;
     std::vector<VkImage> images;

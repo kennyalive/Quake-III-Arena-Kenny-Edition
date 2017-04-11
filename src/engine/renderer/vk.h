@@ -147,6 +147,9 @@ struct Vulkan_Instance {
     uint32_t swapchain_image_count = 0;
     VkImage swapchain_images[MAX_SWAPCHAIN_IMAGES];
     VkImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
+
+    VkCommandPool command_pool = VK_NULL_HANDLE;
+    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 };
 
 const int MAX_VK_PIPELINES = 1024;

@@ -46,7 +46,6 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     logfile = fopen("vk_dev.log", "w");
     get_allocator()->initialize(vk_instance.physical_device, vk_instance.device);
     get_resource_manager()->initialize(vk_instance.device);
-    create_command_pool();
 
     image_acquired = get_resource_manager()->create_semaphore();
     rendering_finished = get_resource_manager()->create_semaphore();
@@ -71,17 +70,6 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     create_pipeline_layout();
 
     upload_geometry();
-
-    {
-        VkCommandBufferAllocateInfo alloc_info;
-        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        alloc_info.pNext = nullptr;
-        alloc_info.commandPool = command_pool;
-        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        alloc_info.commandBufferCount = 1;
-        result = vkAllocateCommandBuffers(vk_instance.device, &alloc_info, &command_buffer);
-        check_vk_result(result, "vkAllocateCommandBuffers");
-    }
 }
 
 Vulkan_Demo::~Vulkan_Demo() {
@@ -91,17 +79,6 @@ Vulkan_Demo::~Vulkan_Demo() {
 
     get_resource_manager()->release_resources();
     get_allocator()->deallocate_all();
-
-    vk_deinitialize();
-}
-
-void Vulkan_Demo::create_command_pool() {
-    VkCommandPoolCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    desc.queueFamilyIndex = vk_instance.queue_family_index;
-    command_pool = get_resource_manager()->create_command_pool(desc);
 }
 
 void Vulkan_Demo::create_descriptor_pool() {
@@ -144,7 +121,7 @@ VkImage Vulkan_Demo::create_texture(const uint8_t* pixels, int bytes_per_pixel, 
     VkImage texture_image = ::create_texture(image_width, image_height,
         bytes_per_pixel == 3 ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
 
-    record_and_run_commands(command_pool, vk_instance.queue,
+    record_and_run_commands(vk_instance.command_pool, vk_instance.queue,
         [&texture_image, &staging_image, &image_width, &image_height, this](VkCommandBuffer command_buffer) {
 
         record_image_layout_transition(command_buffer, staging_image, VK_FORMAT_R8G8B8A8_UNORM,
@@ -210,7 +187,7 @@ void Vulkan_Demo::create_depth_buffer_resources() {
     depth_image = create_depth_attachment_image(window_width, window_height, depth_format);
     depth_image_view = create_image_view(depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    record_and_run_commands(command_pool, vk_instance.queue, [&depth_format, this](VkCommandBuffer command_buffer) {
+    record_and_run_commands(vk_instance.command_pool, vk_instance.queue, [&depth_format, this](VkCommandBuffer command_buffer) {
         record_image_layout_transition(command_buffer, depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     });
@@ -532,7 +509,7 @@ void Vulkan_Demo::begin_frame() {
     region.srcOffset = 0;
     region.dstOffset = 0;
     region.size = sizeof(Uniform_Buffer_Object) * 1024;
-    vkCmdCopyBuffer(command_buffer, uniform_staging_buffer, uniform_buffer, 1, &region);
+    vkCmdCopyBuffer(vk_instance.command_buffer, uniform_staging_buffer, uniform_buffer, 1, &region);
 
     VkBufferMemoryBarrier barrier;
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -545,7 +522,7 @@ void Vulkan_Demo::begin_frame() {
     barrier.offset = 0;
     barrier.size = sizeof(Uniform_Buffer_Object) * 1024;
 
-    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0,
+    vkCmdPipelineBarrier(vk_instance.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0,
         0, nullptr, 1, &barrier, 0, nullptr);
 
     std::array<VkClearValue, 2> clear_values;
@@ -562,7 +539,7 @@ void Vulkan_Demo::begin_frame() {
     render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
     render_pass_begin_info.pClearValues = clear_values.data();
 
-    vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(vk_instance.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
     tess_vertex_buffer_offset = 0;
     tess_index_buffer_offset = 0;
@@ -572,7 +549,7 @@ void Vulkan_Demo::begin_frame() {
 void Vulkan_Demo::end_frame() {
     fprintf(logfile, "end_frame (vb_size %d, ib_size %d, ubo_size %d)\n", (int)tess_vertex_buffer_offset, (int)tess_index_buffer_offset, (int)tess_ubo_offset);
     fflush(logfile);
-    vkCmdEndRenderPass(command_buffer);
+    vkCmdEndRenderPass(vk_instance.command_buffer);
 }
 
 void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
@@ -605,14 +582,14 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     vkUnmapMemory(vk_instance.device, tess_index_buffer_memory);
 
     const VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
-    vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(vk_instance.command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
+    vkCmdBindIndexBuffer(vk_instance.command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
 
     image_t* image = glState.vk_current_images[0];
     VkDescriptorSet set = image_descriptor_sets[image];
 
     update_uniform_buffer();
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
+    vkCmdBindDescriptorSets(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
     tess_ubo_offset += tess_ubo_offset_step;
 
     VkViewport viewport;
@@ -640,16 +617,16 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
         if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
         scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
     }
-    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    vkCmdSetViewport(vk_instance.command_buffer, 0, 1, &viewport);
+    vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &scissor);
 
     if (tess.shader->polygonOffset) {
-        vkCmdSetDepthBias(command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
+        vkCmdSetDepthBias(vk_instance.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
+    vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
-    vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
+    vkCmdDrawIndexed(vk_instance.command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
 }
@@ -686,8 +663,8 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     vkUnmapMemory(vk_instance.device, tess_index_buffer_memory);
 
     const VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
-    vkCmdBindIndexBuffer(command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(vk_instance.command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
+    vkCmdBindIndexBuffer(vk_instance.command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
 
     image_t* image = glState.vk_current_images[0];
     image_t* image2 = glState.vk_current_images[1];
@@ -700,7 +677,7 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     auto set = it->second;
 
     update_uniform_buffer();
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
+    vkCmdBindDescriptorSets(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
     tess_ubo_offset += tess_ubo_offset_step;
 
     VkViewport viewport;
@@ -728,16 +705,16 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
         if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
         scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
     }
-    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    vkCmdSetViewport(vk_instance.command_buffer, 0, 1, &viewport);
+    vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &scissor);
 
     if (tess.shader->polygonOffset) {
-        vkCmdSetDepthBias(command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
+        vkCmdSetDepthBias(vk_instance.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
+    vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
-    vkCmdDrawIndexed(command_buffer, tess.numIndexes, 1, 0, 0, 0);
+    vkCmdDrawIndexed(vk_instance.command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex2);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
 }

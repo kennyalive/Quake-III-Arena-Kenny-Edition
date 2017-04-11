@@ -19,7 +19,6 @@ public:
     void render_tess_multi(const shaderStage_t* stage);
 
 public:
-    void create_command_pool();
     void create_descriptor_pool();
 
     void create_uniform_buffer();
@@ -46,7 +45,6 @@ public:
     VkSemaphore rendering_finished = VK_NULL_HANDLE;
     VkFence rendering_finished_fence = VK_NULL_HANDLE;
 
-    VkCommandPool command_pool = VK_NULL_HANDLE;
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
 
     VkBuffer uniform_staging_buffer = VK_NULL_HANDLE;
@@ -74,8 +72,6 @@ public:
 
     std::map<const image_t*, VkDescriptorSet> image_descriptor_sets; // quick UI prototyping
     std::map<std::pair<const image_t*, const image_t*>, VkDescriptorSet> multitexture_descriptor_sets;
-
-    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 
     uint32_t swapchain_image_index = -1;
 };

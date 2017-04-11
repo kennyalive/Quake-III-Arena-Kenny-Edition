@@ -16,11 +16,6 @@ void Resource_Manager::release_resources() {
     }
     semaphores.clear();
 
-    for (auto command_pool : command_pools) {
-        vkDestroyCommandPool(device, command_pool, nullptr);
-    }
-    command_pools.clear();
-
     for (auto descriptor_pool : descriptor_pools) {
         vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
     }
@@ -83,14 +78,6 @@ VkSemaphore Resource_Manager::create_semaphore() {
     check_vk_result(result, "vkCreateSemaphore");
     semaphores.push_back(semaphore);
     return semaphore;
-}
-
-VkCommandPool Resource_Manager::create_command_pool(const VkCommandPoolCreateInfo& desc) {
-    VkCommandPool command_pool;
-    VkResult result = vkCreateCommandPool(device, &desc, nullptr, &command_pool);
-    check_vk_result(result, "vkCreateCommandPool");
-    command_pools.push_back(command_pool);
-    return command_pool;
 }
 
 VkDescriptorPool Resource_Manager::create_descriptor_pool(const VkDescriptorPoolCreateInfo& desc) {

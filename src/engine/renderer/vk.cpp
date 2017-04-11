@@ -278,6 +278,28 @@ bool vk_initialize(HWND hwnd) {
             result = vkCreateImageView(g.device, &desc, nullptr, &g.swapchain_image_views[i]);
             check_vk_result(result, "vkCreateImageView");
         }
+
+        {
+            VkCommandPoolCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+            desc.queueFamilyIndex = vk_instance.queue_family_index;
+
+            result = vkCreateCommandPool(g.device, &desc, nullptr, &vk_instance.command_pool);
+            check_vk_result(result, "vkCreateCommandPool");
+        }
+
+        {
+            VkCommandBufferAllocateInfo alloc_info;
+            alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            alloc_info.pNext = nullptr;
+            alloc_info.commandPool = vk_instance.command_pool;
+            alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            alloc_info.commandBufferCount = 1;
+            result = vkAllocateCommandBuffers(vk_instance.device, &alloc_info, &g.command_buffer);
+            check_vk_result(result, "vkAllocateCommandBuffers");
+        }
     } catch (const std::exception&) {
         return false;
     }
@@ -286,13 +308,18 @@ bool vk_initialize(HWND hwnd) {
 
 void vk_deinitialize() {
     auto& g = vk_instance;
-    for (auto image_view : g.swapchain_image_views) {
-        vkDestroyImageView(g.device, image_view, nullptr);
+
+    vkDestroyCommandPool(g.device, g.command_pool, nullptr);
+
+    for (int i = 0; i < g.swapchain_image_count; i++) {
+        vkDestroyImageView(g.device, g.swapchain_image_views[i], nullptr);
     }
+
     vkDestroySwapchainKHR(g.device, g.swapchain, nullptr);
     vkDestroyDevice(g.device, nullptr);
     vkDestroySurfaceKHR(g.instance, g.surface, nullptr);
     vkDestroyInstance(g.instance, nullptr);
+
     g = Vulkan_Instance();
 }
 
@@ -356,7 +383,7 @@ void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_b
     memcpy(buffer_data, rgba_pixels, staging_buffer.size);
     vkUnmapMemory(vk_instance.device, staging_buffer.memory);
 
-    record_and_run_commands(vulkan_demo->command_pool, vk_instance.queue,
+    record_and_run_commands(vk_instance.command_pool, vk_instance.queue,
         [&image, &staging_buffer, &width, &height](VkCommandBuffer command_buffer) {
 
         record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,

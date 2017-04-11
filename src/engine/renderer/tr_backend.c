@@ -916,7 +916,7 @@ const void	*RB_DrawBuffer( const void *data ) {
     fprintf(logfile, "begin\n");
     fflush(logfile);
 
-    result = vkBeginCommandBuffer(vulkan_demo->command_buffer, &begin_info);
+    result = vkBeginCommandBuffer(vk_instance.command_buffer, &begin_info);
     check_vk_result(result, "vkBeginCommandBuffer");
     vulkan_demo->begin_frame();
 
@@ -1033,7 +1033,7 @@ const void	*RB_SwapBuffers( const void *data ) {
     extern FILE* logfile;
 
     vulkan_demo->end_frame();
-    VkResult result = vkEndCommandBuffer(vulkan_demo->command_buffer);
+    VkResult result = vkEndCommandBuffer(vk_instance.command_buffer);
     check_vk_result(result, "vkEndCommandBuffer");
 
     fprintf(logfile, "present\n");
@@ -1047,7 +1047,7 @@ const void	*RB_SwapBuffers( const void *data ) {
     submit_info.pWaitSemaphores = &vulkan_demo->image_acquired;
     submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vulkan_demo->command_buffer;
+    submit_info.pCommandBuffers = &vk_instance.command_buffer;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &vulkan_demo->rendering_finished;
 
