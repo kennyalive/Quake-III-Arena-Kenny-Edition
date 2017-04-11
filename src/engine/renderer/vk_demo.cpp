@@ -18,25 +18,6 @@ struct Uniform_Buffer_Object {
     float mvp[16];
 };
 
-static VkFormat find_format_with_features(VkPhysicalDevice physical_device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
-    for (VkFormat format : candidates) {
-        VkFormatProperties properties;
-        vkGetPhysicalDeviceFormatProperties(physical_device, format, &properties);
-
-        if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features)
-            return format;
-        if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features)
-            return format;
-    }
-    error("failed to find format with requested features");
-    return VK_FORMAT_UNDEFINED; // never get here
-}
-
-static VkFormat find_depth_format(VkPhysicalDevice physical_device) {
-    return find_format_with_features(physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-        VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-}
-
 FILE* logfile;
 
 Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
@@ -44,8 +25,6 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
 , window_height(window_height)
 {
     logfile = fopen("vk_dev.log", "w");
-    get_allocator()->initialize(vk_instance.physical_device, vk_instance.device);
-    get_resource_manager()->initialize(vk_instance.device);
 
     image_acquired = get_resource_manager()->create_semaphore();
     rendering_finished = get_resource_manager()->create_semaphore();
@@ -62,23 +41,11 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     create_uniform_buffer();
 
     create_texture_sampler();
-    create_depth_buffer_resources();
 
     create_descriptor_set_layout();
-    create_render_pass();
-    create_framebuffers();
     create_pipeline_layout();
 
     upload_geometry();
-}
-
-Vulkan_Demo::~Vulkan_Demo() {
-    VkResult result = vkDeviceWaitIdle(vk_instance.device);
-    if (result < 0)
-        std::cerr << "vkDeviceWaitIdle returned an error code: " + result;
-
-    get_resource_manager()->release_resources();
-    get_allocator()->deallocate_all();
 }
 
 void Vulkan_Demo::create_descriptor_pool() {
@@ -180,17 +147,6 @@ void Vulkan_Demo::create_texture_sampler() {
     desc.unnormalizedCoordinates = VK_FALSE;
 
     texture_image_sampler = get_resource_manager()->create_sampler(desc);
-}
-
-void Vulkan_Demo::create_depth_buffer_resources() {
-    VkFormat depth_format = find_depth_format(vk_instance.physical_device);
-    depth_image = create_depth_attachment_image(window_width, window_height, depth_format);
-    depth_image_view = create_image_view(depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-    record_and_run_commands(vk_instance.command_pool, vk_instance.queue, [&depth_format, this](VkCommandBuffer command_buffer) {
-        record_image_layout_transition(command_buffer, depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    });
 }
 
 void Vulkan_Demo::create_descriptor_set_layout() {
@@ -309,85 +265,6 @@ void Vulkan_Demo::create_multitexture_descriptor_set(const image_t* image, const
 
     auto images = std::make_pair(image, image2);
     multitexture_descriptor_sets[images] = set;
-}
-
-void Vulkan_Demo::create_render_pass() {
-    VkAttachmentDescription color_attachment;
-    color_attachment.flags = 0;
-    color_attachment.format = vk_instance.surface_format.format;
-    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentDescription depth_attachment;
-    depth_attachment.flags = 0;
-    depth_attachment.format = find_depth_format(vk_instance.physical_device);
-    depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference color_attachment_ref;
-    color_attachment_ref.attachment = 0;
-    color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depth_attachment_ref;
-    depth_attachment_ref.attachment = 1;
-    depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass;
-    subpass.flags = 0;
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.inputAttachmentCount = 0;
-    subpass.pInputAttachments = nullptr;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &color_attachment_ref;
-    subpass.pResolveAttachments = nullptr;
-    subpass.pDepthStencilAttachment = &depth_attachment_ref;
-    subpass.preserveAttachmentCount = 0;
-    subpass.pPreserveAttachments = nullptr;
-
-    std::array<VkAttachmentDescription, 2> attachments{color_attachment, depth_attachment};
-    VkRenderPassCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.attachmentCount = static_cast<uint32_t>(attachments.size());
-    desc.pAttachments = attachments.data();
-    desc.subpassCount = 1;
-    desc.pSubpasses = &subpass;
-    desc.dependencyCount = 0;
-    desc.pDependencies = nullptr;
-
-    render_pass = get_resource_manager()->create_render_pass(desc);
-}
-
-void Vulkan_Demo::create_framebuffers() {
-    std::array<VkImageView, 2> attachments = {VK_NULL_HANDLE, depth_image_view};
-
-    VkFramebufferCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.renderPass = render_pass;
-    desc.attachmentCount = static_cast<uint32_t>(attachments.size());
-    desc.pAttachments = attachments.data();
-    desc.width = window_width;
-    desc.height = window_height;
-    desc.layers = 1;
-
-    framebuffers.resize(vk_instance.swapchain_image_count);
-    for (std::size_t i = 0; i < framebuffers.size(); i++) {
-        attachments[0] = vk_instance.swapchain_image_views[i]; // set color attachment
-        framebuffers[i] = get_resource_manager()->create_framebuffer(desc);
-    }
 }
 
 void Vulkan_Demo::create_pipeline_layout() {
@@ -532,8 +409,8 @@ void Vulkan_Demo::begin_frame() {
     VkRenderPassBeginInfo render_pass_begin_info;
     render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     render_pass_begin_info.pNext = nullptr;
-    render_pass_begin_info.renderPass = render_pass;
-    render_pass_begin_info.framebuffer = framebuffers[swapchain_image_index];
+    render_pass_begin_info.renderPass = vk_instance.render_pass;
+    render_pass_begin_info.framebuffer = vk_instance.framebuffers[swapchain_image_index];
     render_pass_begin_info.renderArea.offset = {0, 0};
     render_pass_begin_info.renderArea.extent = {(uint32_t)window_width, (uint32_t)window_height};
     render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());

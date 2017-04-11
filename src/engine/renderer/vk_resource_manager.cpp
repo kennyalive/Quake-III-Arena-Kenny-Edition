@@ -26,30 +26,10 @@ void Resource_Manager::release_resources() {
     }
     buffers.clear();
 
-    for (auto image : images) {
-        vkDestroyImage(device, image, nullptr);
-    }
-    images.clear();
-
-    for (auto image_view : image_views) {
-        vkDestroyImageView(device, image_view, nullptr);
-    }
-    image_views.clear();
-
     for (auto sampler : samplers) {
         vkDestroySampler(device, sampler, nullptr);
     }
     samplers.clear();
-
-    for (auto render_pass : render_passes) {
-        vkDestroyRenderPass(device, render_pass, nullptr);
-    }
-    render_passes.clear();
-
-    for (auto framebuffer : framebuffers) {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
-    }
-    framebuffers.clear();
 
     for (auto descriptor_set_layout : descriptor_set_layouts) {
         vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
@@ -60,11 +40,6 @@ void Resource_Manager::release_resources() {
         vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
     }
     pipeline_layouts.clear();
-
-    for (auto pipeline : graphics_pipelines) {
-        vkDestroyPipeline(device, pipeline, nullptr);
-    }
-    graphics_pipelines.clear();
 }
 
 VkSemaphore Resource_Manager::create_semaphore() {
@@ -96,44 +71,12 @@ VkBuffer Resource_Manager::create_buffer(const VkBufferCreateInfo& desc) {
     return buffer;
 }
 
-VkImage Resource_Manager::create_image(const VkImageCreateInfo& desc) {
-    VkImage image;
-    VkResult result = vkCreateImage(device, &desc, nullptr, &image);
-    check_vk_result(result, "vkCreateImage");
-    images.push_back(image);
-    return image;
-}
-
-VkImageView Resource_Manager::create_image_view(const VkImageViewCreateInfo& desc) {
-    VkImageView image_view;
-    VkResult result = vkCreateImageView(device, &desc, nullptr, &image_view);
-    check_vk_result(result, "vkCreateImageView");
-    image_views.push_back(image_view);
-    return image_view;
-}
-
 VkSampler Resource_Manager::create_sampler(const VkSamplerCreateInfo& desc) {
     VkSampler sampler;
     VkResult result = vkCreateSampler(device, &desc, nullptr, &sampler);
     check_vk_result(result, "vkCreateSampler");
     samplers.push_back(sampler);
     return sampler;
-}
-
-VkRenderPass Resource_Manager::create_render_pass(const VkRenderPassCreateInfo& desc) {
-    VkRenderPass render_pass;
-    VkResult result = vkCreateRenderPass(device, &desc, nullptr, &render_pass);
-    check_vk_result(result, "vkCreateRenderPass");
-    render_passes.push_back(render_pass);
-    return render_pass;
-}
-
-VkFramebuffer Resource_Manager::create_framebuffer(const VkFramebufferCreateInfo& desc) {
-    VkFramebuffer framebuffer;
-    VkResult result = vkCreateFramebuffer(device, &desc, nullptr, &framebuffer);
-    check_vk_result(result, "vkCreateFramebuffer");
-    framebuffers.push_back(framebuffer);
-    return framebuffer;
 }
 
 VkDescriptorSetLayout Resource_Manager::create_descriptor_set_layout(const VkDescriptorSetLayoutCreateInfo& desc) {
@@ -150,12 +93,4 @@ VkPipelineLayout Resource_Manager::create_pipeline_layout(const VkPipelineLayout
     check_vk_result(result, "vkCreatePipelineLayout");
     pipeline_layouts.push_back(pipeline_layout);
     return pipeline_layout;
-}
-
-VkPipeline Resource_Manager::create_graphics_pipeline(const VkGraphicsPipelineCreateInfo& desc) {
-    VkPipeline pipeline;
-    VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &desc, nullptr, &pipeline);
-    check_vk_result(result, "vkCreateGraphicsPipelines");
-    graphics_pipelines.push_back(pipeline);
-    return pipeline;
 }

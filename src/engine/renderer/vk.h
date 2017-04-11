@@ -150,6 +150,12 @@ struct Vulkan_Instance {
 
     VkCommandPool command_pool = VK_NULL_HANDLE;
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+
+    VkImage depth_image = VK_NULL_HANDLE;
+    VkImageView depth_image_view = VK_NULL_HANDLE;
+
+    VkRenderPass render_pass = VK_NULL_HANDLE;
+    VkFramebuffer framebuffers[MAX_SWAPCHAIN_IMAGES];
 };
 
 const int MAX_VK_PIPELINES = 1024;

@@ -11,7 +11,6 @@
 class Vulkan_Demo {
 public:
     Vulkan_Demo(int window_width, int window_height);
-    ~Vulkan_Demo();
 
     void begin_frame();
     void end_frame();
@@ -24,13 +23,10 @@ public:
     void create_uniform_buffer();
     VkImage create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
     void create_texture_sampler();
-    void create_depth_buffer_resources();
 
     void create_descriptor_set_layout();
     void create_image_descriptor_set(const image_t* image);
     void create_multitexture_descriptor_set(const image_t* image, const image_t* image2);
-    void create_render_pass();
-    void create_framebuffers();
     void create_pipeline_layout();
 
     void upload_geometry();
@@ -52,12 +48,8 @@ public:
     VkBuffer uniform_buffer = VK_NULL_HANDLE;
 
     VkSampler texture_image_sampler = VK_NULL_HANDLE;
-    VkImage depth_image = VK_NULL_HANDLE;
-    VkImageView depth_image_view = VK_NULL_HANDLE;
-
+    
     VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
-    VkRenderPass render_pass = VK_NULL_HANDLE;
-    std::vector<VkFramebuffer> framebuffers;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 
     VkBuffer tess_vertex_buffer = VK_NULL_HANDLE;
