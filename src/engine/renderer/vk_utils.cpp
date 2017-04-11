@@ -5,6 +5,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "tr_local.h"
+
 void check_vk_result(VkResult result, const std::string& functionName) {
     if (result < 0) {
         error(functionName + " has returned error code with value " + std::to_string(result));
@@ -28,12 +30,12 @@ Shader_Module::Shader_Module(uint8_t bytes[], int size) {
     desc.codeSize = data.size();
     desc.pCode = reinterpret_cast<const uint32_t*>(data.data());
 
-    VkResult result = vkCreateShaderModule(get_device(), &desc, nullptr, &handle);
+    VkResult result = vkCreateShaderModule(vk_instance.device, &desc, nullptr, &handle);
     check_vk_result(result, "vkCreateShaderModule");
 }
 
 Shader_Module::~Shader_Module() {
-    vkDestroyShaderModule(get_device(), handle, nullptr);
+    vkDestroyShaderModule(vk_instance.device, handle, nullptr);
 }
 
 void record_and_run_commands(VkCommandPool command_pool, VkQueue queue, std::function<void(VkCommandBuffer)> recorder) {
@@ -46,7 +48,7 @@ void record_and_run_commands(VkCommandPool command_pool, VkQueue queue, std::fun
     alloc_info.commandBufferCount = 1;
 
     VkCommandBuffer command_buffer;
-    VkResult result = vkAllocateCommandBuffers(get_device(), &alloc_info, &command_buffer);
+    VkResult result = vkAllocateCommandBuffers(vk_instance.device, &alloc_info, &command_buffer);
     check_vk_result(result, "vkAllocateCommandBuffers");
 
     VkCommandBufferBeginInfo begin_info;
@@ -76,7 +78,7 @@ void record_and_run_commands(VkCommandPool command_pool, VkQueue queue, std::fun
     check_vk_result(result, "vkQueueSubmit");
     result = vkQueueWaitIdle(queue);
     check_vk_result(result, "vkQueueWaitIdle");
-    vkFreeCommandBuffers(get_device(), command_pool, 1, &command_buffer);
+    vkFreeCommandBuffers(vk_instance.device, command_pool, 1, &command_buffer);
 }
 
 static bool has_depth_component(VkFormat format) {
@@ -162,7 +164,7 @@ VkImage create_texture(int image_width, int image_height, VkFormat format) {
     VkImage image = get_resource_manager()->create_image(desc);
 
     VkDeviceMemory memory = get_allocator()->allocate_memory(image);
-    VkResult result = vkBindImageMemory(get_device(), image, memory, 0);
+    VkResult result = vkBindImageMemory(vk_instance.device, image, memory, 0);
     check_vk_result(result, "vkBindImageMemory");
     return image;
 }
@@ -188,12 +190,12 @@ VkImage create_staging_texture(int image_width, int image_height, VkFormat forma
     desc.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 
     VkImage image;
-    VkResult result = vkCreateImage(get_device(), &desc, nullptr, &image);
+    VkResult result = vkCreateImage(vk_instance.device, &desc, nullptr, &image);
     check_vk_result(result, "vkCreateImage");
 
     get_allocator()->get_shared_staging_memory().ensure_allocation_for_object(image);
     VkDeviceMemory memory = get_allocator()->get_shared_staging_memory().get_handle();
-    result = vkBindImageMemory(get_device(), image, memory, 0);
+    result = vkBindImageMemory(vk_instance.device, image, memory, 0);
     check_vk_result(result, "vkBindImageMemory");
 
     VkImageSubresource staging_image_subresource;
@@ -201,10 +203,10 @@ VkImage create_staging_texture(int image_width, int image_height, VkFormat forma
     staging_image_subresource.mipLevel = 0;
     staging_image_subresource.arrayLayer = 0;
     VkSubresourceLayout staging_image_layout;
-    vkGetImageSubresourceLayout(get_device(), image, &staging_image_subresource, &staging_image_layout);
+    vkGetImageSubresourceLayout(vk_instance.device, image, &staging_image_subresource, &staging_image_layout);
 
     void* data;
-    result = vkMapMemory(get_device(), memory, 0, staging_image_layout.size, 0, &data);
+    result = vkMapMemory(vk_instance.device, memory, 0, staging_image_layout.size, 0, &data);
     check_vk_result(result, "vkMapMemory");
 
     const int bytes_per_row = image_width * bytes_per_pixel;
@@ -216,7 +218,7 @@ VkImage create_staging_texture(int image_width, int image_height, VkFormat forma
             memcpy(&bytes[i * staging_image_layout.rowPitch], &pixels[i * bytes_per_row], bytes_per_row);
         }
     }
-    vkUnmapMemory(get_device(), memory);
+    vkUnmapMemory(vk_instance.device, memory);
     return image;
 }
 
@@ -243,7 +245,7 @@ VkImage create_depth_attachment_image(int image_width, int image_height, VkForma
     VkImage image = get_resource_manager()->create_image(desc);
 
     VkDeviceMemory memory = get_allocator()->allocate_memory(image);
-    VkResult result = vkBindImageMemory(get_device(), image, memory, 0);
+    VkResult result = vkBindImageMemory(vk_instance.device, image, memory, 0);
     check_vk_result(result, "vkBindImageMemory");
     return image;
 }
@@ -283,7 +285,7 @@ VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage) {
     VkBuffer buffer = get_resource_manager()->create_buffer(desc);
 
     VkDeviceMemory memory = get_allocator()->allocate_memory(buffer);
-    VkResult result = vkBindBufferMemory(get_device(), buffer, memory, 0);
+    VkResult result = vkBindBufferMemory(vk_instance.device, buffer, memory, 0);
     check_vk_result(result, "vkBindBufferMemory");
     return buffer;
 }
@@ -300,19 +302,19 @@ VkBuffer create_staging_buffer(VkDeviceSize size, const void* data) {
     desc.pQueueFamilyIndices = nullptr;
 
     VkBuffer buffer;
-    VkResult result = vkCreateBuffer(get_device(), &desc, nullptr, &buffer);
+    VkResult result = vkCreateBuffer(vk_instance.device, &desc, nullptr, &buffer);
     check_vk_result(result, "vkCreateBuffer");
 
     get_allocator()->get_shared_staging_memory().ensure_allocation_for_object(buffer);
     VkDeviceMemory memory = get_allocator()->get_shared_staging_memory().get_handle();
-    result = vkBindBufferMemory(get_device(), buffer, memory, 0);
+    result = vkBindBufferMemory(vk_instance.device, buffer, memory, 0);
     check_vk_result(result, "vkBindBufferMemory");
 
     void* buffer_data;
-    result = vkMapMemory(get_device(), memory, 0, size, 0, &buffer_data);
+    result = vkMapMemory(vk_instance.device, memory, 0, size, 0, &buffer_data);
     check_vk_result(result, "vkMapMemory");
     memcpy(buffer_data, data, size);
-    vkUnmapMemory(get_device(), memory);
+    vkUnmapMemory(vk_instance.device, memory);
     return buffer;
 }
 
@@ -330,7 +332,7 @@ VkBuffer create_permanent_staging_buffer(VkDeviceSize size, VkDeviceMemory& memo
     VkBuffer buffer = get_resource_manager()->create_buffer(desc);
 
     memory = get_allocator()->allocate_staging_memory(buffer);
-    VkResult result = vkBindBufferMemory(get_device(), buffer, memory, 0);
+    VkResult result = vkBindBufferMemory(vk_instance.device, buffer, memory, 0);
     check_vk_result(result, "vkBindBufferMemory");
     return buffer;
 }

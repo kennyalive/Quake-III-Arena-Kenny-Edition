@@ -8,20 +8,12 @@
 #include "vulkan/vulkan.h"
 
 #include <array>
-#include <vector>
 
 #include "../../game/q_shared.h"
 
-bool initialize_vulkan(HWND hwnd);
-void deinitialize_vulkan();
-
-VkPhysicalDevice get_physical_device();
-VkDevice get_device();
-uint32_t get_queue_family_index();
-VkQueue get_queue();
-VkSwapchainKHR get_swapchain();
-VkFormat get_swapchain_image_format();
-const std::vector<VkImageView>& get_swapchain_image_views();
+bool vk_initialize(HWND hwnd);
+void vk_deinitialize();
+void vk_destroy_resources();
 
 struct Vk_Staging_Buffer {
     VkBuffer handle = VK_NULL_HANDLE;
@@ -56,7 +48,6 @@ struct Vk_Pipeline_Desc {
 };
 
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
-void vk_destroy_pipelines();
 
 // Vertex formats
 struct Vk_Vertex {
@@ -138,3 +129,30 @@ extern long long multi_texture_add_frag_spv_size;
 
 extern unsigned char multi_texture_mul_frag_spv[];
 extern long long multi_texture_mul_frag_spv_size;
+
+// Vulkan specific structures used by the engine.
+const int MAX_SWAPCHAIN_IMAGES = 8;
+
+struct Vulkan_Instance {
+    VkInstance instance = VK_NULL_HANDLE;
+    VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    VkSurfaceFormatKHR surface_format = {};
+
+    uint32_t queue_family_index = 0;
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue queue = VK_NULL_HANDLE;
+
+    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    uint32_t swapchain_image_count = 0;
+    VkImage swapchain_images[MAX_SWAPCHAIN_IMAGES];
+    VkImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
+};
+
+const int MAX_VK_PIPELINES = 1024;
+
+struct Vulkan_Resources {
+    int num_pipelines = 0;
+    Vk_Pipeline_Desc pipeline_desc[MAX_VK_PIPELINES];
+    VkPipeline pipelines[MAX_VK_PIPELINES];
+};

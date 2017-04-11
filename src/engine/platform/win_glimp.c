@@ -566,7 +566,7 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
 
         if (r_renderAPICompareWindow->integer) {
             HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
-            if (!initialize_vulkan(hwnd2)) {
+            if (!vk_initialize(hwnd2)) {
                 ShowWindow(hwnd2, SW_HIDE);
                 DestroyWindow(hwnd2);
                 ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
@@ -576,7 +576,7 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
             }
         }
     } else { // vulkan
-        if (!initialize_vulkan(hwnd)) {
+        if (!vk_initialize(hwnd)) {
             ShowWindow(hwnd, SW_HIDE);
             DestroyWindow(hwnd);
             return false;

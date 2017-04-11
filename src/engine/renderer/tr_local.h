@@ -55,9 +55,6 @@ long myftol( float f );
 
 // can't be increased without changing bit packing for drawsurfs
 
-// VULKAN
-#define MAX_VK_PIPELINES 2048
-
 typedef struct dlight_s {
 	vec3_t	origin;
 	vec3_t	color;				// range from 0.0 to 1.0, should be color normalized
@@ -942,9 +939,7 @@ typedef struct {
 	float					fogTable[FOG_TABLE_SIZE];
 
     // VULKAN
-    int                     vk_num_pipelines;
-    Vk_Pipeline_Desc        vk_pipeline_desc[MAX_VK_PIPELINES];
-    VkPipeline              vk_pipelines[MAX_VK_PIPELINES];
+    Vulkan_Resources        vk;
 
 } trGlobals_t;
 
@@ -952,6 +947,9 @@ extern backEndState_t	backEnd;
 extern trGlobals_t	tr;
 extern glconfig_t	glConfig;		// outside of TR since it shouldn't be cleared during ref re-init
 extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during ref re-init
+
+// VULKAN
+extern Vulkan_Instance vk_instance; // same as above - shouldn't be cleared during ref re-init
 
 // VULKAN
 class Vulkan_Demo;

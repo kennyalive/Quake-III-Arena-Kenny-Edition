@@ -26,6 +26,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 glconfig_t	glConfig;
 glstate_t	glState;
 
+// VULKAN
+Vulkan_Instance vk_instance;
+
 static void GfxInfo_f( void );
 
 cvar_t *r_renderAPI;
@@ -1041,7 +1044,7 @@ void RE_Shutdown( qboolean destroyWindow ) {
 		R_DeleteTextures();
 
         // VULKAN
-        vk_destroy_pipelines();
+        vk_destroy_resources();
 	}
 
 	R_DoneFreeType();
