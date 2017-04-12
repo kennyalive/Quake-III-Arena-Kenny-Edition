@@ -15,6 +15,8 @@ bool vk_initialize(HWND hwnd);
 void vk_deinitialize();
 void vk_destroy_resources();
 
+VkRect2D vk_get_viewport_rect();
+
 struct Vk_Staging_Buffer {
     VkBuffer handle = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE; // memory associated with a buffer

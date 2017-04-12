@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../qcommon/qfiles.h"
 #include "../qcommon/qcommon.h"
 #include "tr_public.h"
+
 #include "qgl.h"
 
 // VULKAN
@@ -808,7 +809,12 @@ typedef struct {
 	unsigned long	glStateBits;
 
     // VULKAN
-    image_t*    vk_current_images[2];
+    
+    // This flag is used to decide whether framebuffer's attachments should be cleared with vmCmdClearAttachment (vk_dirty_attachments == true),
+    // or they have just been cleared by render pass instance clear op (vk_dirty_attachments == false).
+    bool vk_dirty_attachments;
+
+    image_t* vk_current_images[2];
 } glstate_t;
 
 

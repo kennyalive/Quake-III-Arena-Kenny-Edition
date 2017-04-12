@@ -421,6 +421,8 @@ void Vulkan_Demo::begin_frame() {
     tess_vertex_buffer_offset = 0;
     tess_index_buffer_offset = 0;
     tess_ubo_offset = 0;
+
+    glState.vk_dirty_attachments = false;
 }
 
 void Vulkan_Demo::end_frame() {
@@ -469,36 +471,20 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     vkCmdBindDescriptorSets(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
     tess_ubo_offset += tess_ubo_offset_step;
 
-    VkViewport viewport;
-    VkRect2D scissor;
-
-    if (backEnd.projection2D) {
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float) glConfig.vidWidth;
-        viewport.height = (float)glConfig.vidHeight;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-
-        scissor.offset = {0, 0};
-        scissor.extent = {(uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight};
-    } else {
-        viewport.x = backEnd.viewParms.viewportX;
-        viewport.y = (float)(glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight));
-        viewport.width = (float) backEnd.viewParms.viewportWidth;
-        viewport.height = (float)backEnd.viewParms.viewportHeight;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-   
-        scissor.offset = {backEnd.viewParms.viewportX, (glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight))};
-        if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
-        scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
-    }
-
     vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
+    VkRect2D r = vk_get_viewport_rect();
+    vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &r);
+
+    VkViewport viewport;
+    viewport.x = (float)r.offset.x;
+    viewport.y = (float)r.offset.y;
+    viewport.width = (float)r.extent.width;
+    viewport.height = (float)r.extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
     vkCmdSetViewport(vk_instance.command_buffer, 0, 1, &viewport);
-    vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &scissor);
+    
     if (tess.shader->polygonOffset) {
         vkCmdSetDepthBias(vk_instance.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
@@ -506,6 +492,8 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     vkCmdDrawIndexed(vk_instance.command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
+
+    glState.vk_dirty_attachments = true;
 }
 
 void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
@@ -557,36 +545,20 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     vkCmdBindDescriptorSets(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
     tess_ubo_offset += tess_ubo_offset_step;
 
-    VkViewport viewport;
-    VkRect2D scissor;
-
-    if (backEnd.projection2D) {
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float) glConfig.vidWidth;
-        viewport.height = (float)glConfig.vidHeight;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-
-        scissor.offset = {0, 0};
-        scissor.extent = {(uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight};
-    } else {
-        viewport.x = backEnd.viewParms.viewportX;
-        viewport.y = (float)(glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight));
-        viewport.width = (float) backEnd.viewParms.viewportWidth;
-        viewport.height = (float)backEnd.viewParms.viewportHeight;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-
-        scissor.offset = {backEnd.viewParms.viewportX, (glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight))};
-        if (scissor.offset.y < 0) scissor.offset.y = 0; // receive such data from backEnd, so just adjust to valid value to prevent vulkan warnings
-        scissor.extent = {(uint32_t)backEnd.viewParms.viewportWidth, (uint32_t)backEnd.viewParms.viewportHeight};
-    }
-
     vkCmdBindPipeline(vk_instance.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
+    VkRect2D r = vk_get_viewport_rect();
+    vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &r);
+
+    VkViewport viewport;
+    viewport.x = (float)r.offset.x;
+    viewport.y = (float)r.offset.y;
+    viewport.width = (float)r.extent.width;
+    viewport.height = (float)r.extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
     vkCmdSetViewport(vk_instance.command_buffer, 0, 1, &viewport);
-    vkCmdSetScissor(vk_instance.command_buffer, 0, 1, &scissor);
+
     if (tess.shader->polygonOffset) {
         vkCmdSetDepthBias(vk_instance.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
@@ -594,4 +566,6 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     vkCmdDrawIndexed(vk_instance.command_buffer, tess.numIndexes, 1, 0, 0, 0);
     tess_vertex_buffer_offset += tess.numVertexes * sizeof(Vk_Vertex2);
     tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
+
+    glState.vk_dirty_attachments = true;
 }

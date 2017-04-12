@@ -422,20 +422,51 @@ void RB_BeginDrawingView (void) {
 	// clear relevant buffers
 	clearBits = GL_DEPTH_BUFFER_BIT;
 
-	if ( r_measureOverdraw->integer || r_shadows->integer == 2 )
+    bool clear_stencil = r_measureOverdraw->integer || r_shadows->integer == 2;
+	if ( clear_stencil )
 	{
 		clearBits |= GL_STENCIL_BUFFER_BIT;
 	}
-	if ( r_fastsky->integer && !( backEnd.refdef.rdflags & RDF_NOWORLDMODEL ) )
+
+#ifdef _DEBUG
+    float color[4] = { 0.8f, 0.7f, 0.4f, 1.0f }; // FIXME: get color of sky
+#else
+    float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // FIXME: get color of sky
+#endif
+
+    bool clear_color = r_fastsky->integer && !( backEnd.refdef.rdflags & RDF_NOWORLDMODEL );
+	if ( clear_color )
 	{
 		clearBits |= GL_COLOR_BUFFER_BIT;	// FIXME: only if sky shaders have been used
-#ifdef _DEBUG
-		qglClearColor( 0.8f, 0.7f, 0.4f, 1.0f );	// FIXME: get color of sky
-#else
-		qglClearColor( 0.0f, 0.0f, 0.0f, 1.0f );	// FIXME: get color of sky
-#endif
+        qglClearColor(color[0], color[1], color[2], color[3]);
 	}
 	qglClear( clearBits );
+
+    // VULKAN
+    if (glState.vk_dirty_attachments) {
+        VkClearAttachment attachments[2];
+        uint32_t attachment_count = clear_color ? 2 : 1;
+
+        attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        attachments[0].clearValue.depthStencil.depth = 1.0f;
+
+        if (clear_stencil) {
+            attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            attachments[0].clearValue.depthStencil.stencil = 0;
+        }
+        if (clear_color) {
+            attachments[1].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            attachments[1].colorAttachment = 0;
+            attachments[1].clearValue.color = { color[0], color[1], color[2], color[3] };
+        }
+
+        VkClearRect clear_rect;
+        clear_rect.rect = vk_get_viewport_rect();
+        clear_rect.baseArrayLayer = 0;
+        clear_rect.layerCount = 1;
+
+        vkCmdClearAttachments(vk_instance.command_buffer, attachment_count, attachments, 1, &clear_rect);
+    }
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{

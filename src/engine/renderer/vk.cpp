@@ -1,8 +1,9 @@
-#include "vk.h"
+#include "tr_local.h"
+
 #include "vk_utils.h"
 #include "vk_allocator.h"
 #include "vk_resource_manager.h"
-#include "tr_local.h"
+
 #include "vk_demo.h"
 
 #include <algorithm>
@@ -859,4 +860,32 @@ static void vk_destroy_pipelines() {
 void vk_destroy_resources() {
     vkDeviceWaitIdle(vk_instance.device);
     vk_destroy_pipelines();
+}
+
+VkRect2D vk_get_viewport_rect() {
+    VkRect2D r;
+
+    if (backEnd.projection2D) {
+        r.offset.x = 0.0f;
+        r.offset.y = 0.0f;
+        r.extent.width = glConfig.vidWidth;
+        r.extent.height = glConfig.vidHeight;
+    } else {
+        r.offset.x = backEnd.viewParms.viewportX;
+        if (r.offset.x < 0)
+            r.offset.x = 0;
+
+        r.offset.y = glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight);
+        if (r.offset.y < 0)
+            r.offset.y = 0;
+
+        r.extent.width = backEnd.viewParms.viewportWidth;
+        if (r.offset.x + r.extent.width > glConfig.vidWidth)
+            r.extent.width = glConfig.vidWidth - r.offset.x;
+
+        r.extent.height = backEnd.viewParms.viewportHeight;
+        if (r.offset.y + r.extent.height > glConfig.vidHeight)
+            r.extent.height = glConfig.vidHeight - r.offset.y;
+    }
+    return r;
 }
