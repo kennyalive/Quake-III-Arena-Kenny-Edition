@@ -259,7 +259,7 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
 static VkRenderPass create_render_pass(VkPhysicalDevice physical_device, VkDevice device) {
     VkAttachmentDescription color_attachment;
     color_attachment.flags = 0;
-    color_attachment.format = vk_instance.surface_format.format;
+    color_attachment.format = vk.surface_format.format;
     color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -319,7 +319,7 @@ static VkRenderPass create_render_pass(VkPhysicalDevice physical_device, VkDevic
 
 bool vk_initialize(HWND hwnd) {
     try {
-        auto& g = vk_instance;
+        auto& g = vk;
 
         g.instance = create_instance();
         g.physical_device = select_physical_device(g.instance);
@@ -332,16 +332,16 @@ bool vk_initialize(HWND hwnd) {
 
         g.swapchain = create_swapchain(g.physical_device, g.device, g.surface, g.surface_format);
 
-        VkResult result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &vk_instance.swapchain_image_count, nullptr);
+        VkResult result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &vk.swapchain_image_count, nullptr);
         check_vk_result(result, "vkGetSwapchainImagesKHR");
 
-        if (vk_instance.swapchain_image_count > MAX_SWAPCHAIN_IMAGES)
-            ri.Error( ERR_FATAL, "initialize_vulkan: swapchain image count (%d) exceeded limit (%d)", vk_instance.swapchain_image_count, MAX_SWAPCHAIN_IMAGES );
+        if (vk.swapchain_image_count > MAX_SWAPCHAIN_IMAGES)
+            ri.Error( ERR_FATAL, "initialize_vulkan: swapchain image count (%d) exceeded limit (%d)", vk.swapchain_image_count, MAX_SWAPCHAIN_IMAGES );
 
-        result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &vk_instance.swapchain_image_count, g.swapchain_images);
+        result = vkGetSwapchainImagesKHR(g.device, g.swapchain, &vk.swapchain_image_count, g.swapchain_images);
         check_vk_result(result, "vkGetSwapchainImagesKHR");
 
-        for (std::size_t i = 0; i < vk_instance.swapchain_image_count; i++) {
+        for (std::size_t i = 0; i < vk.swapchain_image_count; i++) {
             VkImageViewCreateInfo desc;
             desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             desc.pNext = nullptr;
@@ -367,9 +367,9 @@ bool vk_initialize(HWND hwnd) {
             desc.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             desc.pNext = nullptr;
             desc.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-            desc.queueFamilyIndex = vk_instance.queue_family_index;
+            desc.queueFamilyIndex = vk.queue_family_index;
 
-            result = vkCreateCommandPool(g.device, &desc, nullptr, &vk_instance.command_pool);
+            result = vkCreateCommandPool(g.device, &desc, nullptr, &vk.command_pool);
             check_vk_result(result, "vkCreateCommandPool");
         }
 
@@ -377,23 +377,23 @@ bool vk_initialize(HWND hwnd) {
             VkCommandBufferAllocateInfo alloc_info;
             alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             alloc_info.pNext = nullptr;
-            alloc_info.commandPool = vk_instance.command_pool;
+            alloc_info.commandPool = vk.command_pool;
             alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
             alloc_info.commandBufferCount = 1;
-            result = vkAllocateCommandBuffers(vk_instance.device, &alloc_info, &g.command_buffer);
+            result = vkAllocateCommandBuffers(vk.device, &alloc_info, &g.command_buffer);
             check_vk_result(result, "vkAllocateCommandBuffers");
         }
 
-        get_allocator()->initialize(vk_instance.physical_device, vk_instance.device);
-        get_resource_manager()->initialize(vk_instance.device);
+        get_allocator()->initialize(vk.physical_device, vk.device);
+        get_resource_manager()->initialize(vk.device);
 
         {
-            VkFormat depth_format = find_depth_format(vk_instance.physical_device);
-            vk_instance.depth_image = create_depth_attachment_image(glConfig.vidWidth, glConfig.vidHeight, depth_format);
-            vk_instance.depth_image_view = create_image_view(vk_instance.depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+            VkFormat depth_format = find_depth_format(vk.physical_device);
+            vk.depth_image = create_depth_attachment_image(glConfig.vidWidth, glConfig.vidHeight, depth_format);
+            vk.depth_image_view = create_image_view(vk.depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-            record_and_run_commands(vk_instance.command_pool, vk_instance.queue, [&depth_format](VkCommandBuffer command_buffer) {
-                record_image_layout_transition(command_buffer, vk_instance.depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
+            record_and_run_commands(vk.command_pool, vk.queue, [&depth_format](VkCommandBuffer command_buffer) {
+                record_image_layout_transition(command_buffer, vk.depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
             });
         }
@@ -401,22 +401,22 @@ bool vk_initialize(HWND hwnd) {
         g.render_pass = create_render_pass(g.physical_device, g.device);
 
         {
-            std::array<VkImageView, 2> attachments = {VK_NULL_HANDLE, vk_instance.depth_image_view};
+            std::array<VkImageView, 2> attachments = {VK_NULL_HANDLE, vk.depth_image_view};
 
             VkFramebufferCreateInfo desc;
             desc.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             desc.pNext = nullptr;
             desc.flags = 0;
-            desc.renderPass = vk_instance.render_pass;
+            desc.renderPass = vk.render_pass;
             desc.attachmentCount = static_cast<uint32_t>(attachments.size());
             desc.pAttachments = attachments.data();
             desc.width = glConfig.vidWidth;
             desc.height = glConfig.vidHeight;
             desc.layers = 1;
 
-            for (uint32_t i = 0; i < vk_instance.swapchain_image_count; i++) {
-                attachments[0] = vk_instance.swapchain_image_views[i]; // set color attachment
-                VkResult result = vkCreateFramebuffer(vk_instance.device, &desc, nullptr, &vk_instance.framebuffers[i]);
+            for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
+                attachments[0] = vk.swapchain_image_views[i]; // set color attachment
+                VkResult result = vkCreateFramebuffer(vk.device, &desc, nullptr, &vk.framebuffers[i]);
                 check_vk_result(result, "vkCreateFramebuffer");
             }
         }
@@ -428,20 +428,20 @@ bool vk_initialize(HWND hwnd) {
 }
 
 void vk_deinitialize() {
-    auto& g = vk_instance;
+    auto& g = vk;
 
     get_resource_manager()->release_resources();
     get_allocator()->deallocate_all();
 
-    vkDestroyFence(vk_instance.device, vulkan_demo->rendering_finished_fence, nullptr);
-    vkDestroyImage(vk_instance.device, vk_instance.depth_image, nullptr);
-    vkDestroyImageView(vk_instance.device, vk_instance.depth_image_view, nullptr);
+    vkDestroyFence(vk.device, vulkan_demo->rendering_finished_fence, nullptr);
+    vkDestroyImage(vk.device, vk.depth_image, nullptr);
+    vkDestroyImageView(vk.device, vk.depth_image_view, nullptr);
 
-    for (uint32_t i = 0; i < vk_instance.swapchain_image_count; i++) {
-        vkDestroyFramebuffer(vk_instance.device, vk_instance.framebuffers[i], nullptr);
+    for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
+        vkDestroyFramebuffer(vk.device, vk.framebuffers[i], nullptr);
     }
 
-    vkDestroyRenderPass(vk_instance.device, vk_instance.render_pass, nullptr);
+    vkDestroyRenderPass(vk.device, vk.render_pass, nullptr);
 
     vkDestroyCommandPool(g.device, g.command_pool, nullptr);
 
@@ -469,11 +469,11 @@ VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& stag
     buffer_desc.pQueueFamilyIndices = nullptr;
 
     VkBuffer buffer;
-    VkResult result = vkCreateBuffer(vk_instance.device, &buffer_desc, nullptr, &buffer);
+    VkResult result = vkCreateBuffer(vk.device, &buffer_desc, nullptr, &buffer);
     check_vk_result(result, "vkCreateBuffer");
 
     VkDeviceMemory buffer_memory = get_allocator()->allocate_staging_memory(buffer);
-    result = vkBindBufferMemory(vk_instance.device, buffer, buffer_memory, 0);
+    result = vkBindBufferMemory(vk.device, buffer, buffer_memory, 0);
     check_vk_result(result, "vkBindBufferMemory");
 
     VkImageCreateInfo image_desc;
@@ -496,11 +496,11 @@ VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& stag
     image_desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VkImage image;
-    result = vkCreateImage(vk_instance.device, &image_desc, nullptr, &image);
+    result = vkCreateImage(vk.device, &image_desc, nullptr, &image);
     check_vk_result(result, "vkCreateImage");
 
     VkDeviceMemory image_memory = get_allocator()->allocate_memory(image);
-    result = vkBindImageMemory(vk_instance.device, image, image_memory, 0);
+    result = vkBindImageMemory(vk.device, image, image_memory, 0);
     check_vk_result(result, "vkBindImageMemory");
 
     staging_buffer.handle = buffer;
@@ -512,12 +512,12 @@ VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& stag
 
 void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels) {
     void* buffer_data;
-    VkResult result = vkMapMemory(vk_instance.device, staging_buffer.memory, staging_buffer.offset, staging_buffer.size, 0, &buffer_data);
+    VkResult result = vkMapMemory(vk.device, staging_buffer.memory, staging_buffer.offset, staging_buffer.size, 0, &buffer_data);
     check_vk_result(result, "vkMapMemory");
     memcpy(buffer_data, rgba_pixels, staging_buffer.size);
-    vkUnmapMemory(vk_instance.device, staging_buffer.memory);
+    vkUnmapMemory(vk.device, staging_buffer.memory);
 
-    record_and_run_commands(vk_instance.command_pool, vk_instance.queue,
+    record_and_run_commands(vk.command_pool, vk.queue,
         [&image, &staging_buffer, &width, &height](VkCommandBuffer command_buffer) {
 
         record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
@@ -799,13 +799,13 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     create_info.pColorBlendState = &blend_state;
     create_info.pDynamicState = &dynamic_state;
     create_info.layout = vulkan_demo->pipeline_layout;
-    create_info.renderPass = vk_instance.render_pass;
+    create_info.renderPass = vk.render_pass;
     create_info.subpass = 0;
     create_info.basePipelineHandle = VK_NULL_HANDLE;
     create_info.basePipelineIndex = -1;
 
     VkPipeline pipeline;
-    VkResult result = vkCreateGraphicsPipelines(vk_instance.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline);
+    VkResult result = vkCreateGraphicsPipelines(vk.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline);
     check_vk_result(result, "vkCreateGraphicsPipelines");
     return pipeline;
 }
@@ -825,13 +825,13 @@ struct Timer {
 };
 
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc) {
-    for (int i = 0; i < tr.vk.num_pipelines; i++) {
-        if (tr.vk.pipeline_desc[i] == desc) {
-            return tr.vk.pipelines[i];
+    for (int i = 0; i < tr.vk_resources.num_pipelines; i++) {
+        if (tr.vk_resources.pipeline_desc[i] == desc) {
+            return tr.vk_resources.pipelines[i];
         }
     }
 
-    if (tr.vk.num_pipelines == MAX_VK_PIPELINES) {
+    if (tr.vk_resources.num_pipelines == MAX_VK_PIPELINES) {
         ri.Error( ERR_DROP, "vk_find_pipeline: MAX_VK_PIPELINES hit\n");
     }
 
@@ -839,26 +839,26 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc) {
     VkPipeline pipeline = create_pipeline(desc);
     pipeline_create_time += t.Elapsed_Seconds();
 
-    tr.vk.pipeline_desc[tr.vk.num_pipelines] = desc;
-    tr.vk.pipelines[tr.vk.num_pipelines] = pipeline;
-    tr.vk.num_pipelines++;
+    tr.vk_resources.pipeline_desc[tr.vk_resources.num_pipelines] = desc;
+    tr.vk_resources.pipelines[tr.vk_resources.num_pipelines] = pipeline;
+    tr.vk_resources.num_pipelines++;
     return pipeline;
 }
 
 static void vk_destroy_pipelines() {
-    for (int i = 0; i < tr.vk.num_pipelines; i++) {
-        vkDestroyPipeline(vk_instance.device, tr.vk.pipelines[i], nullptr);
+    for (int i = 0; i < tr.vk_resources.num_pipelines; i++) {
+        vkDestroyPipeline(vk.device, tr.vk_resources.pipelines[i], nullptr);
     }
 
-    tr.vk.num_pipelines = 0;
-    Com_Memset(tr.vk.pipelines, 0, sizeof(tr.vk.pipelines));
-    Com_Memset(tr.vk.pipeline_desc, 0, sizeof(tr.vk.pipeline_desc));
+    tr.vk_resources.num_pipelines = 0;
+    Com_Memset(tr.vk_resources.pipelines, 0, sizeof(tr.vk_resources.pipelines));
+    Com_Memset(tr.vk_resources.pipeline_desc, 0, sizeof(tr.vk_resources.pipeline_desc));
 
     pipeline_create_time = 0.0f;
 }
 
 void vk_destroy_resources() {
-    vkDeviceWaitIdle(vk_instance.device);
+    vkDeviceWaitIdle(vk.device);
     vk_destroy_pipelines();
 }
 

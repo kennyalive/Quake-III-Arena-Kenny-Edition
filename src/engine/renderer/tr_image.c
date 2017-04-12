@@ -1846,16 +1846,16 @@ void R_DeleteTextures( void ) {
 	int		i;
 
     // VULKAN
-    vkDeviceWaitIdle(vk_instance.device);
+    vkDeviceWaitIdle(vk.device);
 
 	for ( i=0; i<tr.numImages ; i++ ) {
 		qglDeleteTextures( 1, &tr.images[i]->texnum );
 
         // VULKAN
-        vkDestroyImage(vk_instance.device, tr.images[i]->vk_image, nullptr);
-        vkDestroyImageView(vk_instance.device, tr.images[i]->vk_image_view, nullptr);
+        vkDestroyImage(vk.device, tr.images[i]->vk_image, nullptr);
+        vkDestroyImageView(vk.device, tr.images[i]->vk_image_view, nullptr);
         if (tr.images[i]->vk_staging_buffer.handle != VK_NULL_HANDLE)
-            vkDestroyBuffer(vk_instance.device, tr.images[i]->vk_staging_buffer.handle, nullptr);
+            vkDestroyBuffer(vk.device, tr.images[i]->vk_staging_buffer.handle, nullptr);
 	}
 	Com_Memset( tr.images, 0, sizeof( tr.images ) );
 

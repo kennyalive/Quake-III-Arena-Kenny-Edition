@@ -27,7 +27,7 @@ glconfig_t	glConfig;
 glstate_t	glState;
 
 // VULKAN
-Vulkan_Instance vk_instance;
+Vulkan_Instance vk;
 
 static void GfxInfo_f( void );
 

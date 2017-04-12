@@ -465,7 +465,7 @@ void RB_BeginDrawingView (void) {
         clear_rect.baseArrayLayer = 0;
         clear_rect.layerCount = 1;
 
-        vkCmdClearAttachments(vk_instance.command_buffer, attachment_count, attachments, 1, &clear_rect);
+        vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, 1, &clear_rect);
     }
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
@@ -722,8 +722,8 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );	
 
         // VULKAN
-        vkDestroyImage(vk_instance.device, tr.scratchImage[client]->vk_image, nullptr);
-        vkDestroyImageView(vk_instance.device, tr.scratchImage[client]->vk_image_view, nullptr);
+        vkDestroyImage(vk.device, tr.scratchImage[client]->vk_image, nullptr);
+        vkDestroyImageView(vk.device, tr.scratchImage[client]->vk_image_view, nullptr);
         tr.scratchImage[client]->vk_image = vk_create_cinematic_image(cols, rows, tr.scratchImage[client]->vk_staging_buffer);
         tr.scratchImage[client]->vk_image_view = create_image_view(tr.scratchImage[client]->vk_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
         vk_update_cinematic_image(tr.scratchImage[client]->vk_image, tr.scratchImage[client]->vk_staging_buffer, cols, rows, data);
@@ -745,7 +745,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
         descriptor_writes[0].pBufferInfo = nullptr;
         descriptor_writes[0].pTexelBufferView = nullptr;
 
-        vkUpdateDescriptorSets(vk_instance.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+        vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
@@ -929,12 +929,12 @@ const void	*RB_DrawBuffer( const void *data ) {
 	}
 
     // VULKAN
-    VkResult result = vkAcquireNextImageKHR(vk_instance.device, vk_instance.swapchain, UINT64_MAX, vulkan_demo->image_acquired, VK_NULL_HANDLE, &vulkan_demo->swapchain_image_index);
+    VkResult result = vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vulkan_demo->image_acquired, VK_NULL_HANDLE, &vulkan_demo->swapchain_image_index);
     check_vk_result(result, "vkAcquireNextImageKHR");
     
-    result = vkWaitForFences(vk_instance.device, 1, &vulkan_demo->rendering_finished_fence, VK_FALSE, 1e9);
+    result = vkWaitForFences(vk.device, 1, &vulkan_demo->rendering_finished_fence, VK_FALSE, 1e9);
     check_vk_result(result, "vkWaitForFences");
-    result = vkResetFences(vk_instance.device, 1, &vulkan_demo->rendering_finished_fence);
+    result = vkResetFences(vk.device, 1, &vulkan_demo->rendering_finished_fence);
     check_vk_result(result, "vkResetFences");
 
     VkCommandBufferBeginInfo begin_info;
@@ -947,7 +947,7 @@ const void	*RB_DrawBuffer( const void *data ) {
     fprintf(logfile, "begin\n");
     fflush(logfile);
 
-    result = vkBeginCommandBuffer(vk_instance.command_buffer, &begin_info);
+    result = vkBeginCommandBuffer(vk.command_buffer, &begin_info);
     check_vk_result(result, "vkBeginCommandBuffer");
     vulkan_demo->begin_frame();
 
@@ -1064,7 +1064,7 @@ const void	*RB_SwapBuffers( const void *data ) {
     extern FILE* logfile;
 
     vulkan_demo->end_frame();
-    VkResult result = vkEndCommandBuffer(vk_instance.command_buffer);
+    VkResult result = vkEndCommandBuffer(vk.command_buffer);
     check_vk_result(result, "vkEndCommandBuffer");
 
     fprintf(logfile, "present\n");
@@ -1078,11 +1078,11 @@ const void	*RB_SwapBuffers( const void *data ) {
     submit_info.pWaitSemaphores = &vulkan_demo->image_acquired;
     submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vk_instance.command_buffer;
+    submit_info.pCommandBuffers = &vk.command_buffer;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &vulkan_demo->rendering_finished;
 
-    result = vkQueueSubmit(vk_instance.queue, 1, &submit_info, vulkan_demo->rendering_finished_fence);
+    result = vkQueueSubmit(vk.queue, 1, &submit_info, vulkan_demo->rendering_finished_fence);
     check_vk_result(result, "vkQueueSubmit");
 
     VkPresentInfoKHR present_info;
@@ -1091,10 +1091,10 @@ const void	*RB_SwapBuffers( const void *data ) {
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = &vulkan_demo->rendering_finished;
     present_info.swapchainCount = 1;
-    present_info.pSwapchains = &vk_instance.swapchain;
+    present_info.pSwapchains = &vk.swapchain;
     present_info.pImageIndices = &vulkan_demo->swapchain_image_index;
     present_info.pResults = nullptr;
-    result = vkQueuePresentKHR(vk_instance.queue, &present_info);
+    result = vkQueuePresentKHR(vk.queue, &present_info);
     check_vk_result(result, "vkQueuePresentKHR");
 
 	return (const void *)(cmd + 1);

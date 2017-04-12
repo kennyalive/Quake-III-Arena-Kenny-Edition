@@ -945,7 +945,7 @@ typedef struct {
 	float					fogTable[FOG_TABLE_SIZE];
 
     // VULKAN
-    Vulkan_Resources        vk;
+    Vulkan_Resources        vk_resources;
 
 } trGlobals_t;
 
@@ -955,7 +955,7 @@ extern glconfig_t	glConfig;		// outside of TR since it shouldn't be cleared duri
 extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during ref re-init
 
 // VULKAN
-extern Vulkan_Instance vk_instance; // same as above - shouldn't be cleared during ref re-init
+extern Vulkan_Instance vk; // same as above - shouldn't be cleared during ref re-init
 
 // VULKAN
 class Vulkan_Demo;
