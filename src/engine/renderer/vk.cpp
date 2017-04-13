@@ -421,6 +421,72 @@ bool vk_initialize(HWND hwnd) {
             }
         }
 
+        //
+        // Descriptor pool.
+        //
+        {
+            VkDescriptorPoolSize pool_size;
+            pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            pool_size.descriptorCount = MAX_DRAWIMAGES;
+
+            VkDescriptorPoolCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.maxSets = MAX_DRAWIMAGES;
+            desc.poolSizeCount = 1;
+            desc.pPoolSizes = &pool_size;
+
+            VkResult result = vkCreateDescriptorPool(vk.device, &desc, nullptr, &vk.descriptor_pool);
+            check_vk_result(result, "vkCreateDescriptorPool");
+        }
+
+        //
+        // Descriptor set layout.
+        //
+        {
+            VkDescriptorSetLayoutBinding descriptor_binding;
+            descriptor_binding.binding = 0;
+            descriptor_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptor_binding.descriptorCount = 1;
+            descriptor_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            descriptor_binding.pImmutableSamplers = nullptr;
+
+            VkDescriptorSetLayoutCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.bindingCount = 1;
+            desc.pBindings = &descriptor_binding;
+
+            VkResult result = vkCreateDescriptorSetLayout(vk.device, &desc, nullptr, &vk.set_layout);
+            check_vk_result(result, "vkCreateDescriptorSetLayout");
+        }
+
+        //
+        // Pipeline layout.
+        //
+        {
+            VkPushConstantRange push_range;
+            push_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+            push_range.offset = 0;
+            push_range.size = 64; // sizeof(float[16])
+
+            VkDescriptorSetLayout set_layouts[2] = {vk.set_layout, vk.set_layout};
+
+            VkPipelineLayoutCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.setLayoutCount = 2;
+            desc.pSetLayouts = set_layouts;
+            desc.pushConstantRangeCount = 1;
+            desc.pPushConstantRanges = &push_range;
+
+            VkResult result = vkCreatePipelineLayout(vk.device, &desc, nullptr, &vk.pipeline_layout);
+            check_vk_result(result, "vkCreatePipelineLayout");
+        }
+
     } catch (const std::exception&) {
         return false;
     }
@@ -448,6 +514,10 @@ void vk_deinitialize() {
     for (uint32_t i = 0; i < g.swapchain_image_count; i++) {
         vkDestroyImageView(g.device, g.swapchain_image_views[i], nullptr);
     }
+
+    vkDestroyDescriptorPool(vk.device, vk.descriptor_pool, nullptr);
+    vkDestroyDescriptorSetLayout(vk.device, vk.set_layout, nullptr);
+    vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
 
     vkDestroySwapchainKHR(g.device, g.swapchain, nullptr);
     vkDestroyDevice(g.device, nullptr);
@@ -800,7 +870,7 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     create_info.pDepthStencilState = &depth_stencil_state;
     create_info.pColorBlendState = &blend_state;
     create_info.pDynamicState = &dynamic_state;
-    create_info.layout = vulkan_demo->pipeline_layout;
+    create_info.layout = vk.pipeline_layout;
     create_info.renderPass = vk.render_pass;
     create_info.subpass = 0;
     create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -857,6 +927,39 @@ static void vk_destroy_pipelines() {
     Com_Memset(tr.vk_resources.pipeline_desc, 0, sizeof(tr.vk_resources.pipeline_desc));
 
     pipeline_create_time = 0.0f;
+}
+
+VkDescriptorSet vk_create_descriptor_set(VkImageView image_view) {
+    VkDescriptorSetAllocateInfo desc;
+    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    desc.pNext = nullptr;
+    desc.descriptorPool = vk.descriptor_pool;
+    desc.descriptorSetCount = 1;
+    desc.pSetLayouts = &vk.set_layout;
+
+    VkDescriptorSet set;
+    VkResult result = vkAllocateDescriptorSets(vk.device, &desc, &set);
+    check_vk_result(result, "vkAllocateDescriptorSets");
+
+    VkDescriptorImageInfo image_info;
+    image_info.sampler = vulkan_demo->texture_image_sampler;
+    image_info.imageView = image_view;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
+    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes[0].dstSet = set;
+    descriptor_writes[0].dstBinding = 0;
+    descriptor_writes[0].dstArrayElement = 0;
+    descriptor_writes[0].descriptorCount = 1;
+    descriptor_writes[0].pNext = nullptr;
+    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes[0].pImageInfo = &image_info;
+    descriptor_writes[0].pBufferInfo = nullptr;
+    descriptor_writes[0].pTexelBufferView = nullptr;
+
+    vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+    return set;
 }
 
 void vk_destroy_resources() {

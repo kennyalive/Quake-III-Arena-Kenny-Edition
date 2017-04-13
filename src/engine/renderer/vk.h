@@ -52,6 +52,8 @@ struct Vk_Pipeline_Desc {
 
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
 
+VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);
+
 // Vertex formats
 struct Vk_Vertex {
     vec3_t pos;
@@ -159,6 +161,10 @@ struct Vulkan_Instance {
 
     VkRenderPass render_pass = VK_NULL_HANDLE;
     VkFramebuffer framebuffers[MAX_SWAPCHAIN_IMAGES];
+
+    VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+    VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 };
 
 const int MAX_VK_PIPELINES = 1024;

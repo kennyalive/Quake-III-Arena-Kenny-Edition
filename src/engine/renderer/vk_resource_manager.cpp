@@ -16,11 +16,6 @@ void Resource_Manager::release_resources() {
     }
     semaphores.clear();
 
-    for (auto descriptor_pool : descriptor_pools) {
-        vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
-    }
-    descriptor_pools.clear();
-
     for (auto buffer : buffers) {
         vkDestroyBuffer(device, buffer, nullptr);
     }
@@ -30,11 +25,6 @@ void Resource_Manager::release_resources() {
         vkDestroySampler(device, sampler, nullptr);
     }
     samplers.clear();
-
-    for (auto descriptor_set_layout : descriptor_set_layouts) {
-        vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
-    }
-    descriptor_set_layouts.clear();
 }
 
 VkSemaphore Resource_Manager::create_semaphore() {
@@ -48,14 +38,6 @@ VkSemaphore Resource_Manager::create_semaphore() {
     check_vk_result(result, "vkCreateSemaphore");
     semaphores.push_back(semaphore);
     return semaphore;
-}
-
-VkDescriptorPool Resource_Manager::create_descriptor_pool(const VkDescriptorPoolCreateInfo& desc) {
-    VkDescriptorPool descriptor_pool;
-    VkResult result = vkCreateDescriptorPool(device, &desc, nullptr, &descriptor_pool);
-    check_vk_result(result, "vkCreateDescriptorPool");
-    descriptor_pools.push_back(descriptor_pool);
-    return descriptor_pool;
 }
 
 VkBuffer Resource_Manager::create_buffer(const VkBufferCreateInfo& desc) {
@@ -72,12 +54,4 @@ VkSampler Resource_Manager::create_sampler(const VkSamplerCreateInfo& desc) {
     check_vk_result(result, "vkCreateSampler");
     samplers.push_back(sampler);
     return sampler;
-}
-
-VkDescriptorSetLayout Resource_Manager::create_descriptor_set_layout(const VkDescriptorSetLayoutCreateInfo& desc) {
-    VkDescriptorSetLayout descriptor_set_layout;
-    VkResult result = vkCreateDescriptorSetLayout(device, &desc, nullptr, &descriptor_set_layout);
-    check_vk_result(result, "vkCreateDescriptorSetLayout");
-    descriptor_set_layouts.push_back(descriptor_set_layout);
-    return descriptor_set_layout;
 }

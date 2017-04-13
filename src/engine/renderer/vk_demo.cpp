@@ -32,30 +32,9 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     VkResult result = vkCreateFence(vk.device, &fence_desc, nullptr, &rendering_finished_fence);
     check_vk_result(result, "vkCreateFence");
 
-    create_descriptor_pool();
-
     create_texture_sampler();
 
-    create_descriptor_set_layout();
-    create_pipeline_layout();
-
     upload_geometry();
-}
-
-void Vulkan_Demo::create_descriptor_pool() {
-    std::array<VkDescriptorPoolSize, 1> pool_sizes;
-    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_sizes[0].descriptorCount = 1024;
-
-    VkDescriptorPoolCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.maxSets = 1024;
-    desc.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
-    desc.pPoolSizes = pool_sizes.data();
-
-    descriptor_pool = get_resource_manager()->create_descriptor_pool(desc);
 }
 
 VkImage Vulkan_Demo::create_texture(const uint8_t* pixels, int bytes_per_pixel, int image_width, int image_height, VkImageView& image_view) {
@@ -129,133 +108,6 @@ void Vulkan_Demo::create_texture_sampler() {
     desc.unnormalizedCoordinates = VK_FALSE;
 
     texture_image_sampler = get_resource_manager()->create_sampler(desc);
-}
-
-void Vulkan_Demo::create_descriptor_set_layout() {
-    std::array<VkDescriptorSetLayoutBinding, 2> descriptor_bindings;
-    descriptor_bindings[0].binding = 0;
-    descriptor_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_bindings[0].descriptorCount = 1;
-    descriptor_bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    descriptor_bindings[0].pImmutableSamplers = nullptr;
-
-    descriptor_bindings[1].binding = 1;
-    descriptor_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_bindings[1].descriptorCount = 1;
-    descriptor_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    descriptor_bindings[1].pImmutableSamplers = nullptr;
-
-    VkDescriptorSetLayoutCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.bindingCount = static_cast<uint32_t>(descriptor_bindings.size());
-    desc.pBindings = descriptor_bindings.data();
-
-    descriptor_set_layout = get_resource_manager()->create_descriptor_set_layout(desc);
-}
-
-void Vulkan_Demo::create_image_descriptor_set(const image_t* image) {
-    VkDescriptorSetAllocateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    desc.pNext = nullptr;
-    desc.descriptorPool = descriptor_pool;
-    desc.descriptorSetCount = 1;
-    desc.pSetLayouts = &descriptor_set_layout;
-
-    VkDescriptorSet set;
-    VkResult result = vkAllocateDescriptorSets(vk.device, &desc, &set);
-    check_vk_result(result, "vkAllocateDescriptorSets");
-
-    VkDescriptorImageInfo image_info;
-    image_info.sampler = texture_image_sampler;
-    image_info.imageView = image->vk_image_view;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
-    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[0].dstSet = set;
-    descriptor_writes[0].dstBinding = 0;
-    descriptor_writes[0].dstArrayElement = 0;
-    descriptor_writes[0].descriptorCount = 1;
-    descriptor_writes[0].pNext = nullptr;
-    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_writes[0].pImageInfo = &image_info;
-    descriptor_writes[0].pBufferInfo = nullptr;
-    descriptor_writes[0].pTexelBufferView = nullptr;
-
-    vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-
-    image_descriptor_sets[image] = set;
-}
-
-void Vulkan_Demo::create_multitexture_descriptor_set(const image_t* image, const image_t* image2) {
-    VkDescriptorSetAllocateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    desc.pNext = nullptr;
-    desc.descriptorPool = descriptor_pool;
-    desc.descriptorSetCount = 1;
-    desc.pSetLayouts = &descriptor_set_layout;
-
-    VkDescriptorSet set;
-    VkResult result = vkAllocateDescriptorSets(vk.device, &desc, &set);
-    check_vk_result(result, "vkAllocateDescriptorSets");
-
-    VkDescriptorImageInfo image_info[2];
-    image_info[0].sampler = texture_image_sampler;
-    image_info[0].imageView = image->vk_image_view;
-    image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    image_info[1].sampler = texture_image_sampler;
-    image_info[1].imageView = image2->vk_image_view;
-    image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    std::array<VkWriteDescriptorSet, 2> descriptor_writes;
-    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[0].dstSet = set;
-    descriptor_writes[0].dstBinding = 0;
-    descriptor_writes[0].dstArrayElement = 0;
-    descriptor_writes[0].descriptorCount = 1;
-    descriptor_writes[0].pNext = nullptr;
-    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_writes[0].pImageInfo = &image_info[0];
-    descriptor_writes[0].pBufferInfo = nullptr;
-    descriptor_writes[0].pTexelBufferView = nullptr;
-
-    descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[1].dstSet = set;
-    descriptor_writes[1].dstBinding = 1;
-    descriptor_writes[1].dstArrayElement = 0;
-    descriptor_writes[1].descriptorCount = 1;
-    descriptor_writes[1].pNext = nullptr;
-    descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_writes[1].pImageInfo = &image_info[1];
-    descriptor_writes[1].pBufferInfo = nullptr;
-    descriptor_writes[1].pTexelBufferView = nullptr;
-
-    vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-
-    auto images = std::make_pair(image, image2);
-    multitexture_descriptor_sets[images] = set;
-}
-
-void Vulkan_Demo::create_pipeline_layout() {
-    VkPushConstantRange push_range;
-    push_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    push_range.offset = 0;
-    push_range.size = 64;
-
-    VkPipelineLayoutCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.setLayoutCount = 1;
-    desc.pSetLayouts = &descriptor_set_layout;
-    desc.pushConstantRangeCount = 1;
-    desc.pPushConstantRanges = &push_range;
-
-    VkResult result = vkCreatePipelineLayout(vk.device, &desc, nullptr, &pipeline_layout);
-    check_vk_result(result, "vkCreatePipelineLayout");
 }
 
 void Vulkan_Demo::upload_geometry() {
@@ -360,14 +212,13 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     vkCmdBindVertexBuffers(vk.command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
     vkCmdBindIndexBuffer(vk.command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
 
-    image_t* image = glState.vk_current_images[0];
-    VkDescriptorSet set = image_descriptor_sets[image];
+    VkDescriptorSet set = glState.vk_current_images[0]->vk_descriptor_set;
 
     float mvp[16];
     vk_get_mvp_transform(mvp);
-    vkCmdPushConstants(vk.command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
+    vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
 
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 0, nullptr);
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &set, 0, nullptr);
     
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
@@ -431,19 +282,14 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
 
     image_t* image = glState.vk_current_images[0];
     image_t* image2 = glState.vk_current_images[1];
-    auto images = std::make_pair(image, image2);
-    auto it = multitexture_descriptor_sets.find(images);
-    if (it == multitexture_descriptor_sets.cend()) {
-        create_multitexture_descriptor_set(image, image2);
-        it = multitexture_descriptor_sets.find(images);
-    }
-    auto set = it->second;
+
+    VkDescriptorSet sets[2] = { image->vk_descriptor_set, image2->vk_descriptor_set };
 
     float mvp[16];
     vk_get_mvp_transform(mvp);
-    vkCmdPushConstants(vk.command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
+    vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
     
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 0, nullptr);
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 2, sets, 0, nullptr);
 
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 

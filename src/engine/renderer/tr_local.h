@@ -108,6 +108,10 @@ typedef struct image_s {
     VkImageView vk_image_view = VK_NULL_HANDLE;
     Vk_Staging_Buffer vk_staging_buffer; // for cinematic images
 
+    // One to one correspondence between images and descriptor sets.
+    // We update descriptor set during image initialization and then never touch it again (except for cinematic images).
+    VkDescriptorSet vk_descriptor_set;
+
 	struct image_s*	next;
 } image_t;
 

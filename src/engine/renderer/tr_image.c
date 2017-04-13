@@ -779,7 +779,7 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 
     // VULKAN
     image->vk_image = vulkan_demo->create_texture(pic, 4, width, height, image->vk_image_view);
-    vulkan_demo->create_image_descriptor_set(image);
+    image->vk_descriptor_set = vk_create_descriptor_set(image->vk_image_view);
 
 	return image;
 }
