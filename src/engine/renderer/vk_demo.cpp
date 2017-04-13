@@ -14,10 +14,6 @@
 
 #include "tr_local.h"
 
-struct Uniform_Buffer_Object {
-    float mvp[16];
-};
-
 FILE* logfile;
 
 Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
@@ -38,8 +34,6 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
 
     create_descriptor_pool();
 
-    create_uniform_buffer();
-
     create_texture_sampler();
 
     create_descriptor_set_layout();
@@ -49,11 +43,9 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
 }
 
 void Vulkan_Demo::create_descriptor_pool() {
-    std::array<VkDescriptorPoolSize, 2> pool_sizes;
-    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    std::array<VkDescriptorPoolSize, 1> pool_sizes;
+    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     pool_sizes[0].descriptorCount = 1024;
-    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_sizes[1].descriptorCount = 1024;
 
     VkDescriptorPoolCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -64,17 +56,6 @@ void Vulkan_Demo::create_descriptor_pool() {
     desc.pPoolSizes = pool_sizes.data();
 
     descriptor_pool = get_resource_manager()->create_descriptor_pool(desc);
-}
-
-void Vulkan_Demo::create_uniform_buffer() {
-    auto size = static_cast<VkDeviceSize>(sizeof(Uniform_Buffer_Object)) * 1024;
-    uniform_staging_buffer = create_permanent_staging_buffer(size, uniform_staging_buffer_memory);
-    uniform_buffer = create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(vk.physical_device, &props);
-    VkDeviceSize offset_align = props.limits.minUniformBufferOffsetAlignment;
-    tess_ubo_offset_step = (uint32_t)((sizeof(Uniform_Buffer_Object) + offset_align - 1) / offset_align * offset_align);
 }
 
 VkImage Vulkan_Demo::create_texture(const uint8_t* pixels, int bytes_per_pixel, int image_width, int image_height, VkImageView& image_view) {
@@ -111,6 +92,7 @@ VkImage Vulkan_Demo::create_texture(const uint8_t* pixels, int bytes_per_pixel, 
         region.dstOffset = {0, 0, 0};
         region.extent.width = image_width;
         region.extent.height = image_height;
+        region.extent.depth = 1;
 
         vkCmdCopyImage(command_buffer,
             staging_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -138,7 +120,7 @@ void Vulkan_Demo::create_texture_sampler() {
     desc.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     desc.mipLodBias = 0.0f;
     desc.anisotropyEnable = VK_TRUE;
-    desc.maxAnisotropy = 16;
+    desc.maxAnisotropy = 1;
     desc.compareEnable = VK_FALSE;
     desc.compareOp = VK_COMPARE_OP_ALWAYS;
     desc.minLod = 0.0f;
@@ -150,11 +132,11 @@ void Vulkan_Demo::create_texture_sampler() {
 }
 
 void Vulkan_Demo::create_descriptor_set_layout() {
-    std::array<VkDescriptorSetLayoutBinding, 3> descriptor_bindings;
+    std::array<VkDescriptorSetLayoutBinding, 2> descriptor_bindings;
     descriptor_bindings[0].binding = 0;
-    descriptor_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    descriptor_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptor_bindings[0].descriptorCount = 1;
-    descriptor_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    descriptor_bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptor_bindings[0].pImmutableSamplers = nullptr;
 
     descriptor_bindings[1].binding = 1;
@@ -162,12 +144,6 @@ void Vulkan_Demo::create_descriptor_set_layout() {
     descriptor_bindings[1].descriptorCount = 1;
     descriptor_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptor_bindings[1].pImmutableSamplers = nullptr;
-
-    descriptor_bindings[2].binding = 2;
-    descriptor_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_bindings[2].descriptorCount = 1;
-    descriptor_bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    descriptor_bindings[2].pImmutableSamplers = nullptr;
 
     VkDescriptorSetLayoutCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -199,7 +175,7 @@ void Vulkan_Demo::create_image_descriptor_set(const image_t* image) {
     std::array<VkWriteDescriptorSet, 1> descriptor_writes;
     descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_writes[0].dstSet = set;
-    descriptor_writes[0].dstBinding = 1;
+    descriptor_writes[0].dstBinding = 0;
     descriptor_writes[0].dstArrayElement = 0;
     descriptor_writes[0].descriptorCount = 1;
     descriptor_writes[0].pNext = nullptr;
@@ -209,8 +185,6 @@ void Vulkan_Demo::create_image_descriptor_set(const image_t* image) {
     descriptor_writes[0].pTexelBufferView = nullptr;
 
     vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-
-    update_ubo_descriptor(set);
 
     image_descriptor_sets[image] = set;
 }
@@ -239,7 +213,7 @@ void Vulkan_Demo::create_multitexture_descriptor_set(const image_t* image, const
     std::array<VkWriteDescriptorSet, 2> descriptor_writes;
     descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_writes[0].dstSet = set;
-    descriptor_writes[0].dstBinding = 1;
+    descriptor_writes[0].dstBinding = 0;
     descriptor_writes[0].dstArrayElement = 0;
     descriptor_writes[0].descriptorCount = 1;
     descriptor_writes[0].pNext = nullptr;
@@ -250,7 +224,7 @@ void Vulkan_Demo::create_multitexture_descriptor_set(const image_t* image, const
 
     descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_writes[1].dstSet = set;
-    descriptor_writes[1].dstBinding = 2;
+    descriptor_writes[1].dstBinding = 1;
     descriptor_writes[1].dstArrayElement = 0;
     descriptor_writes[1].descriptorCount = 1;
     descriptor_writes[1].pNext = nullptr;
@@ -261,23 +235,27 @@ void Vulkan_Demo::create_multitexture_descriptor_set(const image_t* image, const
 
     vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 
-    update_ubo_descriptor(set);
-
     auto images = std::make_pair(image, image2);
     multitexture_descriptor_sets[images] = set;
 }
 
 void Vulkan_Demo::create_pipeline_layout() {
+    VkPushConstantRange push_range;
+    push_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    push_range.offset = 0;
+    push_range.size = 64;
+
     VkPipelineLayoutCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     desc.pNext = nullptr;
     desc.flags = 0;
     desc.setLayoutCount = 1;
     desc.pSetLayouts = &descriptor_set_layout;
-    desc.pushConstantRangeCount = 0;
-    desc.pPushConstantRanges = nullptr;
+    desc.pushConstantRangeCount = 1;
+    desc.pPushConstantRanges = &push_range;
 
-    pipeline_layout = get_resource_manager()->create_pipeline_layout(desc);
+    VkResult result = vkCreatePipelineLayout(vk.device, &desc, nullptr, &pipeline_layout);
+    check_vk_result(result, "vkCreatePipelineLayout");
 }
 
 void Vulkan_Demo::upload_geometry() {
@@ -317,90 +295,9 @@ void Vulkan_Demo::upload_geometry() {
     }
 }
 
-void Vulkan_Demo::update_ubo_descriptor(VkDescriptorSet set) {
-    VkDescriptorBufferInfo buffer_info;
-    buffer_info.buffer = uniform_buffer;
-    buffer_info.offset = 0;
-    buffer_info.range = sizeof(Uniform_Buffer_Object);
-
-    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
-    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[0].pNext = nullptr;
-    descriptor_writes[0].dstSet = set;
-    descriptor_writes[0].dstBinding = 0;
-    descriptor_writes[0].dstArrayElement = 0;
-    descriptor_writes[0].descriptorCount = 1;
-    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    descriptor_writes[0].pImageInfo = nullptr;
-    descriptor_writes[0].pBufferInfo = &buffer_info;
-    descriptor_writes[0].pTexelBufferView = nullptr;
-
-    vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-}
-
-void Vulkan_Demo::update_uniform_buffer() {
-    Uniform_Buffer_Object ubo;
-
-    if (backEnd.projection2D) {
-        float mvp0 = 2.0f / glConfig.vidWidth;
-        float mvp5 = 2.0f / glConfig.vidHeight;
-
-        ubo.mvp[0]  =  mvp0; ubo.mvp[1]  =  0.0f; ubo.mvp[2]  = 0.0f; ubo.mvp[3]  = 0.0f;
-        ubo.mvp[4]  =  0.0f; ubo.mvp[5]  =  mvp5; ubo.mvp[6]  = 0.0f; ubo.mvp[7]  = 0.0f;
-        ubo.mvp[8]  =  0.0f; ubo.mvp[9]  =  0.0f; ubo.mvp[10] = 1.0f; ubo.mvp[11] = 0.0f;
-        ubo.mvp[12] = -1.0f; ubo.mvp[13] = -1.0f; ubo.mvp[14] = 0.0f; ubo.mvp[15] = 1.0f;
-
-    } else {
-        const float* p = backEnd.viewParms.projectionMatrix;
-
-        // update q3's proj matrix (opengl) to vulkan conventions: z - [0, 1] instead of [-1, 1] and invert y direction
-        float zNear	= r_znear->value;
-        float zFar = tr.viewParms.zFar;
-        float p10 = -zFar / (zFar - zNear);
-        float p14 = -zFar*zNear / (zFar - zNear);
-        float p5 = -p[5];
-
-        float proj[16] = {
-            p[0], p[1], p[2], p[3],
-            p[4], p5, p[6], p[7],
-            p[8], p[9], p10, p[11],
-            p[12], p[13], p14, p[15]
-        };
-
-        extern void myGlMultMatrix( const float *a, const float *b, float *out );
-        myGlMultMatrix(backEnd.or.modelMatrix, proj, ubo.mvp);
-    }
-
-    void* data;
-    VkResult result = vkMapMemory(vk.device, uniform_staging_buffer_memory, tess_ubo_offset, sizeof(ubo), 0, &data);
-    check_vk_result(result, "vkMapMemory");
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(vk.device, uniform_staging_buffer_memory);
-}
-
 void Vulkan_Demo::begin_frame() {
     fprintf(logfile, "begin_frame\n");
     fflush(logfile);
-
-    VkBufferCopy region;
-    region.srcOffset = 0;
-    region.dstOffset = 0;
-    region.size = sizeof(Uniform_Buffer_Object) * 1024;
-    vkCmdCopyBuffer(vk.command_buffer, uniform_staging_buffer, uniform_buffer, 1, &region);
-
-    VkBufferMemoryBarrier barrier;
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    barrier.pNext = nullptr;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.buffer = uniform_buffer;
-    barrier.offset = 0;
-    barrier.size = sizeof(Uniform_Buffer_Object) * 1024;
-
-    vkCmdPipelineBarrier(vk.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0,
-        0, nullptr, 1, &barrier, 0, nullptr);
 
     std::array<VkClearValue, 2> clear_values;
     clear_values[0].color = {1.0f, 0.3f, 0.3f, 0.0f};
@@ -420,13 +317,12 @@ void Vulkan_Demo::begin_frame() {
 
     tess_vertex_buffer_offset = 0;
     tess_index_buffer_offset = 0;
-    tess_ubo_offset = 0;
 
     glState.vk_dirty_attachments = false;
 }
 
 void Vulkan_Demo::end_frame() {
-    fprintf(logfile, "end_frame (vb_size %d, ib_size %d, ubo_size %d)\n", (int)tess_vertex_buffer_offset, (int)tess_index_buffer_offset, (int)tess_ubo_offset);
+    fprintf(logfile, "end_frame (vb_size %d, ib_size %d)\n", (int)tess_vertex_buffer_offset, (int)tess_index_buffer_offset);
     fflush(logfile);
     vkCmdEndRenderPass(vk.command_buffer);
 }
@@ -467,10 +363,12 @@ void Vulkan_Demo::render_tess(const shaderStage_t* stage) {
     image_t* image = glState.vk_current_images[0];
     VkDescriptorSet set = image_descriptor_sets[image];
 
-    update_uniform_buffer();
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
-    tess_ubo_offset += tess_ubo_offset_step;
+    float mvp[16];
+    vk_get_mvp_transform(mvp);
+    vkCmdPushConstants(vk.command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
 
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 0, nullptr);
+    
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 
     VkRect2D r = vk_get_viewport_rect();
@@ -541,9 +439,11 @@ void Vulkan_Demo::render_tess_multi(const shaderStage_t* stage) {
     }
     auto set = it->second;
 
-    update_uniform_buffer();
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 1, &tess_ubo_offset);
-    tess_ubo_offset += tess_ubo_offset_step;
+    float mvp[16];
+    vk_get_mvp_transform(mvp);
+    vkCmdPushConstants(vk.command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
+    
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &set, 0, nullptr);
 
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, stage->vk_pipeline);
 

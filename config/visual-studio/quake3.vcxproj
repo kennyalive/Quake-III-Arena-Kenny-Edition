@@ -90,10 +90,7 @@
       <OutputFile>
       </OutputFile>
     </Bscmake>
-    <PostBuildEvent>
-      <Message>Post build processing..</Message>
-      <Command>rem bash -c "perl ./unix/cons -- debug"</Command>
-    </PostBuildEvent>
+    <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>

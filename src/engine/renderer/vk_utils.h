@@ -39,4 +39,3 @@ VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags
 
 // Buffers
 VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage);
-VkBuffer create_permanent_staging_buffer(VkDeviceSize size, VkDeviceMemory& memory);

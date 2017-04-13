@@ -35,11 +35,6 @@ void Resource_Manager::release_resources() {
         vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
     }
     descriptor_set_layouts.clear();
-
-    for (auto pipeline_layout : pipeline_layouts) {
-        vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-    }
-    pipeline_layouts.clear();
 }
 
 VkSemaphore Resource_Manager::create_semaphore() {
@@ -85,12 +80,4 @@ VkDescriptorSetLayout Resource_Manager::create_descriptor_set_layout(const VkDes
     check_vk_result(result, "vkCreateDescriptorSetLayout");
     descriptor_set_layouts.push_back(descriptor_set_layout);
     return descriptor_set_layout;
-}
-
-VkPipelineLayout Resource_Manager::create_pipeline_layout(const VkPipelineLayoutCreateInfo& desc) {
-    VkPipelineLayout pipeline_layout;
-    VkResult result = vkCreatePipelineLayout(device, &desc, nullptr, &pipeline_layout);
-    check_vk_result(result, "vkCreatePipelineLayout");
-    pipeline_layouts.push_back(pipeline_layout);
-    return pipeline_layout;
 }

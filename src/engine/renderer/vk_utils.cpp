@@ -296,22 +296,3 @@ VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage) {
     check_vk_result(result, "vkBindBufferMemory");
     return buffer;
 }
-
-VkBuffer create_permanent_staging_buffer(VkDeviceSize size, VkDeviceMemory& memory) {
-    VkBufferCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.size = size;
-    desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    desc.queueFamilyIndexCount = 0;
-    desc.pQueueFamilyIndices = nullptr;
-
-    VkBuffer buffer = get_resource_manager()->create_buffer(desc);
-
-    memory = get_allocator()->allocate_staging_memory(buffer);
-    VkResult result = vkBindBufferMemory(vk.device, buffer, memory, 0);
-    check_vk_result(result, "vkBindBufferMemory");
-    return buffer;
-}

@@ -1,8 +1,8 @@
 #version 450
 
-layout(binding = 0) uniform Transform_UBO {
+layout(push_constant) uniform Transform {
     mat4 mvp;
-} ubo;
+};
 
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec4 in_color;
@@ -16,7 +16,7 @@ out gl_PerVertex {
 };
 
 void main() {
-    gl_Position = ubo.mvp *  vec4(in_position, 1.0);
+    gl_Position = mvp *  vec4(in_position, 1.0);
     frag_color = in_color;
     frag_tex_coord = in_tex_coord;
 }

@@ -607,20 +607,22 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertex_input_state.pNext = nullptr;
     vertex_input_state.flags = 0;
+
+    auto bindings = Vk_Vertex::get_bindings();
+    auto attribs = Vk_Vertex::get_attributes();
+    auto bindings2 = Vk_Vertex2::get_bindings();
+    auto attribs2 = Vk_Vertex2::get_attributes();
+
     if (desc.shader_type == Vk_Shader_Type::single_texture) {
-        auto bindings = Vk_Vertex::get_bindings();
         vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
         vertex_input_state.pVertexBindingDescriptions = bindings.data();
-        auto attribs = Vk_Vertex::get_attributes();
         vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
         vertex_input_state.pVertexAttributeDescriptions = attribs.data();
     } else {
-        auto bindings = Vk_Vertex2::get_bindings();
-        vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
-        vertex_input_state.pVertexBindingDescriptions = bindings.data();
-        auto attribs = Vk_Vertex2::get_attributes();
-        vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
-        vertex_input_state.pVertexAttributeDescriptions = attribs.data();
+        vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings2.size();
+        vertex_input_state.pVertexBindingDescriptions = bindings2.data();
+        vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs2.size();
+        vertex_input_state.pVertexAttributeDescriptions = attribs2.data();
     }
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
@@ -888,4 +890,36 @@ VkRect2D vk_get_viewport_rect() {
             r.extent.height = glConfig.vidHeight - r.offset.y;
     }
     return r;
+}
+
+void vk_get_mvp_transform(float mvp[16]) {
+    if (backEnd.projection2D) {
+        float mvp0 = 2.0f / glConfig.vidWidth;
+        float mvp5 = 2.0f / glConfig.vidHeight;
+
+        mvp[0]  =  mvp0; mvp[1]  =  0.0f; mvp[2]  = 0.0f; mvp[3]  = 0.0f;
+        mvp[4]  =  0.0f; mvp[5]  =  mvp5; mvp[6]  = 0.0f; mvp[7]  = 0.0f;
+        mvp[8]  =  0.0f; mvp[9]  =  0.0f; mvp[10] = 1.0f; mvp[11] = 0.0f;
+        mvp[12] = -1.0f; mvp[13] = -1.0f; mvp[14] = 0.0f; mvp[15] = 1.0f;
+
+    } else {
+        const float* p = backEnd.viewParms.projectionMatrix;
+
+        // update q3's proj matrix (opengl) to vulkan conventions: z - [0, 1] instead of [-1, 1] and invert y direction
+        float zNear	= r_znear->value;
+        float zFar = tr.viewParms.zFar;
+        float p10 = -zFar / (zFar - zNear);
+        float p14 = -zFar*zNear / (zFar - zNear);
+        float p5 = -p[5];
+
+        float proj[16] = {
+            p[0], p[1], p[2], p[3],
+            p[4], p5, p[6], p[7],
+            p[8], p[9], p10, p[11],
+            p[12], p[13], p14, p[15]
+        };
+
+        extern void myGlMultMatrix( const float *a, const float *b, float *out );
+        myGlMultMatrix(backEnd.or.modelMatrix, proj, mvp);
+    }
 }

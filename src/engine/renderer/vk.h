@@ -16,6 +16,7 @@ void vk_deinitialize();
 void vk_destroy_resources();
 
 VkRect2D vk_get_viewport_rect();
+void vk_get_mvp_transform(float mvp[16]);
 
 struct Vk_Staging_Buffer {
     VkBuffer handle = VK_NULL_HANDLE;

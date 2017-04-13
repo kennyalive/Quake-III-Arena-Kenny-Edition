@@ -736,7 +736,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
         std::array<VkWriteDescriptorSet, 1> descriptor_writes;
         descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptor_writes[0].dstSet = vulkan_demo->image_descriptor_sets[ tr.scratchImage[client] ];
-        descriptor_writes[0].dstBinding = 1;
+        descriptor_writes[0].dstBinding = 0;
         descriptor_writes[0].dstArrayElement = 0;
         descriptor_writes[0].descriptorCount = 1;
         descriptor_writes[0].pNext = nullptr;

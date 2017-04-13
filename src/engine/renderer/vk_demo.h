@@ -20,7 +20,6 @@ public:
 public:
     void create_descriptor_pool();
 
-    void create_uniform_buffer();
     VkImage create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
     void create_texture_sampler();
 
@@ -30,8 +29,6 @@ public:
     void create_pipeline_layout();
 
     void upload_geometry();
-    void update_ubo_descriptor(VkDescriptorSet set);
-    void update_uniform_buffer();
 
 public:
     const int window_width = 0;
@@ -42,10 +39,6 @@ public:
     VkFence rendering_finished_fence = VK_NULL_HANDLE;
 
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-
-    VkBuffer uniform_staging_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory uniform_staging_buffer_memory = VK_NULL_HANDLE;
-    VkBuffer uniform_buffer = VK_NULL_HANDLE;
 
     VkSampler texture_image_sampler = VK_NULL_HANDLE;
     
@@ -58,9 +51,6 @@ public:
     VkBuffer tess_index_buffer = VK_NULL_HANDLE;
     VkDeviceMemory tess_index_buffer_memory = VK_NULL_HANDLE;
     VkDeviceSize tess_index_buffer_offset = 0;
-
-    uint32_t tess_ubo_offset = 0;
-    uint32_t tess_ubo_offset_step = -1;
 
     std::map<const image_t*, VkDescriptorSet> image_descriptor_sets; // quick UI prototyping
     std::map<std::pair<const image_t*, const image_t*>, VkDescriptorSet> multitexture_descriptor_sets;
