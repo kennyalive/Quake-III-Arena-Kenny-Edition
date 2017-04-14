@@ -1125,69 +1125,6 @@ void RB_SurfaceBad( surfaceType_t *surfType ) {
 	ri.Printf( PRINT_ALL, "Bad surface tesselated.\n" );
 }
 
-#if 0
-
-void RB_SurfaceFlare( srfFlare_t *surf ) {
-	vec3_t		left, up;
-	float		radius;
-	byte		color[4];
-	vec3_t		dir;
-	vec3_t		origin;
-	float		d;
-
-	// calculate the xyz locations for the four corners
-	radius = 30;
-	VectorScale( backEnd.viewParms.or.axis[1], radius, left );
-	VectorScale( backEnd.viewParms.or.axis[2], radius, up );
-	if ( backEnd.viewParms.isMirror ) {
-		VectorSubtract( vec3_origin, left, left );
-	}
-
-	color[0] = color[1] = color[2] = color[3] = 255;
-
-	VectorMA( surf->origin, 3, surf->normal, origin );
-	VectorSubtract( origin, backEnd.viewParms.or.origin, dir );
-	VectorNormalize( dir );
-	VectorMA( origin, r_ignore->value, dir, origin );
-
-	d = -DotProduct( dir, surf->normal );
-	if ( d < 0 ) {
-		return;
-	}
-#if 0
-	color[0] *= d;
-	color[1] *= d;
-	color[2] *= d;
-#endif
-
-	RB_AddQuadStamp( origin, left, up, color );
-}
-
-#else
-
-void RB_SurfaceFlare( srfFlare_t *surf ) {
-#if 0
-	vec3_t		left, up;
-	byte		color[4];
-
-	color[0] = surf->color[0] * 255;
-	color[1] = surf->color[1] * 255;
-	color[2] = surf->color[2] * 255;
-	color[3] = 255;
-
-	VectorClear( left );
-	VectorClear( up );
-
-	left[0] = r_ignore->value;
-
-	up[1] = r_ignore->value;
-	
-	RB_AddQuadStampExt( surf->origin, left, up, color, 0, 0, 1, 1 );
-#endif
-}
-
-#endif
-
 void RB_SurfaceSkip( void *surf ) {
 }
 
@@ -1201,6 +1138,6 @@ void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])( void *) = {
 	(void(*)(void*))RB_SurfacePolychain,	// SF_POLY,
 	(void(*)(void*))RB_SurfaceMesh,			// SF_MD3,
 	(void(*)(void*))RB_SurfaceAnim,			// SF_MD4,
-	(void(*)(void*))RB_SurfaceFlare,		// SF_FLARE,
+	(void(*)(void*))RB_SurfaceSkip,		    // SF_FLARE,
 	(void(*)(void*))RB_SurfaceEntity,		// SF_ENTITY
 };
