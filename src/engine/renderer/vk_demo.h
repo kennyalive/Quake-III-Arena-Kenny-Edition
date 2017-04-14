@@ -13,7 +13,6 @@ public:
     Vulkan_Demo(int window_width, int window_height);
 
     void begin_frame();
-    void end_frame();
 
 public:
     VkImage create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
@@ -30,5 +29,4 @@ public:
     VkSampler texture_image_sampler = VK_NULL_HANDLE;
 
     uint32_t swapchain_image_index = -1;
-    double vertex_copy_time = 0.0f;
 };

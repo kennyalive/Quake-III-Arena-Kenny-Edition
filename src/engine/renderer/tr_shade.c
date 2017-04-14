@@ -791,6 +791,9 @@ static void ComputeTexCoords( shaderStage_t *pStage ) {
 */
 static void RB_IterateStagesGeneric( shaderCommands_t *input )
 {
+    // VULKAN
+    vk_bind_resources_shared_between_stages(input->numPasses);
+
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
 		shaderStage_t *pStage = tess.xstages[stage];
@@ -838,7 +841,9 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		}
 
         // VULKAN
-        vk_draw(pStage->vk_pipeline, multitexture);
+        vk_bind_stage_specific_resources(pStage->vk_pipeline, multitexture);
+        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+        glState.vk_dirty_attachments = true;
 
 		// allow skipping out to show just lightmaps during development
 		if ( r_lightmap->integer && ( pStage->bundle[0].isLightmap || pStage->bundle[1].isLightmap ) )
@@ -846,6 +851,9 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			break;
 		}
 	}
+
+    // VULKAN
+    vk.xyz_elements += tess.numVertexes;
 }
 
 

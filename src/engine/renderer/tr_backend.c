@@ -1063,7 +1063,13 @@ const void	*RB_SwapBuffers( const void *data ) {
     // VULKAN
     extern FILE* vk_log_file;
 
-    vulkan_demo->end_frame();
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "end_frame (vb_size %d, ib_size %d)\n", 
+            vk.xyz_elements * 16 + vk.color_st_elements * 20,
+            (int)vk.index_buffer_offset);
+
+    vkCmdEndRenderPass(vk.command_buffer);
+
     VkResult result = vkEndCommandBuffer(vk.command_buffer);
     check_vk_result(result, "vkEndCommandBuffer");
 

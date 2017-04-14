@@ -128,15 +128,9 @@ void Vulkan_Demo::begin_frame() {
 
     vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-    vk.vertex_buffer_offset = 0;
+    vk.xyz_elements = 0;
+    vk.color_st_elements = 0;
     vk.index_buffer_offset = 0;
 
     glState.vk_dirty_attachments = false;
-}
-
-void Vulkan_Demo::end_frame() {
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "end_frame (vb_size %d, ib_size %d, copy_time %d)\n", (int)vk.vertex_buffer_offset, (int)vk.index_buffer_offset, int(vertex_copy_time * 1000000000));
-    vertex_copy_time = 0.0f;
-    vkCmdEndRenderPass(vk.command_buffer);
 }

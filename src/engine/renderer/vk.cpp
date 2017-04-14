@@ -6,14 +6,21 @@
 
 #include "vk_demo.h"
 
-#include <algorithm>
 #include <chrono>
-#include <cassert>
-#include <iostream>
-#include <string>
-#include <vector>
 
-static const int VERTEX_BUFFER_SIZE = 4 * 1024 * 1024;
+const int VERTEX_CHUNK_SIZE = 512 * 1024;
+
+const int XYZ_SIZE      = 4 * VERTEX_CHUNK_SIZE;
+const int COLOR_SIZE    = 1 * VERTEX_CHUNK_SIZE;
+const int ST0_SIZE      = 2 * VERTEX_CHUNK_SIZE;
+const int ST1_SIZE      = 2 * VERTEX_CHUNK_SIZE;
+
+const int XYZ_OFFSET    = 0;
+const int COLOR_OFFSET  = XYZ_OFFSET + XYZ_SIZE;
+const int ST0_OFFSET    = COLOR_OFFSET + COLOR_SIZE;
+const int ST1_OFFSET    = ST0_OFFSET + ST0_SIZE;
+
+static const int VERTEX_BUFFER_SIZE = XYZ_SIZE + COLOR_SIZE + ST0_SIZE + ST1_SIZE;
 static const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
 
 static const std::vector<const char*> instance_extensions = {
@@ -510,6 +517,11 @@ bool vk_initialize(HWND hwnd) {
             vk.vertex_buffer_memory = get_allocator()->allocate_staging_memory(vk.vertex_buffer);
             result = vkBindBufferMemory(vk.device, vk.vertex_buffer, vk.vertex_buffer_memory, 0);
             check_vk_result(result, "vkBindBufferMemory");
+
+            void* data;
+            result = vkMapMemory(vk.device, vk.vertex_buffer_memory, 0, VERTEX_BUFFER_SIZE, 0, &data);
+            check_vk_result(result, "vkMapMemory");
+            vk.vertex_buffer_ptr = (byte*)data;
         }
         {
             VkBufferCreateInfo desc;
@@ -528,6 +540,11 @@ bool vk_initialize(HWND hwnd) {
             vk.index_buffer_memory = get_allocator()->allocate_staging_memory(vk.index_buffer);
             result = vkBindBufferMemory(vk.device, vk.index_buffer, vk.index_buffer_memory, 0);
             check_vk_result(result, "vkBindBufferMemory");
+
+            void* data;
+            result = vkMapMemory(vk.device, vk.index_buffer_memory, 0, INDEX_BUFFER_SIZE, 0, &data);
+            check_vk_result(result, "vkMapMemory");
+            vk.index_buffer_ptr = (byte*)data;
         }
 
     } catch (const std::exception&) {
@@ -718,28 +735,67 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     if (desc.state_bits & GLS_ATEST_BITS)
         shader_stages_state.back().pSpecializationInfo = &specialization_info;
 
+    //
+    // Vertex input
+    //
+    VkVertexInputBindingDescription bindings[4];
+    // xyz array
+    bindings[0].binding = 0;
+    bindings[0].stride = sizeof(vec4_t);
+    bindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    // color array
+    bindings[1].binding = 1;
+    bindings[1].stride = sizeof(color4ub_t);
+    bindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    // st0 array
+    bindings[2].binding = 2;
+    bindings[2].stride = sizeof(vec2_t);
+    bindings[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    // st1 array
+    bindings[3].binding = 3;
+    bindings[3].stride = sizeof(vec2_t);
+    bindings[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkVertexInputAttributeDescription attribs[4];
+    // xyz
+    attribs[0].location = 0;
+    attribs[0].binding = 0;
+    attribs[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    attribs[0].offset = 0;
+
+    // color
+    attribs[1].location = 1;
+    attribs[1].binding = 1;
+    attribs[1].format = VK_FORMAT_R8G8B8A8_UNORM;
+    attribs[1].offset = 0;
+
+    // st0
+    attribs[2].location = 2;
+    attribs[2].binding = 2;
+    attribs[2].format = VK_FORMAT_R32G32_SFLOAT;
+    attribs[2].offset = 0;
+
+    // st1
+    attribs[3].location = 3;
+    attribs[3].binding = 3;
+    attribs[3].format = VK_FORMAT_R32G32_SFLOAT;
+    attribs[3].offset = 0;
+
     VkPipelineVertexInputStateCreateInfo vertex_input_state;
     vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertex_input_state.pNext = nullptr;
     vertex_input_state.flags = 0;
+    vertex_input_state.vertexBindingDescriptionCount = (desc.shader_type == Vk_Shader_Type::single_texture) ? 3 : 4;
+    vertex_input_state.pVertexBindingDescriptions = bindings;
+    vertex_input_state.vertexAttributeDescriptionCount = (desc.shader_type == Vk_Shader_Type::single_texture) ? 3 : 4;
+    vertex_input_state.pVertexAttributeDescriptions = attribs;
 
-    auto bindings = Vk_Vertex::get_bindings();
-    auto attribs = Vk_Vertex::get_attributes();
-    auto bindings2 = Vk_Vertex2::get_bindings();
-    auto attribs2 = Vk_Vertex2::get_attributes();
-
-    if (desc.shader_type == Vk_Shader_Type::single_texture) {
-        vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings.size();
-        vertex_input_state.pVertexBindingDescriptions = bindings.data();
-        vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs.size();
-        vertex_input_state.pVertexAttributeDescriptions = attribs.data();
-    } else {
-        vertex_input_state.vertexBindingDescriptionCount = (uint32_t)bindings2.size();
-        vertex_input_state.pVertexBindingDescriptions = bindings2.data();
-        vertex_input_state.vertexAttributeDescriptionCount = (uint32_t)attribs2.size();
-        vertex_input_state.pVertexAttributeDescriptions = attribs2.data();
-    }
-
+    //
+    // Primitive assembly.
+    //
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
     input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     input_assembly_state.pNext = nullptr;
@@ -747,6 +803,9 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     input_assembly_state.primitiveRestartEnable = VK_FALSE;
 
+    //
+    // Viewport.
+    //
     VkPipelineViewportStateCreateInfo viewport_state;
     viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewport_state.pNext = nullptr;
@@ -756,6 +815,9 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     viewport_state.scissorCount = 1;
     viewport_state.pScissors = nullptr; // dynamic scissor state
 
+    //
+    // Rasterization.
+    //
     VkPipelineRasterizationStateCreateInfo rasterization_state;
     rasterization_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization_state.pNext = nullptr;
@@ -1011,7 +1073,8 @@ void vk_destroy_resources() {
     vkDeviceWaitIdle(vk.device);
     vk_destroy_pipelines();
 
-    vk.vertex_buffer_offset = 0;
+    vk.xyz_elements = 0;
+    vk.color_st_elements = 0;
     vk.index_buffer_offset = 0;
 }
 
@@ -1075,60 +1138,32 @@ void vk_get_mvp_transform(float mvp[16]) {
     }
 }
 
-void vk_draw(VkPipeline pipeline, bool multitexture) {
+void vk_bind_resources_shared_between_stages(int num_passes) {
     extern FILE* vk_log_file;
     if (r_logFile->integer)
-        fprintf(vk_log_file, "render_tess (%s, vert %d, inds %d)\n", multitexture ? "M" : "S", tess.numVertexes, tess.numIndexes);
+        fprintf(vk_log_file, "render_tess (passes %d, vert %d, inds %d)\n", num_passes, tess.numVertexes, tess.numIndexes);
 
-    auto vertex_size = multitexture ? sizeof(Vk_Vertex2) : sizeof(Vk_Vertex);
+    // xyz
+    {
+        if ((vk.xyz_elements + tess.numVertexes) * sizeof(vec4_t) > XYZ_SIZE)
+            ri.Error(ERR_DROP, "vulkan: vertex buffer overflow (xyz)\n");
 
-    // update vertex buffer
-    std::size_t vertexes_size = tess.numVertexes * vertex_size;
-    if (vk.vertex_buffer_offset + vertexes_size > VERTEX_BUFFER_SIZE)
-        ri.Error(ERR_DROP, "vk_draw: vertex buffer overflow\n");
-
-    void* data;
-    VkResult result = vkMapMemory(vk.device, vk.vertex_buffer_memory, vk.vertex_buffer_offset, vertexes_size, 0, &data);
-    check_vk_result(result, "vkMapMemory");
-    Timer t;
-    unsigned char* ptr = (unsigned char*)data;
-    for (int i = 0; i < tess.numVertexes; i++, ptr += vertex_size) {
-        Vk_Vertex* v = (Vk_Vertex*)ptr;
-        v->pos[0] = tess.xyz[i][0];
-        v->pos[1] = tess.xyz[i][1];
-        v->pos[2] = tess.xyz[i][2];
-        v->color[0] = tess.svars.colors[i][0];
-        v->color[1] = tess.svars.colors[i][1];
-        v->color[2] = tess.svars.colors[i][2];
-        v->color[3] = tess.svars.colors[i][3];
-        v->st[0] = tess.svars.texcoords[0][i][0];
-        v->st[1] = tess.svars.texcoords[0][i][1];
-
-        if (multitexture) {
-            auto v2 = (Vk_Vertex2*)ptr;
-            v2->st2[0] = tess.svars.texcoords[1][i][0];
-            v2->st2[1] = tess.svars.texcoords[1][i][1];
-        }
+        byte* dst = vk.vertex_buffer_ptr + XYZ_OFFSET + vk.xyz_elements * sizeof(vec4_t);
+        Com_Memcpy(dst, tess.xyz, tess.numVertexes * sizeof(vec4_t));
     }
-    vulkan_demo->vertex_copy_time += t.Elapsed_Seconds();
-    vkUnmapMemory(vk.device, vk.vertex_buffer_memory);
 
-    vkCmdBindVertexBuffers(vk.command_buffer, 0, 1, &vk.vertex_buffer, &vk.vertex_buffer_offset);
-    vk.vertex_buffer_offset += vertexes_size;
+    std::size_t indexes_size = tess.numIndexes * sizeof(uint32_t);        
 
     // update index buffer
-    std::size_t indexes_size = tess.numIndexes * sizeof(uint32_t);
-    if (vk.index_buffer_offset + indexes_size > INDEX_BUFFER_SIZE)
-        ri.Error(ERR_DROP, "vk_draw: index buffer overflow\n");
+    {
+        if (vk.index_buffer_offset + indexes_size > INDEX_BUFFER_SIZE)
+            ri.Error(ERR_DROP, "vk_draw: index buffer overflow\n");
 
-    result = vkMapMemory(vk.device, vk.index_buffer_memory, vk.index_buffer_offset, indexes_size, 0, &data);
-    check_vk_result(result, "vkMapMemory");
-    uint32_t* ind = (uint32_t*)data;
-    for (int i = 0; i < tess.numIndexes; i++, ind++) {
-        *ind = tess.indexes[i];
+        byte* dst = vk.index_buffer_ptr + vk.index_buffer_offset;
+        Com_Memcpy(dst, tess.indexes, indexes_size);
     }
-    vkUnmapMemory(vk.device, vk.index_buffer_memory);
 
+    // configure indexes stream
     vkCmdBindIndexBuffer(vk.command_buffer, vk.index_buffer, vk.index_buffer_offset, VK_INDEX_TYPE_UINT32);
     vk.index_buffer_offset += indexes_size;
 
@@ -1136,15 +1171,63 @@ void vk_draw(VkPipeline pipeline, bool multitexture) {
     float mvp[16];
     vk_get_mvp_transform(mvp);
     vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
+}
 
+void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture) {
+    //
+    // Specify color/st for each draw call since they are regenerated for each Q3 shader's stage.
+    // xyz are specified only once for all stages.
+    //
+
+    // color
+    {
+        if ((vk.color_st_elements + tess.numVertexes) * sizeof(color4ub_t) > COLOR_SIZE)
+            ri.Error(ERR_DROP, "vulkan: vertex buffer overflow (color)\n");
+
+        byte* dst = vk.vertex_buffer_ptr + COLOR_OFFSET + vk.color_st_elements * sizeof(color4ub_t);
+        Com_Memcpy(dst, tess.svars.colors, tess.numVertexes * sizeof(color4ub_t));
+    }
+
+    // st0
+    {
+        if ((vk.color_st_elements + tess.numVertexes) * sizeof(vec2_t) > ST0_SIZE)
+            ri.Error(ERR_DROP, "vulkan: vertex buffer overflow (st0)\n");
+
+        byte* dst = vk.vertex_buffer_ptr + ST0_OFFSET + vk.color_st_elements * sizeof(vec2_t);
+        Com_Memcpy(dst, tess.svars.texcoords[0], tess.numVertexes * sizeof(vec2_t));
+    }
+
+    // st1
+    if (multitexture) {
+        if ((vk.color_st_elements + tess.numVertexes) * sizeof(vec2_t) > ST1_SIZE)
+            ri.Error(ERR_DROP, "vulkan: vertex buffer overflow (st1)\n");
+
+        byte* dst = vk.vertex_buffer_ptr + ST1_OFFSET + vk.color_st_elements * sizeof(vec2_t);
+        Com_Memcpy(dst, tess.svars.texcoords[1], tess.numVertexes * sizeof(vec2_t));
+    }
+
+    // configure vertex data stream
+    VkBuffer bufs[4] = { vk.vertex_buffer, vk.vertex_buffer, vk.vertex_buffer, vk.vertex_buffer }; // turtles all the way down
+    VkDeviceSize offs[4] = {
+        XYZ_OFFSET   + vk.xyz_elements * sizeof(vec4_t),
+        COLOR_OFFSET + vk.color_st_elements * sizeof(color4ub_t),
+        ST0_OFFSET   + vk.color_st_elements * sizeof(vec2_t),
+        ST1_OFFSET   + vk.color_st_elements * sizeof(vec2_t)
+    };
+
+    vkCmdBindVertexBuffers(vk.command_buffer, 0, multitexture ? 4 : 3, bufs, offs);
+    vk.color_st_elements += tess.numVertexes;
+
+    // bind descriptor sets
     image_t* image = glState.vk_current_images[0];
     image_t* image2 = glState.vk_current_images[1];
     VkDescriptorSet sets[2] = { image->vk_descriptor_set, image2 ? image2->vk_descriptor_set : VkDescriptorSet() };
-    int set_count = multitexture ? 2 : 1;
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, sets, 0, nullptr);
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, multitexture ? 2 : 1, sets, 0, nullptr);
 
+    // bind pipeline
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
+    // configure pipeline's dynamic state
     VkRect2D r = vk_get_viewport_rect();
     vkCmdSetScissor(vk.command_buffer, 0, 1, &r);
 
@@ -1160,9 +1243,4 @@ void vk_draw(VkPipeline pipeline, bool multitexture) {
     if (tess.shader->polygonOffset) {
         vkCmdSetDepthBias(vk.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
-
-    // Draw primitives
-    vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-
-    glState.vk_dirty_attachments = true;
 }
