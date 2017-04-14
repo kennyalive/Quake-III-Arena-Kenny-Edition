@@ -14,13 +14,10 @@ public:
 
     void begin_frame();
     void end_frame();
-    void render_tess(VkPipeline pipeline, bool multitexture);
 
 public:
     VkImage create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
     void create_texture_sampler();
-
-    void upload_geometry();
 
 public:
     const int window_width = 0;
@@ -31,12 +28,7 @@ public:
     VkFence rendering_finished_fence = VK_NULL_HANDLE;
 
     VkSampler texture_image_sampler = VK_NULL_HANDLE;
-    
-    VkBuffer tess_vertex_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory tess_vertex_buffer_memory = VK_NULL_HANDLE;
-    VkDeviceSize tess_vertex_buffer_offset = 0;
-    VkBuffer tess_index_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory tess_index_buffer_memory = VK_NULL_HANDLE;
-    VkDeviceSize tess_index_buffer_offset = 0;
+
     uint32_t swapchain_image_index = -1;
+    double vertex_copy_time = 0.0f;
 };

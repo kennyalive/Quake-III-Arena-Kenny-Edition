@@ -838,7 +838,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		}
 
         // VULKAN
-        vulkan_demo->render_tess(pStage->vk_pipeline, multitexture);
+        vk_draw(pStage->vk_pipeline, multitexture);
 
 		// allow skipping out to show just lightmaps during development
 		if ( r_lightmap->integer && ( pStage->bundle[0].isLightmap || pStage->bundle[1].isLightmap ) )

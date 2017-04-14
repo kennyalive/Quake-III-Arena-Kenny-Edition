@@ -18,6 +18,8 @@ void vk_destroy_resources();
 VkRect2D vk_get_viewport_rect();
 void vk_get_mvp_transform(float mvp[16]);
 
+void vk_draw(VkPipeline pipeline, bool multitexture);
+
 struct Vk_Staging_Buffer {
     VkBuffer handle = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE; // memory associated with a buffer
@@ -165,6 +167,14 @@ struct Vulkan_Instance {
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+
+    VkBuffer vertex_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory vertex_buffer_memory = VK_NULL_HANDLE;
+    VkDeviceSize vertex_buffer_offset = 0;
+
+    VkBuffer index_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory index_buffer_memory = VK_NULL_HANDLE;
+    VkDeviceSize index_buffer_offset = 0;
 };
 
 const int MAX_VK_PIPELINES = 1024;

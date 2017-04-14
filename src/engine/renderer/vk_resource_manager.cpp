@@ -16,11 +16,6 @@ void Resource_Manager::release_resources() {
     }
     semaphores.clear();
 
-    for (auto buffer : buffers) {
-        vkDestroyBuffer(device, buffer, nullptr);
-    }
-    buffers.clear();
-
     for (auto sampler : samplers) {
         vkDestroySampler(device, sampler, nullptr);
     }
@@ -38,14 +33,6 @@ VkSemaphore Resource_Manager::create_semaphore() {
     check_vk_result(result, "vkCreateSemaphore");
     semaphores.push_back(semaphore);
     return semaphore;
-}
-
-VkBuffer Resource_Manager::create_buffer(const VkBufferCreateInfo& desc) {
-    VkBuffer buffer;
-    VkResult result = vkCreateBuffer(device, &desc, nullptr, &buffer);
-    check_vk_result(result, "vkCreateBuffer");
-    buffers.push_back(buffer);
-    return buffer;
 }
 
 VkSampler Resource_Manager::create_sampler(const VkSamplerCreateInfo& desc) {

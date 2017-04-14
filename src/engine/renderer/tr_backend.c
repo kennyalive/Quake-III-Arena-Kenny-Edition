@@ -943,9 +943,9 @@ const void	*RB_DrawBuffer( const void *data ) {
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     begin_info.pInheritanceInfo = nullptr;
 
-    extern FILE* logfile;
-    fprintf(logfile, "begin\n");
-    fflush(logfile);
+    extern FILE* vk_log_file;
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "begin\n");
 
     result = vkBeginCommandBuffer(vk.command_buffer, &begin_info);
     check_vk_result(result, "vkBeginCommandBuffer");
@@ -1061,14 +1061,14 @@ const void	*RB_SwapBuffers( const void *data ) {
 	backEnd.projection2D = qfalse;
 
     // VULKAN
-    extern FILE* logfile;
+    extern FILE* vk_log_file;
 
     vulkan_demo->end_frame();
     VkResult result = vkEndCommandBuffer(vk.command_buffer);
     check_vk_result(result, "vkEndCommandBuffer");
 
-    fprintf(logfile, "present\n");
-    fflush(logfile);
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "present\n");
 
     VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info;

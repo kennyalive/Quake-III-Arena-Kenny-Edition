@@ -9,13 +9,11 @@ public:
     void release_resources(); 
 
     VkSemaphore create_semaphore();
-    VkBuffer create_buffer(const VkBufferCreateInfo& desc);
     VkSampler create_sampler(const VkSamplerCreateInfo& desc);
 
 private:
     VkDevice device = VK_NULL_HANDLE;
     std::vector<VkSemaphore> semaphores;
-    std::vector<VkBuffer> buffers;
     std::vector<VkSampler> samplers;
 };
 

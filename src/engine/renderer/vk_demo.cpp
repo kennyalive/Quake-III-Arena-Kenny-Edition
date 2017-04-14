@@ -14,13 +14,13 @@
 
 #include "tr_local.h"
 
-FILE* logfile;
+FILE* vk_log_file;
 
 Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
 : window_width(window_width) 
 , window_height(window_height)
 {
-    logfile = fopen("vk_dev.log", "w");
+    vk_log_file = fopen("vk_dev.log", "w");
 
     image_acquired = get_resource_manager()->create_semaphore();
     rendering_finished = get_resource_manager()->create_semaphore();
@@ -33,8 +33,6 @@ Vulkan_Demo::Vulkan_Demo(int window_width, int window_height)
     check_vk_result(result, "vkCreateFence");
 
     create_texture_sampler();
-
-    upload_geometry();
 }
 
 VkImage Vulkan_Demo::create_texture(const uint8_t* pixels, int bytes_per_pixel, int image_width, int image_height, VkImageView& image_view) {
@@ -110,46 +108,9 @@ void Vulkan_Demo::create_texture_sampler() {
     texture_image_sampler = get_resource_manager()->create_sampler(desc);
 }
 
-void Vulkan_Demo::upload_geometry() {
- 
-    {
-        VkBufferCreateInfo desc;
-        desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        desc.pNext = nullptr;
-        desc.flags = 0;
-        desc.size = 16 * 1024 * 1024;
-        desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        desc.queueFamilyIndexCount = 0;
-        desc.pQueueFamilyIndices = nullptr;
-
-        tess_vertex_buffer = get_resource_manager()->create_buffer(desc);
-        tess_vertex_buffer_memory = get_allocator()->allocate_staging_memory(tess_vertex_buffer);
-        VkResult result = vkBindBufferMemory(vk.device, tess_vertex_buffer, tess_vertex_buffer_memory, 0);
-        check_vk_result(result, "vkBindBufferMemory");
-    }
-
-    {
-        VkBufferCreateInfo desc;
-        desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        desc.pNext = nullptr;
-        desc.flags = 0;
-        desc.size = 16 * 1024 * 1024;
-        desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        desc.queueFamilyIndexCount = 0;
-        desc.pQueueFamilyIndices = nullptr;
-
-        tess_index_buffer = get_resource_manager()->create_buffer(desc);
-        tess_index_buffer_memory = get_allocator()->allocate_staging_memory(tess_index_buffer);
-        VkResult result = vkBindBufferMemory(vk.device, tess_index_buffer, tess_index_buffer_memory, 0);
-        check_vk_result(result, "vkBindBufferMemory");
-    }
-}
-
 void Vulkan_Demo::begin_frame() {
-    fprintf(logfile, "begin_frame\n");
-    fflush(logfile);
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "begin_frame\n");
 
     std::array<VkClearValue, 2> clear_values;
     clear_values[0].color = {1.0f, 0.3f, 0.3f, 0.0f};
@@ -167,91 +128,15 @@ void Vulkan_Demo::begin_frame() {
 
     vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-    tess_vertex_buffer_offset = 0;
-    tess_index_buffer_offset = 0;
+    vk.vertex_buffer_offset = 0;
+    vk.index_buffer_offset = 0;
 
     glState.vk_dirty_attachments = false;
 }
 
 void Vulkan_Demo::end_frame() {
-    fprintf(logfile, "end_frame (vb_size %d, ib_size %d)\n", (int)tess_vertex_buffer_offset, (int)tess_index_buffer_offset);
-    fflush(logfile);
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "end_frame (vb_size %d, ib_size %d, copy_time %d)\n", (int)vk.vertex_buffer_offset, (int)vk.index_buffer_offset, int(vertex_copy_time * 1000000000));
+    vertex_copy_time = 0.0f;
     vkCmdEndRenderPass(vk.command_buffer);
-}
-
-void Vulkan_Demo::render_tess(VkPipeline pipeline, bool multitexture) {
-    fprintf(logfile, "render_tess (%s, vert %d, inds %d)\n", multitexture ? "M" : "S", tess.numVertexes, tess.numIndexes);
-    fflush(logfile);
-
-    auto vertex_size = multitexture ? sizeof(Vk_Vertex2) : sizeof(Vk_Vertex);
-
-    void* data;
-    VkResult result = vkMapMemory(vk.device, tess_vertex_buffer_memory, tess_vertex_buffer_offset, tess.numVertexes * vertex_size, 0, &data);
-    check_vk_result(result, "vkMapMemory");
-    
-    unsigned char* ptr = (unsigned char*)data;
-    for (int i = 0; i < tess.numVertexes; i++, ptr += vertex_size) {
-        Vk_Vertex* v = (Vk_Vertex*)ptr;
-        v->pos[0] = tess.xyz[i][0];
-        v->pos[1] = tess.xyz[i][1];
-        v->pos[2] = tess.xyz[i][2];
-        v->color[0] = tess.svars.colors[i][0];
-        v->color[1] = tess.svars.colors[i][1];
-        v->color[2] = tess.svars.colors[i][2];
-        v->color[3] = tess.svars.colors[i][3];
-        v->st[0] = tess.svars.texcoords[0][i][0];
-        v->st[1] = tess.svars.texcoords[0][i][1];
-
-        if (multitexture) {
-            auto v2 = (Vk_Vertex2*)ptr;
-            v2->st2[0] = tess.svars.texcoords[1][i][0];
-            v2->st2[1] = tess.svars.texcoords[1][i][1];
-        }
-    }
-    vkUnmapMemory(vk.device, tess_vertex_buffer_memory);
-
-    result = vkMapMemory(vk.device, tess_index_buffer_memory, tess_index_buffer_offset, tess.numIndexes * sizeof(uint32_t), 0, &data);
-    check_vk_result(result, "vkMapMemory");
-    uint32_t* ind = (uint32_t*)data;
-    for (int i = 0; i < tess.numIndexes; i++, ind++) {
-        *ind = tess.indexes[i];
-    }
-    vkUnmapMemory(vk.device, tess_index_buffer_memory);
-
-    vkCmdBindVertexBuffers(vk.command_buffer, 0, 1, &tess_vertex_buffer, &tess_vertex_buffer_offset);
-    vkCmdBindIndexBuffer(vk.command_buffer, tess_index_buffer, tess_index_buffer_offset, VK_INDEX_TYPE_UINT32);
-
-    float mvp[16];
-    vk_get_mvp_transform(mvp);
-    vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
-
-    image_t* image = glState.vk_current_images[0];
-    image_t* image2 = glState.vk_current_images[1];
-    VkDescriptorSet sets[2] = { image->vk_descriptor_set, image2 ? image2->vk_descriptor_set : VkDescriptorSet() };
-    int set_count = multitexture ? 2 : 1;
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, sets, 0, nullptr);
-    
-    vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-
-    VkRect2D r = vk_get_viewport_rect();
-    vkCmdSetScissor(vk.command_buffer, 0, 1, &r);
-
-    VkViewport viewport;
-    viewport.x = (float)r.offset.x;
-    viewport.y = (float)r.offset.y;
-    viewport.width = (float)r.extent.width;
-    viewport.height = (float)r.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(vk.command_buffer, 0, 1, &viewport);
-    
-    if (tess.shader->polygonOffset) {
-        vkCmdSetDepthBias(vk.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
-    }
-
-    vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-    tess_vertex_buffer_offset += tess.numVertexes * vertex_size;
-    tess_index_buffer_offset += tess.numIndexes * sizeof(uint32_t);
-
-    glState.vk_dirty_attachments = true;
 }

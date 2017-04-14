@@ -7,9 +7,9 @@
 
 #include "tr_local.h"
 
-void check_vk_result(VkResult result, const std::string& functionName) {
+void check_vk_result(VkResult result, const char* functionName) {
     if (result < 0) {
-        error(functionName + " has returned error code with value " + std::to_string(result));
+        error(functionName + std::string(" has returned error code with value ") + std::to_string(result));
     }
 }
 
@@ -276,23 +276,4 @@ VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags
     VkResult result = vkCreateImageView(vk.device, &desc, nullptr, &image_view);
     check_vk_result(result, "vkCreateImageView");
     return image_view;
-}
-
-VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage) {
-    VkBufferCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.size = size;
-    desc.usage = usage;
-    desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    desc.queueFamilyIndexCount = 0;
-    desc.pQueueFamilyIndices = nullptr;
-
-    VkBuffer buffer = get_resource_manager()->create_buffer(desc);
-
-    VkDeviceMemory memory = get_allocator()->allocate_memory(buffer);
-    VkResult result = vkBindBufferMemory(vk.device, buffer, memory, 0);
-    check_vk_result(result, "vkBindBufferMemory");
-    return buffer;
 }

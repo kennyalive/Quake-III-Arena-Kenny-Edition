@@ -20,7 +20,7 @@ struct Shader_Module {
 };
 
 // Errors
-void check_vk_result(VkResult result, const std::string& function_name);
+void check_vk_result(VkResult result, const char* function_name);
 void error(const std::string& message);
 
 // Command buffers
@@ -36,6 +36,3 @@ VkImage create_texture(int image_width, int image_height, VkFormat format);
 VkImage create_staging_texture(int image_width, int image_height, VkFormat format, const uint8_t* pixels, int bytes_per_pixel);
 VkImage create_depth_attachment_image(int image_width, int image_height, VkFormat format);
 VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
-
-// Buffers
-VkBuffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage);

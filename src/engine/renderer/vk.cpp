@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 
+static const int VERTEX_BUFFER_SIZE = 4 * 1024 * 1024;
+static const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
+
 static const std::vector<const char*> instance_extensions = {
     VK_KHR_SURFACE_EXTENSION_NAME,
     VK_KHR_WIN32_SURFACE_EXTENSION_NAME
@@ -487,6 +490,46 @@ bool vk_initialize(HWND hwnd) {
             check_vk_result(result, "vkCreatePipelineLayout");
         }
 
+        //
+        // Create geometry buffers.
+        //
+        {
+            VkBufferCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.size = VERTEX_BUFFER_SIZE;
+            desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            desc.queueFamilyIndexCount = 0;
+            desc.pQueueFamilyIndices = nullptr;
+
+            VkResult result = vkCreateBuffer(vk.device, &desc, nullptr, &vk.vertex_buffer);
+            check_vk_result(result, "vkCreateBuffer");
+
+            vk.vertex_buffer_memory = get_allocator()->allocate_staging_memory(vk.vertex_buffer);
+            result = vkBindBufferMemory(vk.device, vk.vertex_buffer, vk.vertex_buffer_memory, 0);
+            check_vk_result(result, "vkBindBufferMemory");
+        }
+        {
+            VkBufferCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.size = INDEX_BUFFER_SIZE;
+            desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            desc.queueFamilyIndexCount = 0;
+            desc.pQueueFamilyIndices = nullptr;
+
+            VkResult result = vkCreateBuffer(vk.device, &desc, nullptr, &vk.index_buffer);
+            check_vk_result(result, "vkCreateBuffer");
+
+            vk.index_buffer_memory = get_allocator()->allocate_staging_memory(vk.index_buffer);
+            result = vkBindBufferMemory(vk.device, vk.index_buffer, vk.index_buffer_memory, 0);
+            check_vk_result(result, "vkBindBufferMemory");
+        }
+
     } catch (const std::exception&) {
         return false;
     }
@@ -518,6 +561,8 @@ void vk_deinitialize() {
     vkDestroyDescriptorPool(vk.device, vk.descriptor_pool, nullptr);
     vkDestroyDescriptorSetLayout(vk.device, vk.set_layout, nullptr);
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
+    vkDestroyBuffer(vk.device, vk.vertex_buffer, nullptr);
+    vkDestroyBuffer(vk.device, vk.index_buffer, nullptr);
 
     vkDestroySwapchainKHR(g.device, g.swapchain, nullptr);
     vkDestroyDevice(g.device, nullptr);
@@ -886,12 +931,12 @@ static float pipeline_create_time;
 
 struct Timer {
     using Clock = std::chrono::high_resolution_clock;
-    using Second = std::chrono::duration<float, std::ratio<1>>;
+    using Second = std::chrono::duration<double, std::ratio<1>>;
 
     Clock::time_point start = Clock::now();
-    float Elapsed_Seconds() const {
+    double Elapsed_Seconds() const {
         const auto duration = Clock::now() - start;
-        float seconds = std::chrono::duration_cast<Second>(duration).count();
+        double seconds = std::chrono::duration_cast<Second>(duration).count();
         return seconds;
     }
 };
@@ -965,6 +1010,9 @@ VkDescriptorSet vk_create_descriptor_set(VkImageView image_view) {
 void vk_destroy_resources() {
     vkDeviceWaitIdle(vk.device);
     vk_destroy_pipelines();
+
+    vk.vertex_buffer_offset = 0;
+    vk.index_buffer_offset = 0;
 }
 
 VkRect2D vk_get_viewport_rect() {
@@ -1025,4 +1073,96 @@ void vk_get_mvp_transform(float mvp[16]) {
         extern void myGlMultMatrix( const float *a, const float *b, float *out );
         myGlMultMatrix(backEnd.or.modelMatrix, proj, mvp);
     }
+}
+
+void vk_draw(VkPipeline pipeline, bool multitexture) {
+    extern FILE* vk_log_file;
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "render_tess (%s, vert %d, inds %d)\n", multitexture ? "M" : "S", tess.numVertexes, tess.numIndexes);
+
+    auto vertex_size = multitexture ? sizeof(Vk_Vertex2) : sizeof(Vk_Vertex);
+
+    // update vertex buffer
+    std::size_t vertexes_size = tess.numVertexes * vertex_size;
+    if (vk.vertex_buffer_offset + vertexes_size > VERTEX_BUFFER_SIZE)
+        ri.Error(ERR_DROP, "vk_draw: vertex buffer overflow\n");
+
+    void* data;
+    VkResult result = vkMapMemory(vk.device, vk.vertex_buffer_memory, vk.vertex_buffer_offset, vertexes_size, 0, &data);
+    check_vk_result(result, "vkMapMemory");
+    Timer t;
+    unsigned char* ptr = (unsigned char*)data;
+    for (int i = 0; i < tess.numVertexes; i++, ptr += vertex_size) {
+        Vk_Vertex* v = (Vk_Vertex*)ptr;
+        v->pos[0] = tess.xyz[i][0];
+        v->pos[1] = tess.xyz[i][1];
+        v->pos[2] = tess.xyz[i][2];
+        v->color[0] = tess.svars.colors[i][0];
+        v->color[1] = tess.svars.colors[i][1];
+        v->color[2] = tess.svars.colors[i][2];
+        v->color[3] = tess.svars.colors[i][3];
+        v->st[0] = tess.svars.texcoords[0][i][0];
+        v->st[1] = tess.svars.texcoords[0][i][1];
+
+        if (multitexture) {
+            auto v2 = (Vk_Vertex2*)ptr;
+            v2->st2[0] = tess.svars.texcoords[1][i][0];
+            v2->st2[1] = tess.svars.texcoords[1][i][1];
+        }
+    }
+    vulkan_demo->vertex_copy_time += t.Elapsed_Seconds();
+    vkUnmapMemory(vk.device, vk.vertex_buffer_memory);
+
+    vkCmdBindVertexBuffers(vk.command_buffer, 0, 1, &vk.vertex_buffer, &vk.vertex_buffer_offset);
+    vk.vertex_buffer_offset += vertexes_size;
+
+    // update index buffer
+    std::size_t indexes_size = tess.numIndexes * sizeof(uint32_t);
+    if (vk.index_buffer_offset + indexes_size > INDEX_BUFFER_SIZE)
+        ri.Error(ERR_DROP, "vk_draw: index buffer overflow\n");
+
+    result = vkMapMemory(vk.device, vk.index_buffer_memory, vk.index_buffer_offset, indexes_size, 0, &data);
+    check_vk_result(result, "vkMapMemory");
+    uint32_t* ind = (uint32_t*)data;
+    for (int i = 0; i < tess.numIndexes; i++, ind++) {
+        *ind = tess.indexes[i];
+    }
+    vkUnmapMemory(vk.device, vk.index_buffer_memory);
+
+    vkCmdBindIndexBuffer(vk.command_buffer, vk.index_buffer, vk.index_buffer_offset, VK_INDEX_TYPE_UINT32);
+    vk.index_buffer_offset += indexes_size;
+
+    // update mvp transform
+    float mvp[16];
+    vk_get_mvp_transform(mvp);
+    vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
+
+    image_t* image = glState.vk_current_images[0];
+    image_t* image2 = glState.vk_current_images[1];
+    VkDescriptorSet sets[2] = { image->vk_descriptor_set, image2 ? image2->vk_descriptor_set : VkDescriptorSet() };
+    int set_count = multitexture ? 2 : 1;
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, sets, 0, nullptr);
+
+    vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
+    VkRect2D r = vk_get_viewport_rect();
+    vkCmdSetScissor(vk.command_buffer, 0, 1, &r);
+
+    VkViewport viewport;
+    viewport.x = (float)r.offset.x;
+    viewport.y = (float)r.offset.y;
+    viewport.width = (float)r.extent.width;
+    viewport.height = (float)r.extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(vk.command_buffer, 0, 1, &viewport);
+
+    if (tess.shader->polygonOffset) {
+        vkCmdSetDepthBias(vk.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
+    }
+
+    // Draw primitives
+    vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+
+    glState.vk_dirty_attachments = true;
 }
