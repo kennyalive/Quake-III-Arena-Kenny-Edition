@@ -57,7 +57,7 @@ VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);
 // Vertex formats
 struct Vk_Vertex {
     vec3_t pos;
-    vec4_t color;
+    unsigned char color[4];
     vec2_t st;
 
     static std::array<VkVertexInputBindingDescription, 1> get_bindings() {
@@ -77,7 +77,7 @@ struct Vk_Vertex {
         VkVertexInputAttributeDescription color_attrib;
         color_attrib.location = 1;
         color_attrib.binding = 0;
-        color_attrib.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        color_attrib.format = VK_FORMAT_R8G8B8A8_UNORM;
         color_attrib.offset = offsetof(struct Vk_Vertex, color);
 
         VkVertexInputAttributeDescription st_attrib;

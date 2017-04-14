@@ -14,8 +14,7 @@ public:
 
     void begin_frame();
     void end_frame();
-    void render_tess(const shaderStage_t* stage);
-    void render_tess_multi(const shaderStage_t* stage);
+    void render_tess(VkPipeline pipeline, bool multitexture);
 
 public:
     VkImage create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
