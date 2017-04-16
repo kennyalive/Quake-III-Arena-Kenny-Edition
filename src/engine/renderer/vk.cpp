@@ -1238,6 +1238,11 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture) {
     viewport.height = (float)r.extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
+
+	if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
+		viewport.maxDepth = 0.3f;
+	}
+
     vkCmdSetViewport(vk.command_buffer, 0, 1, &viewport);
 
     if (tess.shader->polygonOffset) {
