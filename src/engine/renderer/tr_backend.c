@@ -1073,8 +1073,10 @@ const void	*RB_SwapBuffers( const void *data ) {
     VkResult result = vkEndCommandBuffer(vk.command_buffer);
     check_vk_result(result, "vkEndCommandBuffer");
 
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "present\n");
+	if (r_logFile->integer) {
+		fprintf(vk_log_file, "present\n");
+		fflush(vk_log_file);
+	}
 
     VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info;
