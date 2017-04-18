@@ -19,7 +19,9 @@ VkRect2D vk_get_viewport_rect();
 void vk_get_mvp_transform(float mvp[16]);
 
 void vk_bind_resources_shared_between_stages(int num_passes);
-void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture);
+void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
+
+void vk_begin_frame();
 
 struct Vk_Staging_Buffer {
     VkBuffer handle = VK_NULL_HANDLE;

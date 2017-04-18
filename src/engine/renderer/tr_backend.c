@@ -429,23 +429,24 @@ void RB_BeginDrawingView (void) {
 	}
 
 #ifdef _DEBUG
-    float color[4] = { 0.8f, 0.7f, 0.4f, 1.0f }; // FIXME: get color of sky
+    float sky_color[4] = { 0.8f, 0.7f, 0.4f, 1.0f }; // FIXME: get color of sky
 #else
-    float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // FIXME: get color of sky
+    float sky_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // FIXME: get color of sky
 #endif
 
-    bool clear_color = r_fastsky->integer && !( backEnd.refdef.rdflags & RDF_NOWORLDMODEL );
-	if ( clear_color )
+    bool fast_sky = r_fastsky->integer && !( backEnd.refdef.rdflags & RDF_NOWORLDMODEL );
+	if ( fast_sky )
 	{
 		clearBits |= GL_COLOR_BUFFER_BIT;	// FIXME: only if sky shaders have been used
-        qglClearColor(color[0], color[1], color[2], color[3]);
+        qglClearColor(sky_color[0], sky_color[1], sky_color[2], sky_color[3]);
 	}
+
 	qglClear( clearBits );
 
     // VULKAN
-    if (glState.vk_dirty_attachments) {
+    if (glState.vk_dirty_attachments || fast_sky) {
         VkClearAttachment attachments[2];
-        uint32_t attachment_count = clear_color ? 2 : 1;
+        uint32_t attachment_count = fast_sky ? 2 : 1;
 
         attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         attachments[0].clearValue.depthStencil.depth = 1.0f;
@@ -454,18 +455,33 @@ void RB_BeginDrawingView (void) {
             attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
             attachments[0].clearValue.depthStencil.stencil = 0;
         }
-        if (clear_color) {
+        if (fast_sky) {
             attachments[1].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             attachments[1].colorAttachment = 0;
-            attachments[1].clearValue.color = { color[0], color[1], color[2], color[3] };
+            attachments[1].clearValue.color = { sky_color[0], sky_color[1], sky_color[2], sky_color[3] };
         }
 
-        VkClearRect clear_rect;
-        clear_rect.rect = vk_get_viewport_rect();
-        clear_rect.baseArrayLayer = 0;
-        clear_rect.layerCount = 1;
+        VkClearRect clear_rect[2];
+		clear_rect[0].rect = vk_get_viewport_rect();
+		clear_rect[0].baseArrayLayer = 0;
+		clear_rect[0].layerCount = 1;
+		int rect_count = 1;
 
-        vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, 1, &clear_rect);
+		// Split viewport rectangle into two non-overlapping rectangles.
+		// It's a HACK to prevent Vulkan validation layer's performance warning:
+		//		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
+		//		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
+		//
+		if (fast_sky) {
+			uint32_t h = clear_rect[0].rect.extent.height / 2;
+			clear_rect[0].rect.extent.height = h;
+
+			clear_rect[1] = clear_rect[0];
+			clear_rect[1].rect.offset.y = h;
+			rect_count = 2;
+		}
+
+        vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, rect_count, clear_rect);
     }
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
@@ -922,34 +938,8 @@ const void	*RB_DrawBuffer( const void *data ) {
 
 	qglDrawBuffer( cmd->buffer );
 
-	// clear screen for debugging
-	if ( r_clear->integer ) {
-		qglClearColor( 1, 0, 0.5, 1 );
-		qglClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	}
-
     // VULKAN
-    VkResult result = vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vulkan_demo->image_acquired, VK_NULL_HANDLE, &vulkan_demo->swapchain_image_index);
-    check_vk_result(result, "vkAcquireNextImageKHR");
-    
-    result = vkWaitForFences(vk.device, 1, &vulkan_demo->rendering_finished_fence, VK_FALSE, 1e9);
-    check_vk_result(result, "vkWaitForFences");
-    result = vkResetFences(vk.device, 1, &vulkan_demo->rendering_finished_fence);
-    check_vk_result(result, "vkResetFences");
-
-    VkCommandBufferBeginInfo begin_info;
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.pNext = nullptr;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    begin_info.pInheritanceInfo = nullptr;
-
-    extern FILE* vk_log_file;
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "begin\n");
-
-    result = vkBeginCommandBuffer(vk.command_buffer, &begin_info);
-    check_vk_result(result, "vkBeginCommandBuffer");
-    vulkan_demo->begin_frame();
+	vk_begin_frame();
 
 	return (const void *)(cmd + 1);
 }

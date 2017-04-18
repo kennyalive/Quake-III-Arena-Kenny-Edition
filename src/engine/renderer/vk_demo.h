@@ -12,8 +12,6 @@ class Vulkan_Demo {
 public:
     Vulkan_Demo(int window_width, int window_height);
 
-    void begin_frame();
-
 public:
     VkImage create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
     void create_texture_sampler();

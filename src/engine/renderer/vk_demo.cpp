@@ -107,30 +107,3 @@ void Vulkan_Demo::create_texture_sampler() {
 
     texture_image_sampler = get_resource_manager()->create_sampler(desc);
 }
-
-void Vulkan_Demo::begin_frame() {
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "begin_frame\n");
-
-    std::array<VkClearValue, 2> clear_values;
-    clear_values[0].color = {1.0f, 0.3f, 0.3f, 0.0f};
-    clear_values[1].depthStencil = {1.0, 0};
-
-    VkRenderPassBeginInfo render_pass_begin_info;
-    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.pNext = nullptr;
-    render_pass_begin_info.renderPass = vk.render_pass;
-    render_pass_begin_info.framebuffer = vk.framebuffers[swapchain_image_index];
-    render_pass_begin_info.renderArea.offset = {0, 0};
-    render_pass_begin_info.renderArea.extent = {(uint32_t)window_width, (uint32_t)window_height};
-    render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-    render_pass_begin_info.pClearValues = clear_values.data();
-
-    vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-    vk.xyz_elements = 0;
-    vk.color_st_elements = 0;
-    vk.index_buffer_offset = 0;
-
-    glState.vk_dirty_attachments = false;
-}

@@ -265,29 +265,27 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
     return swapchain;
 }
 
-// TODO: pass device, color format, depth format. Physical device is not needed.
-static VkRenderPass create_render_pass(VkPhysicalDevice physical_device, VkDevice device) {
-    VkAttachmentDescription color_attachment;
-    color_attachment.flags = 0;
-    color_attachment.format = vk.surface_format.format;
-    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, VkFormat depth_format) {
+    VkAttachmentDescription attachments[2];
+    attachments[0].flags = 0;
+	attachments[0].format = color_format;
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    VkAttachmentDescription depth_attachment;
-    depth_attachment.flags = 0;
-    depth_attachment.format = find_depth_format(physical_device);
-    depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    attachments[1].flags = 0;
+	attachments[1].format = depth_format;
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference color_attachment_ref;
     color_attachment_ref.attachment = 0;
@@ -309,13 +307,12 @@ static VkRenderPass create_render_pass(VkPhysicalDevice physical_device, VkDevic
     subpass.preserveAttachmentCount = 0;
     subpass.pPreserveAttachments = nullptr;
 
-    std::array<VkAttachmentDescription, 2> attachments{color_attachment, depth_attachment};
     VkRenderPassCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     desc.pNext = nullptr;
     desc.flags = 0;
-    desc.attachmentCount = static_cast<uint32_t>(attachments.size());
-    desc.pAttachments = attachments.data();
+	desc.attachmentCount = sizeof(attachments) / sizeof(attachments[0]);
+	desc.pAttachments = attachments;
     desc.subpassCount = 1;
     desc.pSubpasses = &subpass;
     desc.dependencyCount = 0;
@@ -408,7 +405,9 @@ bool vk_initialize(HWND hwnd) {
             });
         }
 
-        g.render_pass = create_render_pass(g.physical_device, g.device);
+		VkFormat depth_format = find_depth_format(vk.physical_device);
+
+		vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
 
         {
             std::array<VkImageView, 2> attachments = {VK_NULL_HANDLE, vk.depth_image_view};
@@ -1173,7 +1172,7 @@ void vk_bind_resources_shared_between_stages(int num_passes) {
     vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
 }
 
-void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture) {
+void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky) {
     //
     // Specify color/st for each draw call since they are regenerated for each Q3 shader's stage.
     // xyz are specified only once for all stages.
@@ -1243,9 +1242,65 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture) {
 		viewport.maxDepth = 0.3f;
 	}
 
+	if (sky) {
+		if (r_showsky->integer) {
+			viewport.minDepth = 0.0f;
+			viewport.maxDepth = 0.0f;
+		} else {
+			viewport.minDepth = 1.0f;
+			viewport.maxDepth = 1.0f;
+		}
+	}
+
     vkCmdSetViewport(vk.command_buffer, 0, 1, &viewport);
 
     if (tess.shader->polygonOffset) {
         vkCmdSetDepthBias(vk.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
+}
+
+void vk_begin_frame() {
+	extern FILE* vk_log_file;
+	if (r_logFile->integer)
+		fprintf(vk_log_file, "vk_begin_frame\n");
+
+	VkResult result = vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vulkan_demo->image_acquired, VK_NULL_HANDLE, &vulkan_demo->swapchain_image_index);
+	check_vk_result(result, "vkAcquireNextImageKHR");
+
+	result = vkWaitForFences(vk.device, 1, &vulkan_demo->rendering_finished_fence, VK_FALSE, 1e9);
+	check_vk_result(result, "vkWaitForFences");
+	result = vkResetFences(vk.device, 1, &vulkan_demo->rendering_finished_fence);
+	check_vk_result(result, "vkResetFences");
+
+	VkCommandBufferBeginInfo begin_info;
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.pNext = nullptr;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	result = vkBeginCommandBuffer(vk.command_buffer, &begin_info);
+	check_vk_result(result, "vkBeginCommandBuffer");
+
+	VkClearValue clear_values[2];
+	/// ignore clear_values[0] which corresponds to color attachment
+	clear_values[1].depthStencil.depth = 1.0;
+	clear_values[1].depthStencil.stencil = 0;
+
+	VkRenderPassBeginInfo render_pass_begin_info;
+	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	render_pass_begin_info.pNext = nullptr;
+	render_pass_begin_info.renderPass = vk.render_pass;
+	render_pass_begin_info.framebuffer = vk.framebuffers[vulkan_demo->swapchain_image_index];
+	render_pass_begin_info.renderArea.offset = { 0, 0 };
+	render_pass_begin_info.renderArea.extent = { (uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight };
+	render_pass_begin_info.clearValueCount = 2;
+	render_pass_begin_info.pClearValues = clear_values;
+
+	vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	vk.xyz_elements = 0;
+	vk.color_st_elements = 0;
+	vk.index_buffer_offset = 0;
+
+	glState.vk_dirty_attachments = false;
 }
