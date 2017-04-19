@@ -26,7 +26,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define HALF_SKY_SUBDIVISIONS	(SKY_SUBDIVISIONS/2)
 
 static float s_cloudTexCoords[6][SKY_SUBDIVISIONS+1][SKY_SUBDIVISIONS+1][2];
-static float s_cloudTexP[6][SKY_SUBDIVISIONS+1][SKY_SUBDIVISIONS+1];
 
 /*
 ===================================================================================
@@ -450,11 +449,58 @@ static void DrawSkyBox( shader_t *shader )
 		DrawSkySide( shader->sky.outerbox[sky_texorder[i]],
 			         sky_mins_subd,
 					 sky_maxs_subd );
+
+        // VULKAN
+        glState.vk_current_images[0] = shader->sky.outerbox[sky_texorder[i]];
+        tess.numVertexes = 0;
+        tess.numIndexes = 0;
+
+        for ( t = sky_mins_subd[1]+HALF_SKY_SUBDIVISIONS; t < sky_maxs_subd[1]+HALF_SKY_SUBDIVISIONS; t++ )
+        {
+            for ( s = sky_mins_subd[0]+HALF_SKY_SUBDIVISIONS; s < sky_maxs_subd[0]+HALF_SKY_SUBDIVISIONS; s++ )
+            {
+                int ndx = tess.numVertexes;
+
+                tess.indexes[ tess.numIndexes ] = ndx;
+                tess.indexes[ tess.numIndexes + 1 ] = ndx + 1;
+                tess.indexes[ tess.numIndexes + 2 ] = ndx + 2;
+
+                tess.indexes[ tess.numIndexes + 3 ] = ndx + 2;
+                tess.indexes[ tess.numIndexes + 4 ] = ndx + 1;
+                tess.indexes[ tess.numIndexes + 5 ] = ndx + 3;
+                tess.numIndexes += 6;
+
+                VectorCopy(s_skyPoints[t][s], tess.xyz[ndx]);
+                tess.svars.texcoords[0][ndx][0] = s_skyTexCoords[t][s][0];
+                tess.svars.texcoords[0][ndx][1] = s_skyTexCoords[t][s][1];
+
+                VectorCopy(s_skyPoints[t + 1][s], tess.xyz[ndx + 1]);
+                tess.svars.texcoords[0][ndx + 1][0] = s_skyTexCoords[t + 1][s][0];
+                tess.svars.texcoords[0][ndx + 1][1] = s_skyTexCoords[t + 1][s][1];
+
+                VectorCopy(s_skyPoints[t][s + 1], tess.xyz[ndx + 2]);
+                tess.svars.texcoords[0][ndx + 2][0] = s_skyTexCoords[t][s + 1][0];
+                tess.svars.texcoords[0][ndx + 2][1] = s_skyTexCoords[t][s + 1][1];
+
+                VectorCopy(s_skyPoints[t + 1][s + 1], tess.xyz[ndx + 3]);
+                tess.svars.texcoords[0][ndx + 3][0] = s_skyTexCoords[t + 1][s + 1][0];
+                tess.svars.texcoords[0][ndx + 3][1] = s_skyTexCoords[t + 1][s + 1][1];
+
+                tess.numVertexes += 4;
+            }
+        }
+
+        Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+        vk_bind_resources_shared_between_stages();
+        vk_bind_stage_specific_resources(vk.skybox_pipeline, false, true);
+        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+        glState.vk_dirty_attachments = true;
+        vk.xyz_elements += tess.numVertexes;
 	}
 
 }
 
-static void FillCloudySkySide( const int mins[2], const int maxs[2], qboolean addIndexes )
+static void FillCloudySkySide( const int mins[2], const int maxs[2] )
 {
 	int s, t;
 	int vertexStart = tess.numVertexes;
@@ -480,31 +526,28 @@ static void FillCloudySkySide( const int mins[2], const int maxs[2], qboolean ad
 		}
 	}
 
-	// only add indexes for one pass, otherwise it would draw multiple times for each pass
-	if ( addIndexes ) {
-		for ( t = 0; t < tHeight-1; t++ )
-		{	
-			for ( s = 0; s < sWidth-1; s++ )
-			{
-				tess.indexes[tess.numIndexes] = vertexStart + s + t * ( sWidth );
-				tess.numIndexes++;
-				tess.indexes[tess.numIndexes] = vertexStart + s + ( t + 1 ) * ( sWidth );
-				tess.numIndexes++;
-				tess.indexes[tess.numIndexes] = vertexStart + s + 1 + t * ( sWidth );
-				tess.numIndexes++;
+	for ( t = 0; t < tHeight-1; t++ )
+	{	
+		for ( s = 0; s < sWidth-1; s++ )
+		{
+			tess.indexes[tess.numIndexes] = vertexStart + s + t * ( sWidth );
+			tess.numIndexes++;
+			tess.indexes[tess.numIndexes] = vertexStart + s + ( t + 1 ) * ( sWidth );
+			tess.numIndexes++;
+			tess.indexes[tess.numIndexes] = vertexStart + s + 1 + t * ( sWidth );
+			tess.numIndexes++;
 
-				tess.indexes[tess.numIndexes] = vertexStart + s + ( t + 1 ) * ( sWidth );
-				tess.numIndexes++;
-				tess.indexes[tess.numIndexes] = vertexStart + s + 1 + ( t + 1 ) * ( sWidth );
-				tess.numIndexes++;
-				tess.indexes[tess.numIndexes] = vertexStart + s + 1 + t * ( sWidth );
-				tess.numIndexes++;
-			}
+			tess.indexes[tess.numIndexes] = vertexStart + s + ( t + 1 ) * ( sWidth );
+			tess.numIndexes++;
+			tess.indexes[tess.numIndexes] = vertexStart + s + 1 + ( t + 1 ) * ( sWidth );
+			tess.numIndexes++;
+			tess.indexes[tess.numIndexes] = vertexStart + s + 1 + t * ( sWidth );
+			tess.numIndexes++;
 		}
 	}
 }
 
-static void FillCloudBox( int stage )
+static void FillCloudBox()
 {
 	for ( int i = 0; i < 5; i++ )
 	{
@@ -566,7 +609,7 @@ static void FillCloudBox( int stage )
 		}
 
 		// only add indexes for first stage
-		FillCloudySkySide( sky_mins_subd, sky_maxs_subd, (qboolean) ( stage == 0 ) );
+		FillCloudySkySide( sky_mins_subd, sky_maxs_subd);
 	}
 }
 
@@ -575,7 +618,6 @@ static void FillCloudBox( int stage )
 */
 void R_BuildCloudData( shaderCommands_t *input )
 {
-	int			i;
 	shader_t	*shader;
 
 	shader = input->shader;
@@ -589,15 +631,9 @@ void R_BuildCloudData( shaderCommands_t *input )
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
 
-	if ( input->shader->sky.cloudHeight )
+	if ( input->shader->sky.cloudHeight && tess.xstages[0] )
 	{
-		for ( i = 0; i < MAX_SHADER_STAGES; i++ )
-		{
-			if ( !tess.xstages[i] ) {
-				break;
-			}
-			FillCloudBox( i );
-		}
+        FillCloudBox();
 	}
 }
 
@@ -642,8 +678,6 @@ void R_InitSkyTexCoords( float heightCloud )
 								 SQR( skyVec[1] ) * SQR( heightCloud ) + 
 								 2 * SQR( skyVec[2] ) * radiusWorld * heightCloud +
 								 SQR( skyVec[2] ) * SQR( heightCloud ) ) );
-
-				s_cloudTexP[i][t][s] = p;
 
 				// compute intersection point based on p
 				VectorScale( skyVec, p, v );
@@ -692,15 +726,25 @@ void RB_StageIteratorSky( void ) {
 
 	// draw the outer skybox
 	if ( tess.shader->sky.outerbox[0] && tess.shader->sky.outerbox[0] != tr.defaultImage ) {
-		qglColor3f( tr.identityLight, tr.identityLight, tr.identityLight );
-		
-		qglPushMatrix ();
+        float modelMatrix_original[16];
+        Com_Memcpy(modelMatrix_original, backEnd.or.modelMatrix, sizeof(float[16]));
+
+        float skybox_translate[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            backEnd.viewParms.or.origin[0], backEnd.viewParms.or.origin[1], backEnd.viewParms.or.origin[2], 1
+        };
+        myGlMultMatrix(skybox_translate, modelMatrix_original, backEnd.or.modelMatrix);
+
 		GL_State( 0 );
-		qglTranslatef (backEnd.viewParms.or.origin[0], backEnd.viewParms.or.origin[1], backEnd.viewParms.or.origin[2]);
-
+        qglColor3f( tr.identityLight, tr.identityLight, tr.identityLight );
+        qglPushMatrix ();
+        qglLoadMatrixf(backEnd.or.modelMatrix);
 		DrawSkyBox( tess.shader );
-
 		qglPopMatrix();
+
+        Com_Memcpy(backEnd.or.modelMatrix, modelMatrix_original, sizeof(float[16]));
 	}
 
 	// generate the vertexes for all the clouds, which will be drawn

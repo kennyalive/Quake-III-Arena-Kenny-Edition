@@ -18,7 +18,7 @@ void vk_destroy_resources();
 VkRect2D vk_get_viewport_rect();
 void vk_get_mvp_transform(float mvp[16]);
 
-void vk_bind_resources_shared_between_stages(int num_passes);
+void vk_bind_resources_shared_between_stages();
 void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
 
 void vk_begin_frame();
@@ -116,6 +116,8 @@ struct Vulkan_Instance {
     VkDeviceMemory index_buffer_memory = VK_NULL_HANDLE;
     byte* index_buffer_ptr = nullptr; // pointer to mapped index buffer
     VkDeviceSize index_buffer_offset = 0;
+
+    VkPipeline skybox_pipeline = VK_NULL_HANDLE;
 };
 
 const int MAX_VK_PIPELINES = 1024;

@@ -1351,9 +1351,7 @@ SKIES
 ============================================================
 */
 
-void R_BuildCloudData( shaderCommands_t *shader );
 void R_InitSkyTexCoords( float cloudLayerHeight );
-void RB_ClipSkyPolygons( shaderCommands_t *shader );
 
 /*
 ============================================================
@@ -1408,7 +1406,6 @@ ANIMATED MODELS
 =============================================================
 */
 
-void R_MakeAnimModel( model_t *model );
 void R_AddAnimSurfaces( trRefEntity_t *ent );
 void RB_SurfaceAnim( md4Surface_t *surfType );
 
@@ -1441,6 +1438,8 @@ void	RB_CalcColorFromEntity( unsigned char *dstColors );
 void	RB_CalcColorFromOneMinusEntity( unsigned char *dstColors );
 void	RB_CalcSpecularAlpha( unsigned char *alphas );
 void	RB_CalcDiffuseColor( unsigned char *colors );
+
+void myGlMultMatrix( const float *a, const float *b, float *out );
 
 /*
 =============================================================

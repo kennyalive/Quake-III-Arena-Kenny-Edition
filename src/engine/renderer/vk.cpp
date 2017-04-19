@@ -324,6 +324,8 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
     return render_pass;
 }
 
+VkPipeline create_pipeline(const Vk_Pipeline_Desc&);
+
 bool vk_initialize(HWND hwnd) {
     try {
         auto& g = vk;
@@ -546,6 +548,19 @@ bool vk_initialize(HWND hwnd) {
             vk.index_buffer_ptr = (byte*)data;
         }
 
+        //
+        // Skybox pipeline.
+        //
+        {
+            Vk_Pipeline_Desc desc;
+            desc.shader_type = Vk_Shader_Type::single_texture;
+            desc.state_bits = 0;
+            desc.face_culling = CT_FRONT_SIDED;
+            desc.polygon_offset = false;
+
+            vk.skybox_pipeline = create_pipeline(desc);
+        }
+
     } catch (const std::exception&) {
         return false;
     }
@@ -579,6 +594,7 @@ void vk_deinitialize() {
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
     vkDestroyBuffer(vk.device, vk.vertex_buffer, nullptr);
     vkDestroyBuffer(vk.device, vk.index_buffer, nullptr);
+    vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
 
     vkDestroySwapchainKHR(g.device, g.swapchain, nullptr);
     vkDestroyDevice(g.device, nullptr);
@@ -1121,27 +1137,22 @@ void vk_get_mvp_transform(float mvp[16]) {
         // update q3's proj matrix (opengl) to vulkan conventions: z - [0, 1] instead of [-1, 1] and invert y direction
         float zNear	= r_znear->value;
         float zFar = tr.viewParms.zFar;
-        float p10 = -zFar / (zFar - zNear);
-        float p14 = -zFar*zNear / (zFar - zNear);
-        float p5 = -p[5];
+        float P10 = -zFar / (zFar - zNear);
+        float P14 = -zFar*zNear / (zFar - zNear);
+        float P5 = -p[5];
 
         float proj[16] = {
-            p[0], p[1], p[2], p[3],
-            p[4], p5, p[6], p[7],
-            p[8], p[9], p10, p[11],
-            p[12], p[13], p14, p[15]
+            p[0],  p[1],  p[2], p[3],
+            p[4],  P5,    p[6], p[7],
+            p[8],  p[9],  P10,  p[11],
+            p[12], p[13], P14,  p[15]
         };
 
-        extern void myGlMultMatrix( const float *a, const float *b, float *out );
         myGlMultMatrix(backEnd.or.modelMatrix, proj, mvp);
     }
 }
 
-void vk_bind_resources_shared_between_stages(int num_passes) {
-    extern FILE* vk_log_file;
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "render_tess (passes %d, vert %d, inds %d)\n", num_passes, tess.numVertexes, tess.numIndexes);
-
+void vk_bind_resources_shared_between_stages() {
     // xyz
     {
         if ((vk.xyz_elements + tess.numVertexes) * sizeof(vec4_t) > XYZ_SIZE)

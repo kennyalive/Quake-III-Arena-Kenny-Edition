@@ -92,7 +92,6 @@ void ( APIENTRY * qglTexImage2D )(GLenum target, GLint level, GLint internalform
 void ( APIENTRY * qglTexParameterf )(GLenum target, GLenum pname, GLfloat param);
 void ( APIENTRY * qglTexParameterfv )(GLenum target, GLenum pname, const GLfloat *params);
 void ( APIENTRY * qglTexSubImage2D )(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
-void ( APIENTRY * qglTranslatef )(GLfloat x, GLfloat y, GLfloat z);
 void ( APIENTRY * qglVertex2f )(GLfloat x, GLfloat y);
 void ( APIENTRY * qglVertex3f )(GLfloat x, GLfloat y, GLfloat z);
 void ( APIENTRY * qglVertex3fv )(const GLfloat *v);
@@ -152,7 +151,6 @@ static void ( APIENTRY * dllTexImage2D )(GLenum target, GLint level, GLint inter
 static void ( APIENTRY * dllTexParameterf )(GLenum target, GLenum pname, GLfloat param);
 static void ( APIENTRY * dllTexParameterfv )(GLenum target, GLenum pname, const GLfloat *params);
 static void ( APIENTRY * dllTexSubImage2D )(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
-static void ( APIENTRY * dllTranslatef )(GLfloat x, GLfloat y, GLfloat z);
 static void ( APIENTRY * dllVertex2f )(GLfloat x, GLfloat y);
 static void ( APIENTRY * dllVertex3f )(GLfloat x, GLfloat y, GLfloat z);
 static void ( APIENTRY * dllVertex3fv )(const GLfloat *v);
@@ -593,11 +591,6 @@ static void APIENTRY logTexSubImage2D(GLenum target, GLint level, GLint xoffset,
 	SIG( "glTexSubImage2D" );
 	dllTexSubImage2D( target, level, xoffset, yoffset, width, height, format, type, pixels );
 }
-static void APIENTRY logTranslatef(GLfloat x, GLfloat y, GLfloat z)
-{
-	SIG( "glTranslatef" );
-	dllTranslatef( x, y, z );
-}
 static void APIENTRY logVertex2f(GLfloat x, GLfloat y)
 {
 	SIG( "glVertex2f" );
@@ -694,7 +687,6 @@ void QGL_Shutdown( void )
 	qglTexParameterf             = NULL;
 	qglTexParameterfv            = NULL;
 	qglTexSubImage2D             = NULL;
-	qglTranslatef                = NULL;
 	qglVertex2f                  = NULL;
 	qglVertex3f                  = NULL;
 	qglVertex3fv                 = NULL;
@@ -787,7 +779,6 @@ qboolean QGL_Init( const char *dllname )
 	qglTexParameterf             = 	dllTexParameterf             = (decltype(dllTexParameterf))GPA("glTexParameterf");
 	qglTexParameterfv            = 	dllTexParameterfv            = (decltype(dllTexParameterfv))GPA("glTexParameterfv");
 	qglTexSubImage2D             = 	dllTexSubImage2D             = (decltype(dllTexSubImage2D))GPA("glTexSubImage2D");
-	qglTranslatef                = 	dllTranslatef                = (decltype(dllTranslatef))GPA("glTranslatef");
 	qglVertex2f                  = 	dllVertex2f                  = (decltype(dllVertex2f))GPA("glVertex2f");
 	qglVertex3f                  = 	dllVertex3f                  = (decltype(dllVertex3f))GPA("glVertex3f");
 	qglVertex3fv                 = 	dllVertex3fv                 = (decltype(dllVertex3fv))GPA("glVertex3fv");
@@ -904,7 +895,6 @@ void QGL_EnableLogging( qboolean enable )
 		qglTexParameterf             = 	logTexParameterf             ;
 		qglTexParameterfv            = 	logTexParameterfv            ;
 		qglTexSubImage2D             = 	logTexSubImage2D             ;
-		qglTranslatef                = 	logTranslatef                ;
 		qglVertex2f                  = 	logVertex2f                  ;
 		qglVertex3f                  = 	logVertex3f                  ;
 		qglVertex3fv                 = 	logVertex3fv                 ;
@@ -970,7 +960,6 @@ void QGL_EnableLogging( qboolean enable )
 		qglTexParameterf             = 	dllTexParameterf             ;
 		qglTexParameterfv            = 	dllTexParameterfv            ;
 		qglTexSubImage2D             = 	dllTexSubImage2D             ;
-		qglTranslatef                = 	dllTranslatef                ;
 		qglVertex2f                  = 	dllVertex2f                  ;
 		qglVertex3f                  = 	dllVertex3f                  ;
 		qglVertex3fv                 = 	dllVertex3fv                 ;

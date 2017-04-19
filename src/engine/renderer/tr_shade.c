@@ -792,7 +792,11 @@ static void ComputeTexCoords( shaderStage_t *pStage ) {
 static void RB_IterateStagesGeneric( shaderCommands_t *input )
 {
     // VULKAN
-    vk_bind_resources_shared_between_stages(input->numPasses);
+    extern FILE* vk_log_file;
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "vk_draw (passes %d, vert %d, inds %d)\n", input->numPasses, tess.numVertexes, tess.numIndexes);
+
+    vk_bind_resources_shared_between_stages();
 
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
