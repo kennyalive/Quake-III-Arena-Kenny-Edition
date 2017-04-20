@@ -741,6 +741,7 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	}
 
 	image = tr.images[tr.numImages] = (image_t*) ri.Hunk_Alloc( sizeof( image_t ), h_low );
+    image->index = tr.numImages;
 	image->texnum = 1024 + tr.numImages;
 	tr.numImages++;
 
@@ -778,8 +779,9 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	hashTable[hash] = image;
 
     // VULKAN
-    image->vk_image = vulkan_demo->create_texture(pic, 4, width, height, image->vk_image_view);
-    image->vk_descriptor_set = vk_create_descriptor_set(image->vk_image_view);
+    Vk_Image& vk_image = tr.vk_resources.images[image->index];
+    vk_image.image = vulkan_demo->create_texture(pic, 4, width, height, vk_image.image_view);
+    vk_image.descriptor_set = vk_create_descriptor_set(vk_image.image_view);
 
 	return image;
 }
@@ -1843,19 +1845,8 @@ R_DeleteTextures
 ===============
 */
 void R_DeleteTextures( void ) {
-	int		i;
-
-    // VULKAN
-    vkDeviceWaitIdle(vk.device);
-
-	for ( i=0; i<tr.numImages ; i++ ) {
+	for ( int i=0; i<tr.numImages ; i++ ) {
 		qglDeleteTextures( 1, &tr.images[i]->texnum );
-
-        // VULKAN
-        vkDestroyImage(vk.device, tr.images[i]->vk_image, nullptr);
-        vkDestroyImageView(vk.device, tr.images[i]->vk_image_view, nullptr);
-        if (tr.images[i]->vk_staging_buffer.handle != VK_NULL_HANDLE)
-            vkDestroyBuffer(vk.device, tr.images[i]->vk_staging_buffer.handle, nullptr);
 	}
 	Com_Memset( tr.images, 0, sizeof( tr.images ) );
 
@@ -1864,6 +1855,7 @@ void R_DeleteTextures( void ) {
 	Com_Memset( glState.currenttextures, 0, sizeof( glState.currenttextures ) );
 
     // VULKAN
+    vkDeviceWaitIdle(vk.device);
     Com_Memset( glState.vk_current_images, 0, sizeof( glState.vk_current_images ) );
 
 	if ( qglBindTexture ) {

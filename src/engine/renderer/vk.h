@@ -6,34 +6,12 @@
 #endif
 
 #include "vulkan/vulkan.h"
-
-#include <array>
-
 #include "../../game/q_shared.h"
 
-bool vk_initialize(HWND hwnd);
-void vk_deinitialize();
-void vk_destroy_resources();
+const int MAX_SWAPCHAIN_IMAGES = 8;
+const int MAX_VK_PIPELINES = 1024;
+const int MAX_VK_IMAGES = 2048; // should be the same as MAX_DRAWIMAGES
 
-VkRect2D vk_get_viewport_rect();
-void vk_get_mvp_transform(float mvp[16]);
-
-void vk_bind_resources_shared_between_stages();
-void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
-
-void vk_begin_frame();
-
-struct Vk_Staging_Buffer {
-    VkBuffer handle = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE; // memory associated with a buffer
-    VkDeviceSize offset = -1;
-    VkDeviceSize size = 0;
-};
-
-VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer);
-void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels);
-
-// Pipelines.
 enum class Vk_Shader_Type {
     single_texture,
     multi_texture_mul,
@@ -55,9 +33,42 @@ struct Vk_Pipeline_Desc {
     }
 };
 
-VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
+struct Vk_Staging_Buffer {
+    VkBuffer handle = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE; // memory associated with a buffer
+    VkDeviceSize offset = -1;
+    VkDeviceSize size = 0;
+};
 
+struct Vk_Image {
+    VkImage image = VK_NULL_HANDLE;
+    VkImageView image_view = VK_NULL_HANDLE;
+
+    // One to one correspondence between images and descriptor sets.
+    // We update descriptor set during image initialization and then never touch it again (except for cinematic images).
+    VkDescriptorSet descriptor_set;
+
+    // Staging buffer for cinematic images.
+    Vk_Staging_Buffer staging_buffer;
+};
+
+bool vk_initialize(HWND hwnd);
+void vk_deinitialize();
+void vk_destroy_resources();
+
+VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer);
+void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels);
+VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
 VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);
+
+VkRect2D vk_get_viewport_rect();
+void vk_get_mvp_transform(float mvp[16]);
+
+void vk_bind_resources_shared_between_stages();
+void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
+
+void vk_begin_frame();
+
 
 // Shaders.
 extern unsigned char single_texture_vert_spv[];
@@ -76,8 +87,6 @@ extern unsigned char multi_texture_mul_frag_spv[];
 extern long long multi_texture_mul_frag_spv_size;
 
 // Vulkan specific structures used by the engine.
-const int MAX_SWAPCHAIN_IMAGES = 8;
-
 struct Vulkan_Instance {
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
@@ -120,12 +129,10 @@ struct Vulkan_Instance {
     VkPipeline skybox_pipeline = VK_NULL_HANDLE;
 };
 
-const int MAX_VK_PIPELINES = 1024;
-
 struct Vulkan_Resources {
     int num_pipelines = 0;
     Vk_Pipeline_Desc pipeline_desc[MAX_VK_PIPELINES];
     VkPipeline pipelines[MAX_VK_PIPELINES];
 
-    // TODO: put images here too.
+    Vk_Image images[MAX_VK_IMAGES];
 };

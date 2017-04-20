@@ -738,20 +738,21 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );	
 
         // VULKAN
-        vkDestroyImage(vk.device, tr.scratchImage[client]->vk_image, nullptr);
-        vkDestroyImageView(vk.device, tr.scratchImage[client]->vk_image_view, nullptr);
-        tr.scratchImage[client]->vk_image = vk_create_cinematic_image(cols, rows, tr.scratchImage[client]->vk_staging_buffer);
-        tr.scratchImage[client]->vk_image_view = create_image_view(tr.scratchImage[client]->vk_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-        vk_update_cinematic_image(tr.scratchImage[client]->vk_image, tr.scratchImage[client]->vk_staging_buffer, cols, rows, data);
+        Vk_Image& vk_image = tr.vk_resources.images[tr.scratchImage[client]->index];
+        vkDestroyImage(vk.device, vk_image.image, nullptr);
+        vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
+        vk_image.image = vk_create_cinematic_image(cols, rows, vk_image.staging_buffer);
+        vk_image.image_view = create_image_view(vk_image.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+        vk_update_cinematic_image(vk_image.image, vk_image.staging_buffer, cols, rows, data);
 
         VkDescriptorImageInfo image_info;
         image_info.sampler = vulkan_demo->texture_image_sampler;
-        image_info.imageView = tr.scratchImage[client]->vk_image_view;
+        image_info.imageView = vk_image.image_view;
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         std::array<VkWriteDescriptorSet, 1> descriptor_writes;
         descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[0].dstSet = tr.scratchImage[client]->vk_descriptor_set;
+        descriptor_writes[0].dstSet = vk_image.descriptor_set;
         descriptor_writes[0].dstBinding = 0;
         descriptor_writes[0].dstArrayElement = 0;
         descriptor_writes[0].descriptorCount = 1;
@@ -769,7 +770,8 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 
             // VULKAN
-            vk_update_cinematic_image(tr.scratchImage[client]->vk_image, tr.scratchImage[client]->vk_staging_buffer, cols, rows, data);
+            const Vk_Image& vk_image = tr.vk_resources.images[tr.scratchImage[client]->index];
+            vk_update_cinematic_image(vk_image.image, vk_image.staging_buffer, cols, rows, data);
 		}
 	}
 

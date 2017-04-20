@@ -1039,18 +1039,6 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc) {
     return pipeline;
 }
 
-static void vk_destroy_pipelines() {
-    for (int i = 0; i < tr.vk_resources.num_pipelines; i++) {
-        vkDestroyPipeline(vk.device, tr.vk_resources.pipelines[i], nullptr);
-    }
-
-    tr.vk_resources.num_pipelines = 0;
-    Com_Memset(tr.vk_resources.pipelines, 0, sizeof(tr.vk_resources.pipelines));
-    Com_Memset(tr.vk_resources.pipeline_desc, 0, sizeof(tr.vk_resources.pipeline_desc));
-
-    pipeline_create_time = 0.0f;
-}
-
 VkDescriptorSet vk_create_descriptor_set(VkImageView image_view) {
     VkDescriptorSetAllocateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1086,8 +1074,33 @@ VkDescriptorSet vk_create_descriptor_set(VkImageView image_view) {
 
 void vk_destroy_resources() {
     vkDeviceWaitIdle(vk.device);
-    vk_destroy_pipelines();
 
+    // Destroy pipelines
+    for (int i = 0; i < tr.vk_resources.num_pipelines; i++) {
+        vkDestroyPipeline(vk.device, tr.vk_resources.pipelines[i], nullptr);
+    }
+
+    tr.vk_resources.num_pipelines = 0;
+    Com_Memset(tr.vk_resources.pipelines, 0, sizeof(tr.vk_resources.pipelines));
+    Com_Memset(tr.vk_resources.pipeline_desc, 0, sizeof(tr.vk_resources.pipeline_desc));
+    pipeline_create_time = 0.0f;
+
+    // Destroy Vk_Image resources.
+    for (int i = 0; i < MAX_VK_IMAGES; i++) {
+        Vk_Image& vk_image = tr.vk_resources.images[i];
+
+        if (vk_image.image == VK_NULL_HANDLE)
+            continue;
+
+        vkDestroyImage(vk.device, vk_image.image, nullptr);
+        vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
+
+        if (vk_image.staging_buffer.handle != VK_NULL_HANDLE)
+            vkDestroyBuffer(vk.device, vk_image.staging_buffer.handle, nullptr);
+    }
+    Com_Memset(tr.vk_resources.images, 0, sizeof(tr.vk_resources.images));
+
+    // Reset geometry buffer's current offsets.
     vk.xyz_elements = 0;
     vk.color_st_elements = 0;
     vk.index_buffer_offset = 0;
@@ -1229,10 +1242,13 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
     vk.color_st_elements += tess.numVertexes;
 
     // bind descriptor sets
-    image_t* image = glState.vk_current_images[0];
-    image_t* image2 = glState.vk_current_images[1];
-    VkDescriptorSet sets[2] = { image->vk_descriptor_set, image2 ? image2->vk_descriptor_set : VkDescriptorSet() };
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, multitexture ? 2 : 1, sets, 0, nullptr);
+    uint32_t set_count = multitexture ? 2 : 1;
+    VkDescriptorSet sets[2];
+    sets[0] = tr.vk_resources.images[glState.vk_current_images[0]->index].descriptor_set;
+    if (multitexture) {
+        sets[1] = tr.vk_resources.images[glState.vk_current_images[1]->index].descriptor_set;
+    }
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, sets, 0, nullptr);
 
     // bind pipeline
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
