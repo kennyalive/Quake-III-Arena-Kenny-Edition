@@ -105,7 +105,6 @@
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_frag.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_vert.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\vk_allocator.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\vk_resource_manager.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\tr_animation.c" />
     <ClCompile Include="..\..\src\engine\renderer\tr_backend.c" />
     <ClCompile Include="..\..\src\engine\renderer\tr_bsp.c" />
@@ -132,7 +131,6 @@
     <ClCompile Include="..\..\src\engine\platform\win_gamma.c" />
     <ClCompile Include="..\..\src\engine\platform\win_glimp.c" />
     <ClCompile Include="..\..\src\engine\platform\win_qgl.c" />
-    <ClCompile Include="..\..\src\engine\renderer\vk_demo.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\vk.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\vk_utils.cpp" />
   </ItemGroup>
@@ -140,9 +138,7 @@
     <ClInclude Include="..\..\src\engine\qcommon\cm_public.h" />
     <ClInclude Include="..\..\src\engine\platform\glw_win.h" />
     <ClInclude Include="..\..\src\engine\renderer\vk_allocator.h" />
-    <ClInclude Include="..\..\src\engine\renderer\vk_resource_manager.h" />
     <ClInclude Include="..\..\src\engine\renderer\vk.h" />
-    <ClInclude Include="..\..\src\engine\renderer\vk_demo.h" />
     <ClInclude Include="..\..\src\engine\renderer\vk_utils.h" />
     <ClInclude Include="..\..\src\game\q_shared.h" />
     <ClInclude Include="..\..\src\engine\qcommon\qcommon.h" />

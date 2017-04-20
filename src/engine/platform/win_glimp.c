@@ -41,9 +41,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "glw_win.h"
 #include "win_local.h"
 
-// VULKAN
-#include "../../engine/renderer/vk_demo.h"
-
 extern void WG_CheckHardwareGamma( void );
 extern void WG_RestoreGamma( void );
 
@@ -572,7 +569,6 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
                 ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
             } else {
                 g_wv.hWnd_vulkan = hwnd2;
-                vulkan_demo = new Vulkan_Demo(glConfig.vidWidth, glConfig.vidHeight);
             }
         }
     } else { // vulkan
@@ -581,7 +577,6 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
             DestroyWindow(hwnd);
             return false;
         }
-        vulkan_demo = new Vulkan_Demo(glConfig.vidWidth, glConfig.vidHeight);
 
         g_wv.hWnd = hwnd;
         g_wv.hWnd_vulkan = hwnd;

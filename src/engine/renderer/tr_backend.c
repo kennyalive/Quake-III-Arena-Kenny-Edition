@@ -23,7 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // VULKAN
 #include "vk.h"
-#include "vk_demo.h"
 #include "vk_utils.h"
 
 backEndData_t	*backEndData[SMP_FRAMES];
@@ -746,23 +745,23 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
         vk_update_cinematic_image(vk_image.image, vk_image.staging_buffer, cols, rows, data);
 
         VkDescriptorImageInfo image_info;
-        image_info.sampler = vulkan_demo->texture_image_sampler;
+        image_info.sampler = vk.sampler;
         image_info.imageView = vk_image.image_view;
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-        std::array<VkWriteDescriptorSet, 1> descriptor_writes;
-        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[0].dstSet = vk_image.descriptor_set;
-        descriptor_writes[0].dstBinding = 0;
-        descriptor_writes[0].dstArrayElement = 0;
-        descriptor_writes[0].descriptorCount = 1;
-        descriptor_writes[0].pNext = nullptr;
-        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptor_writes[0].pImageInfo = &image_info;
-        descriptor_writes[0].pBufferInfo = nullptr;
-        descriptor_writes[0].pTexelBufferView = nullptr;
+        VkWriteDescriptorSet descriptor_write;
+        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write.dstSet = vk_image.descriptor_set;
+        descriptor_write.dstBinding = 0;
+        descriptor_write.dstArrayElement = 0;
+        descriptor_write.descriptorCount = 1;
+        descriptor_write.pNext = nullptr;
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_write.pImageInfo = &image_info;
+        descriptor_write.pBufferInfo = nullptr;
+        descriptor_write.pTexelBufferView = nullptr;
 
-        vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+        vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
@@ -1053,49 +1052,7 @@ const void	*RB_SwapBuffers( const void *data ) {
 	backEnd.projection2D = qfalse;
 
     // VULKAN
-    extern FILE* vk_log_file;
-
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "end_frame (vb_size %d, ib_size %d)\n", 
-            vk.xyz_elements * 16 + vk.color_st_elements * 20,
-            (int)vk.index_buffer_offset);
-
-    vkCmdEndRenderPass(vk.command_buffer);
-
-    VkResult result = vkEndCommandBuffer(vk.command_buffer);
-    check_vk_result(result, "vkEndCommandBuffer");
-
-	if (r_logFile->integer) {
-		fprintf(vk_log_file, "present\n");
-		fflush(vk_log_file);
-	}
-
-    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkSubmitInfo submit_info;
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.pNext = nullptr;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &vulkan_demo->image_acquired;
-    submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vk.command_buffer;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &vulkan_demo->rendering_finished;
-
-    result = vkQueueSubmit(vk.queue, 1, &submit_info, vulkan_demo->rendering_finished_fence);
-    check_vk_result(result, "vkQueueSubmit");
-
-    VkPresentInfoKHR present_info;
-    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    present_info.pNext = nullptr;
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &vulkan_demo->rendering_finished;
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = &vk.swapchain;
-    present_info.pImageIndices = &vulkan_demo->swapchain_image_index;
-    present_info.pResults = nullptr;
-    result = vkQueuePresentKHR(vk.queue, &present_info);
-    check_vk_result(result, "vkQueuePresentKHR");
+    vk_end_frame();
 
 	return (const void *)(cmd + 1);
 }

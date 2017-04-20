@@ -56,6 +56,7 @@ bool vk_initialize(HWND hwnd);
 void vk_deinitialize();
 void vk_destroy_resources();
 
+VkImage vk_create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
 VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer);
 void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
@@ -68,6 +69,7 @@ void vk_bind_resources_shared_between_stages();
 void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
 
 void vk_begin_frame();
+void vk_end_frame();
 
 
 // Shaders.
@@ -126,7 +128,15 @@ struct Vulkan_Instance {
     byte* index_buffer_ptr = nullptr; // pointer to mapped index buffer
     VkDeviceSize index_buffer_offset = 0;
 
+    VkSampler sampler = VK_NULL_HANDLE;
+
     VkPipeline skybox_pipeline = VK_NULL_HANDLE;
+
+    VkSemaphore image_acquired = VK_NULL_HANDLE;
+    uint32_t swapchain_image_index = -1;
+
+    VkSemaphore rendering_finished = VK_NULL_HANDLE;
+    VkFence rendering_finished_fence = VK_NULL_HANDLE;
 };
 
 struct Vulkan_Resources {

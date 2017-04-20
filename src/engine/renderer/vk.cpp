@@ -2,11 +2,11 @@
 
 #include "vk_utils.h"
 #include "vk_allocator.h"
-#include "vk_resource_manager.h"
 
-#include "vk_demo.h"
-
+#include <algorithm>
 #include <chrono>
+
+FILE* vk_log_file;
 
 const int VERTEX_CHUNK_SIZE = 512 * 1024;
 
@@ -327,6 +327,8 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
 VkPipeline create_pipeline(const Vk_Pipeline_Desc&);
 
 bool vk_initialize(HWND hwnd) {
+    vk_log_file = fopen("vk_dev.log", "w");
+
     try {
         auto& g = vk;
 
@@ -394,7 +396,6 @@ bool vk_initialize(HWND hwnd) {
         }
 
         get_allocator()->initialize(vk.physical_device, vk.device);
-        get_resource_manager()->initialize(vk.device);
 
         {
             VkFormat depth_format = find_depth_format(vk.physical_device);
@@ -412,15 +413,15 @@ bool vk_initialize(HWND hwnd) {
 		vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
 
         {
-            std::array<VkImageView, 2> attachments = {VK_NULL_HANDLE, vk.depth_image_view};
+            VkImageView attachments[2] = {VK_NULL_HANDLE, vk.depth_image_view};
 
             VkFramebufferCreateInfo desc;
             desc.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             desc.pNext = nullptr;
             desc.flags = 0;
             desc.renderPass = vk.render_pass;
-            desc.attachmentCount = static_cast<uint32_t>(attachments.size());
-            desc.pAttachments = attachments.data();
+            desc.attachmentCount = 2;
+            desc.pAttachments = attachments;
             desc.width = glConfig.vidWidth;
             desc.height = glConfig.vidHeight;
             desc.layers = 1;
@@ -499,7 +500,7 @@ bool vk_initialize(HWND hwnd) {
         }
 
         //
-        // Create geometry buffers.
+        // Geometry buffers.
         //
         {
             VkBufferCreateInfo desc;
@@ -549,6 +550,34 @@ bool vk_initialize(HWND hwnd) {
         }
 
         //
+        // Samplers.
+        //
+        {
+            VkSamplerCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.magFilter = VK_FILTER_LINEAR;
+            desc.minFilter = VK_FILTER_LINEAR;
+            desc.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            desc.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            desc.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            desc.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            desc.mipLodBias = 0.0f;
+            desc.anisotropyEnable = VK_TRUE;
+            desc.maxAnisotropy = 1;
+            desc.compareEnable = VK_FALSE;
+            desc.compareOp = VK_COMPARE_OP_ALWAYS;
+            desc.minLod = 0.0f;
+            desc.maxLod = 0.0f;
+            desc.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            desc.unnormalizedCoordinates = VK_FALSE;
+
+            VkResult result = vkCreateSampler(vk.device, &desc, nullptr, &vk.sampler);
+            check_vk_result(result, "vkCreateSampler");
+        }
+
+        //
         // Skybox pipeline.
         //
         {
@@ -561,6 +590,28 @@ bool vk_initialize(HWND hwnd) {
             vk.skybox_pipeline = create_pipeline(desc);
         }
 
+        //
+        // Sync primitives.
+        //
+        {
+            VkSemaphoreCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+
+            VkResult result = vkCreateSemaphore(vk.device, &desc, nullptr, &vk.image_acquired);
+            check_vk_result(result, "vkCreateSemaphore");
+            result = vkCreateSemaphore(vk.device, &desc, nullptr, &vk.rendering_finished);
+            check_vk_result(result, "vkCreateSemaphore");
+
+            VkFenceCreateInfo fence_desc;
+            fence_desc.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            fence_desc.pNext = nullptr;
+            fence_desc.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            result = vkCreateFence(vk.device, &fence_desc, nullptr, &vk.rendering_finished_fence);
+            check_vk_result(result, "vkCreateFence");
+        }
+
     } catch (const std::exception&) {
         return false;
     }
@@ -568,12 +619,13 @@ bool vk_initialize(HWND hwnd) {
 }
 
 void vk_deinitialize() {
+    fclose(vk_log_file);
+    vk_log_file = nullptr;
+
     auto& g = vk;
 
-    get_resource_manager()->release_resources();
     get_allocator()->deallocate_all();
 
-    vkDestroyFence(vk.device, vulkan_demo->rendering_finished_fence, nullptr);
     vkDestroyImage(vk.device, vk.depth_image, nullptr);
     vkDestroyImageView(vk.device, vk.depth_image_view, nullptr);
 
@@ -594,7 +646,11 @@ void vk_deinitialize() {
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
     vkDestroyBuffer(vk.device, vk.vertex_buffer, nullptr);
     vkDestroyBuffer(vk.device, vk.index_buffer, nullptr);
+    vkDestroySampler(vk.device, vk.sampler, nullptr);
     vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
+    vkDestroySemaphore(vk.device, vk.image_acquired, nullptr);
+    vkDestroySemaphore(vk.device, vk.rendering_finished, nullptr);
+    vkDestroyFence(vk.device, vk.rendering_finished_fence, nullptr);
 
     vkDestroySwapchainKHR(g.device, g.swapchain, nullptr);
     vkDestroyDevice(g.device, nullptr);
@@ -602,6 +658,55 @@ void vk_deinitialize() {
     vkDestroyInstance(g.instance, nullptr);
 
     g = Vulkan_Instance();
+}
+
+VkImage vk_create_texture(const uint8_t* pixels, int bytes_per_pixel, int image_width, int image_height, VkImageView& image_view) {
+    VkImage staging_image = create_staging_texture(image_width, image_height,
+        bytes_per_pixel == 3 ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8A8_UNORM, pixels, bytes_per_pixel);
+
+    Defer_Action destroy_staging_image([&staging_image]() {
+        vkDestroyImage(vk.device, staging_image, nullptr);
+    });
+
+    VkImage texture_image = ::create_texture(image_width, image_height,
+        bytes_per_pixel == 3 ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
+
+    record_and_run_commands(vk.command_pool, vk.queue,
+        [&texture_image, &staging_image, &image_width, &image_height](VkCommandBuffer command_buffer) {
+
+        record_image_layout_transition(command_buffer, staging_image, VK_FORMAT_R8G8B8A8_UNORM,
+            VK_ACCESS_HOST_WRITE_BIT, VK_IMAGE_LAYOUT_PREINITIALIZED, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+        record_image_layout_transition(command_buffer, texture_image, VK_FORMAT_R8G8B8A8_UNORM,
+            0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        // copy staging image's data to device local image
+        VkImageSubresourceLayers subresource_layers;
+        subresource_layers.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        subresource_layers.mipLevel = 0;
+        subresource_layers.baseArrayLayer = 0;
+        subresource_layers.layerCount = 1;
+
+        VkImageCopy region;
+        region.srcSubresource = subresource_layers;
+        region.srcOffset = {0, 0, 0};
+        region.dstSubresource = subresource_layers;
+        region.dstOffset = {0, 0, 0};
+        region.extent.width = image_width;
+        region.extent.height = image_height;
+        region.extent.depth = 1;
+
+        vkCmdCopyImage(command_buffer,
+            staging_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            texture_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &region);
+
+        record_image_layout_transition(command_buffer, texture_image, VK_FORMAT_R8G8B8A8_UNORM,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    });
+
+    image_view = create_image_view(texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+    return texture_image;
 }
 
 VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer) {
@@ -723,14 +828,14 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     else
         ri.Error(ERR_DROP, "create_pipeline: invalid alpha test state bits\n");
 
-    std::array<VkSpecializationMapEntry, 1> specialization_entries;
+    VkSpecializationMapEntry specialization_entries[1];
     specialization_entries[0].constantID = 0;
     specialization_entries[0].offset = offsetof(struct Specialization_Data, alpha_test_func);
     specialization_entries[0].size = sizeof(int32_t);
 
     VkSpecializationInfo specialization_info;
-    specialization_info.mapEntryCount = uint32_t(specialization_entries.size());
-    specialization_info.pMapEntries = specialization_entries.data();
+    specialization_info.mapEntryCount = 1;
+    specialization_info.pMapEntries = specialization_entries;
     specialization_info.dataSize = sizeof(Specialization_Data);
     specialization_info.pData = &specialization_data;
 
@@ -1052,23 +1157,23 @@ VkDescriptorSet vk_create_descriptor_set(VkImageView image_view) {
     check_vk_result(result, "vkAllocateDescriptorSets");
 
     VkDescriptorImageInfo image_info;
-    image_info.sampler = vulkan_demo->texture_image_sampler;
+    image_info.sampler = vk.sampler;
     image_info.imageView = image_view;
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    std::array<VkWriteDescriptorSet, 1> descriptor_writes;
-    descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_writes[0].dstSet = set;
-    descriptor_writes[0].dstBinding = 0;
-    descriptor_writes[0].dstArrayElement = 0;
-    descriptor_writes[0].descriptorCount = 1;
-    descriptor_writes[0].pNext = nullptr;
-    descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_writes[0].pImageInfo = &image_info;
-    descriptor_writes[0].pBufferInfo = nullptr;
-    descriptor_writes[0].pTexelBufferView = nullptr;
+    VkWriteDescriptorSet descriptor_write;
+    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_write.dstSet = set;
+    descriptor_write.dstBinding = 0;
+    descriptor_write.dstArrayElement = 0;
+    descriptor_write.descriptorCount = 1;
+    descriptor_write.pNext = nullptr;
+    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_write.pImageInfo = &image_info;
+    descriptor_write.pBufferInfo = nullptr;
+    descriptor_write.pTexelBufferView = nullptr;
 
-    vkUpdateDescriptorSets(vk.device, (uint32_t)descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+    vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
     return set;
 }
 
@@ -1287,16 +1392,15 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
 }
 
 void vk_begin_frame() {
-	extern FILE* vk_log_file;
 	if (r_logFile->integer)
 		fprintf(vk_log_file, "vk_begin_frame\n");
 
-	VkResult result = vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vulkan_demo->image_acquired, VK_NULL_HANDLE, &vulkan_demo->swapchain_image_index);
+	VkResult result = vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vk.image_acquired, VK_NULL_HANDLE, &vk.swapchain_image_index);
 	check_vk_result(result, "vkAcquireNextImageKHR");
 
-	result = vkWaitForFences(vk.device, 1, &vulkan_demo->rendering_finished_fence, VK_FALSE, 1e9);
+	result = vkWaitForFences(vk.device, 1, &vk.rendering_finished_fence, VK_FALSE, 1e9);
 	check_vk_result(result, "vkWaitForFences");
-	result = vkResetFences(vk.device, 1, &vulkan_demo->rendering_finished_fence);
+	result = vkResetFences(vk.device, 1, &vk.rendering_finished_fence);
 	check_vk_result(result, "vkResetFences");
 
 	VkCommandBufferBeginInfo begin_info;
@@ -1317,7 +1421,7 @@ void vk_begin_frame() {
 	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	render_pass_begin_info.pNext = nullptr;
 	render_pass_begin_info.renderPass = vk.render_pass;
-	render_pass_begin_info.framebuffer = vk.framebuffers[vulkan_demo->swapchain_image_index];
+	render_pass_begin_info.framebuffer = vk.framebuffers[vk.swapchain_image_index];
 	render_pass_begin_info.renderArea.offset = { 0, 0 };
 	render_pass_begin_info.renderArea.extent = { (uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight };
 	render_pass_begin_info.clearValueCount = 2;
@@ -1330,4 +1434,48 @@ void vk_begin_frame() {
 	vk.index_buffer_offset = 0;
 
 	glState.vk_dirty_attachments = false;
+}
+
+void vk_end_frame() {
+    if (r_logFile->integer)
+        fprintf(vk_log_file, "end_frame (vb_size %d, ib_size %d)\n", 
+            vk.xyz_elements * 16 + vk.color_st_elements * 20,
+            (int)vk.index_buffer_offset);
+
+    vkCmdEndRenderPass(vk.command_buffer);
+
+    VkResult result = vkEndCommandBuffer(vk.command_buffer);
+    check_vk_result(result, "vkEndCommandBuffer");
+
+    if (r_logFile->integer) {
+        fprintf(vk_log_file, "present\n");
+        fflush(vk_log_file);
+    }
+
+    VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSubmitInfo submit_info;
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = nullptr;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &vk.image_acquired;
+    submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &vk.command_buffer;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &vk.rendering_finished;
+
+    result = vkQueueSubmit(vk.queue, 1, &submit_info, vk.rendering_finished_fence);
+    check_vk_result(result, "vkQueueSubmit");
+
+    VkPresentInfoKHR present_info;
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.pNext = nullptr;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &vk.rendering_finished;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &vk.swapchain;
+    present_info.pImageIndices = &vk.swapchain_image_index;
+    present_info.pResults = nullptr;
+    result = vkQueuePresentKHR(vk.queue, &present_info);
+    check_vk_result(result, "vkQueuePresentKHR");
 }

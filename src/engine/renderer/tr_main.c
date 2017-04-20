@@ -25,9 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 trGlobals_t		tr;
 
-// VULKAN
-Vulkan_Demo* vulkan_demo;
-
 static float	s_flipMatrix[16] = {
 	// convert from our coordinate system (looking down X)
 	// to OpenGL's coordinate system (looking down -Z)

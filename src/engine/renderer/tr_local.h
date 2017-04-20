@@ -951,11 +951,7 @@ extern glconfig_t	glConfig;		// outside of TR since it shouldn't be cleared duri
 extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during ref re-init
 
 // VULKAN
-extern Vulkan_Instance vk; // same as above - shouldn't be cleared during ref re-init
-
-// VULKAN
-class Vulkan_Demo;
-extern Vulkan_Demo* vulkan_demo;
+extern Vulkan_Instance vk;          // same as above - shouldn't be cleared during ref re-init
 
 
 //

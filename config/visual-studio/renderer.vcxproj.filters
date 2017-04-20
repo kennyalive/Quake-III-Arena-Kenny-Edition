@@ -92,12 +92,6 @@
     <ClCompile Include="..\..\src\engine\platform\win_qgl.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\engine\renderer\vk_resource_manager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\engine\renderer\vk_demo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\engine\renderer\vk_allocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -156,12 +150,6 @@
     </ClInclude>
     <ClInclude Include="..\..\src\cgame\tr_types.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\engine\renderer\vk_resource_manager.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\engine\renderer\vk_demo.h">
-      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\engine\renderer\vk_allocator.h">
       <Filter>Source Files</Filter>

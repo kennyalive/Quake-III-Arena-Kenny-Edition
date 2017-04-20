@@ -22,9 +22,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_image.c
 #include "tr_local.h"
 
-// VULKAN
-#include "vk_demo.h"
-
 static void* q3_stbi_malloc(size_t size) {
     return ri.Malloc((int)size);
 }
@@ -780,7 +777,7 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 
     // VULKAN
     Vk_Image& vk_image = tr.vk_resources.images[image->index];
-    vk_image.image = vulkan_demo->create_texture(pic, 4, width, height, vk_image.image_view);
+    vk_image.image = vk_create_texture(pic, 4, width, height, vk_image.image_view);
     vk_image.descriptor_set = vk_create_descriptor_set(vk_image.image_view);
 
 	return image;

@@ -23,9 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 
-// VULKAN
-#include "vk_demo.h"
-
 /*
 
   THIS ENTIRE FILE IS BACK END
