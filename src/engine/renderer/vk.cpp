@@ -550,6 +550,56 @@ bool vk_initialize(HWND hwnd) {
         }
 
         //
+        // Sync primitives.
+        //
+        {
+            VkSemaphoreCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+
+            VkResult result = vkCreateSemaphore(vk.device, &desc, nullptr, &vk.image_acquired);
+            check_vk_result(result, "vkCreateSemaphore");
+            result = vkCreateSemaphore(vk.device, &desc, nullptr, &vk.rendering_finished);
+            check_vk_result(result, "vkCreateSemaphore");
+
+            VkFenceCreateInfo fence_desc;
+            fence_desc.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            fence_desc.pNext = nullptr;
+            fence_desc.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            result = vkCreateFence(vk.device, &fence_desc, nullptr, &vk.rendering_finished_fence);
+            check_vk_result(result, "vkCreateFence");
+        }
+
+        //
+        // Shader modules.
+        //
+        {
+            auto create_shader_module = [](uint8_t* bytes, int count) {
+                if (count % 4 != 0) {
+                    error("SPIR-V binary buffer size is not multiple of 4");
+                }
+                VkShaderModuleCreateInfo desc;
+                desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+                desc.pNext = nullptr;
+                desc.flags = 0;
+                desc.codeSize = count;
+                desc.pCode = reinterpret_cast<const uint32_t*>(bytes);
+               
+                VkShaderModule module;
+                VkResult result = vkCreateShaderModule(vk.device, &desc, nullptr, &module);
+                check_vk_result(result, "vkCreateShaderModule");
+                return module;
+            };
+
+            vk.single_texture_vs = create_shader_module(single_texture_vert_spv, single_texture_vert_spv_size);
+            vk.single_texture_fs = create_shader_module(single_texture_frag_spv, single_texture_frag_spv_size);
+            vk.multi_texture_vs = create_shader_module(multi_texture_vert_spv, multi_texture_vert_spv_size);
+            vk.multi_texture_mul_fs = create_shader_module(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
+            vk.multi_texture_add_fs = create_shader_module(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
+        }
+
+        //
         // Samplers.
         //
         {
@@ -590,28 +640,6 @@ bool vk_initialize(HWND hwnd) {
             vk.skybox_pipeline = create_pipeline(desc);
         }
 
-        //
-        // Sync primitives.
-        //
-        {
-            VkSemaphoreCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-
-            VkResult result = vkCreateSemaphore(vk.device, &desc, nullptr, &vk.image_acquired);
-            check_vk_result(result, "vkCreateSemaphore");
-            result = vkCreateSemaphore(vk.device, &desc, nullptr, &vk.rendering_finished);
-            check_vk_result(result, "vkCreateSemaphore");
-
-            VkFenceCreateInfo fence_desc;
-            fence_desc.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fence_desc.pNext = nullptr;
-            fence_desc.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            result = vkCreateFence(vk.device, &fence_desc, nullptr, &vk.rendering_finished_fence);
-            check_vk_result(result, "vkCreateFence");
-        }
-
     } catch (const std::exception&) {
         return false;
     }
@@ -621,8 +649,6 @@ bool vk_initialize(HWND hwnd) {
 void vk_deinitialize() {
     fclose(vk_log_file);
     vk_log_file = nullptr;
-
-    auto& g = vk;
 
     get_allocator()->deallocate_all();
 
@@ -635,10 +661,10 @@ void vk_deinitialize() {
 
     vkDestroyRenderPass(vk.device, vk.render_pass, nullptr);
 
-    vkDestroyCommandPool(g.device, g.command_pool, nullptr);
+    vkDestroyCommandPool(vk.device, vk.command_pool, nullptr);
 
-    for (uint32_t i = 0; i < g.swapchain_image_count; i++) {
-        vkDestroyImageView(g.device, g.swapchain_image_views[i], nullptr);
+    for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
+        vkDestroyImageView(vk.device, vk.swapchain_image_views[i], nullptr);
     }
 
     vkDestroyDescriptorPool(vk.device, vk.descriptor_pool, nullptr);
@@ -646,27 +672,30 @@ void vk_deinitialize() {
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
     vkDestroyBuffer(vk.device, vk.vertex_buffer, nullptr);
     vkDestroyBuffer(vk.device, vk.index_buffer, nullptr);
-    vkDestroySampler(vk.device, vk.sampler, nullptr);
-    vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
     vkDestroySemaphore(vk.device, vk.image_acquired, nullptr);
     vkDestroySemaphore(vk.device, vk.rendering_finished, nullptr);
     vkDestroyFence(vk.device, vk.rendering_finished_fence, nullptr);
 
-    vkDestroySwapchainKHR(g.device, g.swapchain, nullptr);
-    vkDestroyDevice(g.device, nullptr);
-    vkDestroySurfaceKHR(g.instance, g.surface, nullptr);
-    vkDestroyInstance(g.instance, nullptr);
+    vkDestroyShaderModule(vk.device, vk.single_texture_vs, nullptr);
+    vkDestroyShaderModule(vk.device, vk.single_texture_fs, nullptr);
+    vkDestroyShaderModule(vk.device, vk.multi_texture_vs, nullptr);
+    vkDestroyShaderModule(vk.device, vk.multi_texture_mul_fs, nullptr);
+    vkDestroyShaderModule(vk.device, vk.multi_texture_add_fs, nullptr);
 
-    g = Vulkan_Instance();
+    vkDestroySampler(vk.device, vk.sampler, nullptr);
+    vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
+
+    vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
+    vkDestroyDevice(vk.device, nullptr);
+    vkDestroySurfaceKHR(vk.instance, vk.surface, nullptr);
+    vkDestroyInstance(vk.instance, nullptr);
+
+    vk = Vulkan_Instance();
 }
 
 VkImage vk_create_texture(const uint8_t* pixels, int bytes_per_pixel, int image_width, int image_height, VkImageView& image_view) {
     VkImage staging_image = create_staging_texture(image_width, image_height,
         bytes_per_pixel == 3 ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8A8_UNORM, pixels, bytes_per_pixel);
-
-    Defer_Action destroy_staging_image([&staging_image]() {
-        vkDestroyImage(vk.device, staging_image, nullptr);
-    });
 
     VkImage texture_image = ::create_texture(image_width, image_height,
         bytes_per_pixel == 3 ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
@@ -704,6 +733,8 @@ VkImage vk_create_texture(const uint8_t* pixels, int bytes_per_pixel, int image_
         record_image_layout_transition(command_buffer, texture_image, VK_FORMAT_R8G8B8A8_UNORM,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     });
+
+    vkDestroyImage(vk.device, staging_image, nullptr);
 
     image_view = create_image_view(texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
     return texture_image;
@@ -794,13 +825,6 @@ void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_b
 }
 
 static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
-    Shader_Module single_texture_vs(single_texture_vert_spv, single_texture_vert_spv_size);
-    Shader_Module single_texture_fs(single_texture_frag_spv, single_texture_frag_spv_size);
-
-    Shader_Module multi_texture_vs(multi_texture_vert_spv, multi_texture_vert_spv_size);
-    Shader_Module multi_texture_mul_fs(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
-    Shader_Module multi_texture_add_fs(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
-
     auto get_shader_stage_desc = [](VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry) {
         VkPipelineShaderStageCreateInfo desc;
         desc.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -841,16 +865,19 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
 
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages_state;
 
+    VkShaderModule* vs_module, *fs_module;
     if (desc.shader_type == Vk_Shader_Type::single_texture) {
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, single_texture_vs.handle, "main"));
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, single_texture_fs.handle, "main"));
+        vs_module = &vk.single_texture_vs;
+        fs_module = &vk.single_texture_fs;
     } else if (desc.shader_type == Vk_Shader_Type::multi_texture_mul) {
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, multi_texture_vs.handle, "main"));
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, multi_texture_mul_fs.handle, "main"));
+        vs_module = &vk.multi_texture_vs;
+        fs_module = &vk.multi_texture_mul_fs;
     } else if (desc.shader_type == Vk_Shader_Type::multi_texture_add) {
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, multi_texture_vs.handle, "main"));
-        shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, multi_texture_add_fs.handle, "main"));
+        vs_module = &vk.multi_texture_vs;
+        fs_module = &vk.multi_texture_add_fs;
     }
+    shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, *vs_module, "main"));
+    shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, *fs_module, "main"));
 
     if (desc.state_bits & GLS_ATEST_BITS)
         shader_stages_state.back().pSpecializationInfo = &specialization_info;

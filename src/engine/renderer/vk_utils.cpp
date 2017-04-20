@@ -17,26 +17,6 @@ void error(const std::string& message) {
     throw std::runtime_error(message);
 }
 
-Shader_Module::Shader_Module(uint8_t bytes[], int size) {
-    std::vector<uint8_t> data(bytes, bytes + size);
-    if (data.size() % 4 != 0)
-        error("SPIR-V binary file size is not multiple of 4");
-
-    VkShaderModuleCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.codeSize = data.size();
-    desc.pCode = reinterpret_cast<const uint32_t*>(data.data());
-
-    VkResult result = vkCreateShaderModule(vk.device, &desc, nullptr, &handle);
-    check_vk_result(result, "vkCreateShaderModule");
-}
-
-Shader_Module::~Shader_Module() {
-    vkDestroyShaderModule(vk.device, handle, nullptr);
-}
-
 void record_and_run_commands(VkCommandPool command_pool, VkQueue queue, std::function<void(VkCommandBuffer)> recorder) {
 
     VkCommandBufferAllocateInfo alloc_info;

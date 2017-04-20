@@ -128,15 +128,20 @@ struct Vulkan_Instance {
     byte* index_buffer_ptr = nullptr; // pointer to mapped index buffer
     VkDeviceSize index_buffer_offset = 0;
 
-    VkSampler sampler = VK_NULL_HANDLE;
-
-    VkPipeline skybox_pipeline = VK_NULL_HANDLE;
-
     VkSemaphore image_acquired = VK_NULL_HANDLE;
     uint32_t swapchain_image_index = -1;
 
     VkSemaphore rendering_finished = VK_NULL_HANDLE;
     VkFence rendering_finished_fence = VK_NULL_HANDLE;
+
+    VkShaderModule single_texture_vs = VK_NULL_HANDLE;
+    VkShaderModule single_texture_fs = VK_NULL_HANDLE;
+    VkShaderModule multi_texture_vs = VK_NULL_HANDLE;
+    VkShaderModule multi_texture_mul_fs = VK_NULL_HANDLE;
+    VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
+
+    VkSampler sampler = VK_NULL_HANDLE;
+    VkPipeline skybox_pipeline = VK_NULL_HANDLE;
 };
 
 struct Vulkan_Resources {

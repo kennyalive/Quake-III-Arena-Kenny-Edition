@@ -4,21 +4,6 @@
 #include <functional>
 #include <string>
 
-struct Defer_Action {
-    Defer_Action(std::function<void()> action)
-        : action(action) {}
-    ~Defer_Action() {
-        action();
-    }
-    std::function<void()> action;
-};
-
-struct Shader_Module {
-    Shader_Module(uint8_t bytes[], int size);
-    ~Shader_Module();
-    VkShaderModule handle;
-};
-
 // Errors
 void check_vk_result(VkResult result, const char* function_name);
 void error(const std::string& message);
