@@ -6,11 +6,16 @@
 #endif
 
 #include "vulkan/vulkan.h"
-#include "../../game/q_shared.h"
 
 const int MAX_SWAPCHAIN_IMAGES = 8;
 const int MAX_VK_PIPELINES = 1024;
 const int MAX_VK_IMAGES = 2048; // should be the same as MAX_DRAWIMAGES
+
+#define VK_CHECK(function_call) { \
+    VkResult result = function_call; \
+    if (result < 0) \
+        ri.Error(ERR_FATAL, "Vulkan error: function %s, error code %d", function_call, result); \
+}
 
 enum class Vk_Shader_Type {
     single_texture,
@@ -56,8 +61,8 @@ bool vk_initialize(HWND hwnd);
 void vk_deinitialize();
 void vk_destroy_resources();
 
-VkImage vk_create_texture(const uint8_t* pixels, int bytes_per_pixel, int width, int height, VkImageView& image_view);
-VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer);
+VkImage vk_create_texture(const uint8_t* rgba_pixels, int width, int height, VkImageView& image_view);
+VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer, VkImageView& image_view);
 void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
 VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);

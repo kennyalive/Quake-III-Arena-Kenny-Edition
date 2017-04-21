@@ -1,5 +1,5 @@
 #include "vk_allocator.h"
-#include "vk_utils.h"
+#include "tr_local.h"
 
 static Device_Memory_Allocator allocator;
 
@@ -17,7 +17,7 @@ static uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t memo
             return i;
         }
     }
-    error("failed to find matching memory type with requested properties");
+    ri.Error(ERR_FATAL, "Vulkan error: failed to find matching memory type with requested properties");
     return -1;
 }
 
@@ -69,8 +69,7 @@ void Shared_Staging_Memory::ensure_allocation(const VkMemoryRequirements& memory
         alloc_info.allocationSize = memory_requirements.size;
         alloc_info.memoryTypeIndex = required_memory_type_index;
 
-        VkResult result = vkAllocateMemory(device, &alloc_info, nullptr, &handle);
-        check_vk_result(result, "vkAllocateMemory");
+        VK_CHECK(vkAllocateMemory(device, &alloc_info, nullptr, &handle));
         size = memory_requirements.size;
         memory_type_index = required_memory_type_index;
     }
@@ -102,12 +101,6 @@ VkDeviceMemory Device_Memory_Allocator::allocate_memory(VkBuffer buffer) {
     return allocate_memory(memory_requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 }
 
-VkDeviceMemory Device_Memory_Allocator::allocate_staging_memory(VkImage image) {
-    VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(device, image, &memory_requirements);
-    return allocate_memory(memory_requirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-}
-
 VkDeviceMemory Device_Memory_Allocator::allocate_staging_memory(VkBuffer buffer) {
     VkMemoryRequirements memory_requirements;
     vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
@@ -126,8 +119,7 @@ VkDeviceMemory Device_Memory_Allocator::allocate_memory(const VkMemoryRequiremen
     alloc_info.memoryTypeIndex = find_memory_type(physical_device, memory_requirements.memoryTypeBits, properties);
 
     VkDeviceMemory chunk;
-    VkResult result = vkAllocateMemory(device, &alloc_info, nullptr, &chunk);
-    check_vk_result(result, "vkAllocateMemory");
+    VK_CHECK(vkAllocateMemory(device, &alloc_info, nullptr, &chunk));
     chunks.push_back(chunk);
     return chunk;
 }

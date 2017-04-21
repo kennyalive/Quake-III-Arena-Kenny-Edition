@@ -33,7 +33,6 @@ public:
 
     VkDeviceMemory allocate_memory(VkImage image);
     VkDeviceMemory allocate_memory(VkBuffer buffer);
-    VkDeviceMemory allocate_staging_memory(VkImage image);
     VkDeviceMemory allocate_staging_memory(VkBuffer buffer);
 
     Shared_Staging_Memory& get_shared_staging_memory();

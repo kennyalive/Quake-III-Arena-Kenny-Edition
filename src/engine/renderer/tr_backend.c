@@ -21,10 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "tr_local.h"
 
-// VULKAN
-#include "vk.h"
-#include "vk_utils.h"
-
 backEndData_t	*backEndData[SMP_FRAMES];
 backEndState_t	backEnd;
 
@@ -740,8 +736,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
         Vk_Image& vk_image = tr.vk_resources.images[tr.scratchImage[client]->index];
         vkDestroyImage(vk.device, vk_image.image, nullptr);
         vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
-        vk_image.image = vk_create_cinematic_image(cols, rows, vk_image.staging_buffer);
-        vk_image.image_view = create_image_view(vk_image.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+        vk_image.image = vk_create_cinematic_image(cols, rows, vk_image.staging_buffer, vk_image.image_view);
         vk_update_cinematic_image(vk_image.image, vk_image.staging_buffer, cols, rows, data);
 
         VkDescriptorImageInfo image_info;
