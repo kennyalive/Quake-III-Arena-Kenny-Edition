@@ -1,10 +1,9 @@
 #include "tr_local.h"
 
-#include "vk_allocator.h"
-
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <vector>
 
 FILE* vk_log_file;
 
@@ -492,25 +491,46 @@ static void allocate_and_bind_image_memory(VkImage image) {
     VK_CHECK(vkBindImageMemory(vk.device, image, chunk->memory, chunk->used - memory_requirements.size));
 }
 
-static void ensure_allocation_for_staging_buffer(VkBuffer buffer) {
+static void ensure_staging_buffer_allocation(VkDeviceSize size) {
+    if (tr.vk_resources.staging_buffer_size >= size)
+        return;
+
+    if (tr.vk_resources.staging_buffer != VK_NULL_HANDLE)
+        vkDestroyBuffer(vk.device, tr.vk_resources.staging_buffer, nullptr);
+
+    if (tr.vk_resources.staging_buffer_memory != VK_NULL_HANDLE)
+        vkFreeMemory(vk.device, tr.vk_resources.staging_buffer_memory, nullptr);
+
+    tr.vk_resources.staging_buffer_size = size;
+
+    VkBufferCreateInfo buffer_desc;
+    buffer_desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_desc.pNext = nullptr;
+    buffer_desc.flags = 0;
+    buffer_desc.size = size;
+    buffer_desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    buffer_desc.queueFamilyIndexCount = 0;
+    buffer_desc.pQueueFamilyIndices = nullptr;
+    VK_CHECK(vkCreateBuffer(vk.device, &buffer_desc, nullptr, &tr.vk_resources.staging_buffer));
+
     VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(vk.device, buffer, &memory_requirements);
+    vkGetBufferMemoryRequirements(vk.device, tr.vk_resources.staging_buffer, &memory_requirements);
 
-    if (tr.vk_resources.texture_staging_memory_size < memory_requirements.size) {
-        if (tr.vk_resources.texture_staging_memory != VK_NULL_HANDLE) {
-            vkFreeMemory(vk.device, tr.vk_resources.texture_staging_memory, nullptr);
-        }
+    uint32_t memory_type = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        VkMemoryAllocateInfo alloc_info;
-        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        alloc_info.pNext = nullptr;
-        alloc_info.allocationSize = memory_requirements.size;
-        alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    VkMemoryAllocateInfo alloc_info;
+    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.pNext = nullptr;
+    alloc_info.allocationSize = memory_requirements.size;
+    alloc_info.memoryTypeIndex = memory_type;
+    VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &tr.vk_resources.staging_buffer_memory));
+    VK_CHECK(vkBindBufferMemory(vk.device, tr.vk_resources.staging_buffer, tr.vk_resources.staging_buffer_memory, 0));
 
-        VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &tr.vk_resources.texture_staging_memory));
-        tr.vk_resources.texture_staging_memory_size = memory_requirements.size;
-    }
+    void* data;
+    VK_CHECK(vkMapMemory(vk.device, tr.vk_resources.staging_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+    tr.vk_resources.staging_buffer_ptr = (byte*)data;
 }
 
 static void deallocate_image_chunks() {
@@ -864,7 +884,6 @@ void vk_deinitialize() {
     fclose(vk_log_file);
     vk_log_file = nullptr;
 
-    get_allocator()->deallocate_all();
     deallocate_image_chunks();
 
     vkDestroyImage(vk.device, vk.depth_image, nullptr);
@@ -931,27 +950,8 @@ static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer,
 VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image_height, VkImageView& image_view) {
     int image_size = image_width * image_height * 4;
 
-    // create staging buffer
-    VkBufferCreateInfo buffer_desc;
-    buffer_desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_desc.pNext = nullptr;
-    buffer_desc.flags = 0;
-    buffer_desc.size = image_size;
-    buffer_desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    buffer_desc.queueFamilyIndexCount = 0;
-    buffer_desc.pQueueFamilyIndices = nullptr;
-
-    VkBuffer staging_buffer;
-    VK_CHECK(vkCreateBuffer(vk.device, &buffer_desc, nullptr, &staging_buffer));
-
-    ensure_allocation_for_staging_buffer(staging_buffer);
-    VK_CHECK(vkBindBufferMemory(vk.device, staging_buffer, tr.vk_resources.texture_staging_memory, 0));
-
-    void* buffer_data;
-    VK_CHECK(vkMapMemory(vk.device, tr.vk_resources.texture_staging_memory, 0, image_size, 0, &buffer_data));
-    Com_Memcpy(buffer_data, rgba_pixels, image_size);
-    vkUnmapMemory(vk.device, tr.vk_resources.texture_staging_memory);
+    ensure_staging_buffer_allocation(image_size);
+    Com_Memcpy(tr.vk_resources.staging_buffer_ptr, rgba_pixels, image_size);
 
     // create texture image
     VkImageCreateInfo desc;
@@ -979,9 +979,9 @@ VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image
 
     // copy buffer's content to texture
     record_and_run_commands(vk.command_pool, vk.queue,
-        [&texture_image, &staging_buffer, &image_width, &image_height](VkCommandBuffer command_buffer) {
+        [&texture_image, &image_width, &image_height](VkCommandBuffer command_buffer) {
 
-        record_buffer_memory_barrier(command_buffer, staging_buffer,
+        record_buffer_memory_barrier(command_buffer, tr.vk_resources.staging_buffer,
             VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
@@ -999,35 +999,17 @@ VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image
         region.imageOffset = VkOffset3D{ 0, 0, 0 };
         region.imageExtent = VkExtent3D{ (uint32_t)image_width, (uint32_t)image_height, 1 };
 
-        vkCmdCopyBufferToImage(command_buffer, staging_buffer, texture_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(command_buffer, tr.vk_resources.staging_buffer, texture_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         record_image_layout_transition(command_buffer, texture_image, VK_FORMAT_R8G8B8A8_UNORM,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     });
 
-    vkDestroyBuffer(vk.device, staging_buffer, nullptr);
-
     image_view = create_image_view(texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
     return texture_image;
 }
 
-VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer, VkImageView& image_view) {
-    VkBufferCreateInfo buffer_desc;
-    buffer_desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_desc.pNext = nullptr;
-    buffer_desc.flags = 0;
-    buffer_desc.size = width * height * 4;
-    buffer_desc.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    buffer_desc.queueFamilyIndexCount = 0;
-    buffer_desc.pQueueFamilyIndices = nullptr;
-
-    VkBuffer buffer;
-    VK_CHECK(vkCreateBuffer(vk.device, &buffer_desc, nullptr, &buffer));
-
-    VkDeviceMemory buffer_memory = get_allocator()->allocate_staging_memory(buffer);
-    VK_CHECK(vkBindBufferMemory(vk.device, buffer, buffer_memory, 0));
-
+VkImage vk_create_cinematic_image(int width, int height, VkImageView& image_view) {
     VkImageCreateInfo image_desc;
     image_desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_desc.pNext = nullptr;
@@ -1049,27 +1031,23 @@ VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& stag
 
     VkImage image;
     VK_CHECK(vkCreateImage(vk.device, &image_desc, nullptr, &image));
-
     allocate_and_bind_image_memory(image);
-
-    staging_buffer.handle = buffer;
-    staging_buffer.memory = buffer_memory;
-    staging_buffer.offset = 0;
-    staging_buffer.size = width * height * 4;
-
     image_view = create_image_view(image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-
     return image;
 }
 
-void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels) {
-    void* buffer_data;
-    VK_CHECK(vkMapMemory(vk.device, staging_buffer.memory, staging_buffer.offset, staging_buffer.size, 0, &buffer_data));
-    memcpy(buffer_data, rgba_pixels, staging_buffer.size);
-    vkUnmapMemory(vk.device, staging_buffer.memory);
+void vk_update_cinematic_image(VkImage image, int width, int height, const uint8_t* rgba_pixels) {
+    VkDeviceSize size = width * height * 4;
+
+    ensure_staging_buffer_allocation(size);
+    Com_Memcpy(tr.vk_resources.staging_buffer_ptr, rgba_pixels, size);
 
     record_and_run_commands(vk.command_pool, vk.queue,
-        [&image, &staging_buffer, &width, &height](VkCommandBuffer command_buffer) {
+        [&image, &width, &height](VkCommandBuffer command_buffer) {
+
+        record_buffer_memory_barrier(command_buffer, tr.vk_resources.staging_buffer,
+            VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
         record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
             0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -1085,7 +1063,7 @@ void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_b
         region.imageOffset = VkOffset3D{ 0, 0, 0 };
         region.imageExtent = VkExtent3D{ (uint32_t)width, (uint32_t)height, 1 };
 
-        vkCmdCopyBufferToImage(command_buffer, staging_buffer.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(command_buffer, tr.vk_resources.staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1477,8 +1455,11 @@ void vk_destroy_resources() {
 
     auto& res = tr.vk_resources;
 
-    if (res.texture_staging_memory != VK_NULL_HANDLE)
-        vkFreeMemory(vk.device, res.texture_staging_memory, nullptr);
+    if (res.staging_buffer != VK_NULL_HANDLE)
+        vkDestroyBuffer(vk.device, res.staging_buffer, nullptr);
+
+    if (res.staging_buffer_memory != VK_NULL_HANDLE)
+        vkFreeMemory(vk.device, res.staging_buffer_memory, nullptr);
 
     // Destroy pipelines
     for (int i = 0; i < tr.vk_resources.num_pipelines; i++) {
@@ -1495,9 +1476,6 @@ void vk_destroy_resources() {
 
         vkDestroyImage(vk.device, vk_image.image, nullptr);
         vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
-
-        if (vk_image.staging_buffer.handle != VK_NULL_HANDLE)
-            vkDestroyBuffer(vk.device, vk_image.staging_buffer.handle, nullptr);
     }
 
     Com_Memset(&res, 0, sizeof(res));

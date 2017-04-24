@@ -41,13 +41,6 @@ struct Vk_Pipeline_Desc {
     }
 };
 
-struct Vk_Staging_Buffer {
-    VkBuffer handle = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE; // memory associated with a buffer
-    VkDeviceSize offset = -1;
-    VkDeviceSize size = 0;
-};
-
 struct Vk_Image {
     VkImage image = VK_NULL_HANDLE;
     VkImageView image_view = VK_NULL_HANDLE;
@@ -55,9 +48,6 @@ struct Vk_Image {
     // One to one correspondence between images and descriptor sets.
     // We update descriptor set during image initialization and then never touch it again (except for cinematic images).
     VkDescriptorSet descriptor_set;
-
-    // Staging buffer for cinematic images.
-    Vk_Staging_Buffer staging_buffer;
 };
 
 bool vk_initialize(HWND hwnd);
@@ -65,8 +55,8 @@ void vk_deinitialize();
 void vk_destroy_resources();
 
 VkImage vk_create_texture(const uint8_t* rgba_pixels, int width, int height, VkImageView& image_view);
-VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& staging_buffer, VkImageView& image_view);
-void vk_update_cinematic_image(VkImage image, const Vk_Staging_Buffer& staging_buffer, int width, int height, const uint8_t* rgba_pixels);
+VkImage vk_create_cinematic_image(int width, int height, VkImageView& image_view);
+void vk_update_cinematic_image(VkImage image, int width, int height, const uint8_t* rgba_pixels);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
 VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);
 
@@ -135,7 +125,7 @@ struct Vulkan_Instance {
     byte* index_buffer_ptr = nullptr; // pointer to mapped index buffer
     VkDeviceSize index_buffer_offset = 0;
 
-    // host visible memory that holds vertex/index data
+    // host visible memory that holds both vertex and index data
     VkDeviceMemory geometry_buffer_memory = VK_NULL_HANDLE;
 
     VkSemaphore image_acquired = VK_NULL_HANDLE;
@@ -169,6 +159,9 @@ struct Vulkan_Resources {
     int num_image_chunks = 0;
     Chunk image_chunks[MAX_IMAGE_CHUNKS];
 
-    VkDeviceMemory texture_staging_memory = VK_NULL_HANDLE;
-    VkDeviceSize texture_staging_memory_size = 0;
+    // Host visible memory used to copy image data to device local memory.
+    VkBuffer staging_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory staging_buffer_memory = VK_NULL_HANDLE;
+    VkDeviceSize staging_buffer_size = 0;
+    byte* staging_buffer_ptr = nullptr; // pointer to mapped staging buffer
 };
