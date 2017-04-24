@@ -61,9 +61,8 @@ void vk_destroy_resources(); // destroys Vk_Resources resources
 //
 // Resources allocation.
 //
-VkImage vk_create_texture(const uint8_t* rgba_pixels, int width, int height, VkImageView& image_view);
-VkImage vk_create_cinematic_image(int width, int height, VkImageView& image_view);
-void vk_update_cinematic_image(VkImage image, int width, int height, const uint8_t* rgba_pixels);
+VkImage vk_create_image(int width, int height, VkImageView& image_view);
+void vk_upload_image_data(VkImage image, int width, int height, const uint8_t* rgba_pixels);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
 VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);
 
@@ -78,23 +77,6 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
 
 void vk_begin_frame();
 void vk_end_frame();
-
-
-// Shaders.
-extern unsigned char single_texture_vert_spv[];
-extern long long single_texture_vert_spv_size;
-
-extern unsigned char single_texture_frag_spv[];
-extern long long single_texture_frag_spv_size;
-
-extern unsigned char multi_texture_vert_spv[];
-extern long long multi_texture_vert_spv_size;
-
-extern unsigned char multi_texture_add_frag_spv[];
-extern long long multi_texture_add_frag_spv_size;
-
-extern unsigned char multi_texture_mul_frag_spv[];
-extern long long multi_texture_mul_frag_spv_size;
 
 // Vulkan specific structures used by the engine.
 struct Vk_Instance {

@@ -736,8 +736,8 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
         Vk_Image& vk_image = vk_resources.images[tr.scratchImage[client]->index];
         vkDestroyImage(vk.device, vk_image.image, nullptr);
         vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
-        vk_image.image = vk_create_cinematic_image(cols, rows, vk_image.image_view);
-        vk_update_cinematic_image(vk_image.image, cols, rows, data);
+        vk_image.image = vk_create_image(cols, rows, vk_image.image_view);
+        vk_upload_image_data(vk_image.image, cols, rows, data);
 
         VkDescriptorImageInfo image_info;
         image_info.sampler = vk.sampler;
@@ -765,7 +765,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 
             // VULKAN
             const Vk_Image& vk_image = vk_resources.images[tr.scratchImage[client]->index];
-            vk_update_cinematic_image(vk_image.image, cols, rows, data);
+            vk_upload_image_data(vk_image.image, cols, rows, data);
 		}
 	}
 

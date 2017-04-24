@@ -816,10 +816,24 @@ void vk_create_instance(HWND hwnd) {
             return module;
         };
 
+        extern unsigned char single_texture_vert_spv[];
+        extern long long single_texture_vert_spv_size;
         vk.single_texture_vs = create_shader_module(single_texture_vert_spv, single_texture_vert_spv_size);
+
+        extern unsigned char single_texture_frag_spv[];
+        extern long long single_texture_frag_spv_size;
         vk.single_texture_fs = create_shader_module(single_texture_frag_spv, single_texture_frag_spv_size);
+
+        extern unsigned char multi_texture_vert_spv[];
+        extern long long multi_texture_vert_spv_size;
         vk.multi_texture_vs = create_shader_module(multi_texture_vert_spv, multi_texture_vert_spv_size);
+
+        extern unsigned char multi_texture_mul_frag_spv[];
+        extern long long multi_texture_mul_frag_spv_size;
         vk.multi_texture_mul_fs = create_shader_module(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
+
+        extern unsigned char multi_texture_add_frag_spv[];
+        extern long long multi_texture_add_frag_spv_size;
         vk.multi_texture_add_fs = create_shader_module(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
     }
 
@@ -964,21 +978,15 @@ static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer,
     vkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, nullptr, 1, &barrier, 0, nullptr);
 }
 
-VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image_height, VkImageView& image_view) {
-    int image_size = image_width * image_height * 4;
-
-    ensure_staging_buffer_allocation(image_size);
-    Com_Memcpy(vk_resources.staging_buffer_ptr, rgba_pixels, image_size);
-
-    // create texture image
+VkImage vk_create_image(int width, int height, VkImageView& image_view) {
     VkImageCreateInfo desc;
     desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     desc.pNext = nullptr;
     desc.flags = 0;
     desc.imageType = VK_IMAGE_TYPE_2D;
     desc.format = VK_FORMAT_R8G8B8A8_UNORM;
-    desc.extent.width = image_width;
-    desc.extent.height = image_height;
+    desc.extent.width = width;
+    desc.extent.height = height;
     desc.extent.depth = 1;
     desc.mipLevels = 1;
     desc.arrayLayers = 1;
@@ -990,70 +998,14 @@ VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image
     desc.pQueueFamilyIndices = nullptr;
     desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VkImage texture_image;
-    VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &texture_image));
-    allocate_and_bind_image_memory(texture_image);
-
-    // copy buffer's content to texture
-    record_and_run_commands(vk.command_pool, vk.queue,
-        [&texture_image, &image_width, &image_height](VkCommandBuffer command_buffer) {
-
-        record_buffer_memory_barrier(command_buffer, vk_resources.staging_buffer,
-            VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
-
-        record_image_layout_transition(command_buffer, texture_image, VK_FORMAT_R8G8B8A8_UNORM,
-            0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-        VkBufferImageCopy region;
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
-        region.imageOffset = VkOffset3D{ 0, 0, 0 };
-        region.imageExtent = VkExtent3D{ (uint32_t)image_width, (uint32_t)image_height, 1 };
-
-        vkCmdCopyBufferToImage(command_buffer, vk_resources.staging_buffer, texture_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-        record_image_layout_transition(command_buffer, texture_image, VK_FORMAT_R8G8B8A8_UNORM,
-            VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    });
-
-    image_view = create_image_view(texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-    return texture_image;
-}
-
-VkImage vk_create_cinematic_image(int width, int height, VkImageView& image_view) {
-    VkImageCreateInfo image_desc;
-    image_desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    image_desc.pNext = nullptr;
-    image_desc.flags = 0;
-    image_desc.imageType = VK_IMAGE_TYPE_2D;
-    image_desc.format = VK_FORMAT_R8G8B8A8_UNORM;
-    image_desc.extent.width = width;
-    image_desc.extent.height = height;
-    image_desc.extent.depth = 1;
-    image_desc.mipLevels = 1;
-    image_desc.arrayLayers = 1;
-    image_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-    image_desc.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_desc.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    image_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    image_desc.queueFamilyIndexCount = 0;
-    image_desc.pQueueFamilyIndices = nullptr;
-    image_desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
     VkImage image;
-    VK_CHECK(vkCreateImage(vk.device, &image_desc, nullptr, &image));
+    VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &image));
     allocate_and_bind_image_memory(image);
     image_view = create_image_view(image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
     return image;
 }
 
-void vk_update_cinematic_image(VkImage image, int width, int height, const uint8_t* rgba_pixels) {
+void vk_upload_image_data(VkImage image, int width, int height, const uint8_t* rgba_pixels) {
     VkDeviceSize size = width * height * 4;
 
     ensure_staging_buffer_allocation(size);
