@@ -40,6 +40,20 @@ static bool is_extension_available(const std::vector<VkExtensionProperties>& pro
     return false;
 }
 
+static uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t memory_type_bits, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memory_properties;
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
+
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+        if ((memory_type_bits & (1 << i)) != 0 &&
+            (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    ri.Error(ERR_FATAL, "Vulkan error: failed to find matching memory type with requested properties");
+    return -1;
+}
+
 static VkFormat find_format_with_features(VkPhysicalDevice physical_device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
     for (VkFormat format : candidates) {
         VkFormatProperties properties;
@@ -431,6 +445,61 @@ static void record_image_layout_transition(VkCommandBuffer command_buffer, VkIma
         0, nullptr, 0, nullptr, 1, &barrier);
 }
 
+static void allocate_and_bind_image_memory(VkImage image) {
+    VkMemoryRequirements memory_requirements;
+    vkGetImageMemoryRequirements(vk.device, image, &memory_requirements);
+
+    if (memory_requirements.size > IMAGE_CHUNK_SIZE) {
+        ri.Error(ERR_FATAL, "Vulkan: could not allocate memory, image is too large.");
+    }
+
+    Vulkan_Resources::Chunk* chunk = nullptr;
+
+    // Try to find an existing chunk of sufficient capacity.
+    const auto mask = ~(memory_requirements.alignment - 1);
+    for (int i = 0; i < tr.vk_resources.num_image_chunks; i++) {
+        // ensure that memory region has proper alignment
+        VkDeviceSize offset = (tr.vk_resources.image_chunks[i].used + memory_requirements.alignment - 1) & mask;
+
+        if (offset + memory_requirements.size <= IMAGE_CHUNK_SIZE) {
+            chunk = &tr.vk_resources.image_chunks[i];
+            chunk->used = offset + memory_requirements.size;
+            break;
+        }
+    }
+
+    // Allocate a new chunk in case we couldn't find suitable existing chunk.
+    if (chunk == nullptr) {
+        if (tr.vk_resources.num_image_chunks >= MAX_IMAGE_CHUNKS) {
+            ri.Error(ERR_FATAL, "Vulkan: image chunk limit has been reached");
+        }
+
+        VkMemoryAllocateInfo alloc_info;
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.pNext = nullptr;
+        alloc_info.allocationSize = IMAGE_CHUNK_SIZE;
+        alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VkDeviceMemory memory;
+        VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &memory));
+
+        chunk = &tr.vk_resources.image_chunks[tr.vk_resources.num_image_chunks];
+        tr.vk_resources.num_image_chunks++;
+        chunk->memory = memory;
+        chunk->used = memory_requirements.size;
+    }
+
+    VK_CHECK(vkBindImageMemory(vk.device, image, chunk->memory, chunk->used - memory_requirements.size));
+}
+
+static void deallocate_image_chunks() {
+    for (int i = 0; i < tr.vk_resources.num_image_chunks; i++) {
+        vkFreeMemory(vk.device, tr.vk_resources.image_chunks[i].memory, nullptr);
+    }
+    tr.vk_resources.num_image_chunks = 0;
+    Com_Memset(tr.vk_resources.image_chunks, 0, sizeof(tr.vk_resources.image_chunks));
+}
+
 VkPipeline create_pipeline(const Vk_Pipeline_Desc&);
 
 bool vk_initialize(HWND hwnd) {
@@ -497,8 +566,6 @@ bool vk_initialize(HWND hwnd) {
             VK_CHECK(vkAllocateCommandBuffers(vk.device, &alloc_info, &g.command_buffer));
         }
 
-        get_allocator()->initialize(vk.physical_device, vk.device);
-
         //
         // Depth attachment image.
         // 
@@ -526,9 +593,17 @@ bool vk_initialize(HWND hwnd) {
 
             VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &vk.depth_image));
 
-            VkDeviceMemory memory = get_allocator()->allocate_memory(vk.depth_image);
-            VK_CHECK(vkBindImageMemory(vk.device, vk.depth_image, memory, 0));
+            VkMemoryRequirements memory_requirements;
+            vkGetImageMemoryRequirements(vk.device, vk.depth_image, &memory_requirements);
 
+            VkMemoryAllocateInfo alloc_info;
+            alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            alloc_info.pNext = nullptr;
+            alloc_info.allocationSize = memory_requirements.size;
+            alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+            VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.depth_image_memory));
+            VK_CHECK(vkBindImageMemory(vk.device, vk.depth_image, vk.depth_image_memory, 0));
             vk.depth_image_view = create_image_view(vk.depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
 
             record_and_run_commands(vk.command_pool, vk.queue, [&depth_format](VkCommandBuffer command_buffer) {
@@ -765,8 +840,10 @@ void vk_deinitialize() {
     vk_log_file = nullptr;
 
     get_allocator()->deallocate_all();
+    deallocate_image_chunks();
 
     vkDestroyImage(vk.device, vk.depth_image, nullptr);
+    vkFreeMemory(vk.device, vk.depth_image_memory, nullptr);
     vkDestroyImageView(vk.device, vk.depth_image_view, nullptr);
 
     for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
@@ -842,8 +919,8 @@ VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image
     VkBuffer staging_buffer;
     VK_CHECK(vkCreateBuffer(vk.device, &buffer_desc, nullptr, &staging_buffer));
 
-    get_allocator()->get_shared_staging_memory().ensure_allocation_for_object(staging_buffer);
-    VkDeviceMemory buffer_memory = get_allocator()->get_shared_staging_memory().get_handle();
+    get_allocator()->ensure_allocation_for_staging_buffer(staging_buffer);
+    VkDeviceMemory buffer_memory = get_allocator()->get_staging_buffer_memory();
     VK_CHECK(vkBindBufferMemory(vk.device, staging_buffer, buffer_memory, 0));
 
     void* buffer_data;
@@ -873,9 +950,7 @@ VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image
 
     VkImage texture_image;
     VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &texture_image));
-
-    VkDeviceMemory memory = get_allocator()->allocate_memory(texture_image);
-    VK_CHECK(vkBindImageMemory(vk.device, texture_image, memory, 0));
+    allocate_and_bind_image_memory(texture_image);
 
     // copy buffer's content to texture
     record_and_run_commands(vk.command_pool, vk.queue,
@@ -950,8 +1025,7 @@ VkImage vk_create_cinematic_image(int width, int height, Vk_Staging_Buffer& stag
     VkImage image;
     VK_CHECK(vkCreateImage(vk.device, &image_desc, nullptr, &image));
 
-    VkDeviceMemory image_memory = get_allocator()->allocate_memory(image);
-    VK_CHECK(vkBindImageMemory(vk.device, image, image_memory, 0));
+    allocate_and_bind_image_memory(image);
 
     staging_buffer.handle = buffer;
     staging_buffer.memory = buffer_memory;
@@ -1373,6 +1447,8 @@ VkDescriptorSet vk_create_descriptor_set(VkImageView image_view) {
 
 void vk_destroy_resources() {
     vkDeviceWaitIdle(vk.device);
+
+    deallocate_image_chunks();
 
     // Destroy pipelines
     for (int i = 0; i < tr.vk_resources.num_pipelines; i++) {

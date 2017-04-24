@@ -21,105 +21,59 @@ static uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t memo
     return -1;
 }
 
-void Shared_Staging_Memory::initialize(VkPhysicalDevice physical_device, VkDevice device) {
-    this->physical_device = physical_device;
-    this->device = device;
-}
-
-void Shared_Staging_Memory::deallocate_all() {
-    if (handle != VK_NULL_HANDLE) {
-        vkFreeMemory(device, handle, nullptr);
+void Device_Memory_Allocator::deallocate_all() {
+    for (auto chunk : chunks) {
+        vkFreeMemory(vk.device, chunk, nullptr);
     }
-    handle = VK_NULL_HANDLE;
-    size = 0;
-    memory_type_index = -1;
+    chunks.clear();
+
+    if (staging_buffer_memory != VK_NULL_HANDLE) {
+        vkFreeMemory(vk.device, staging_buffer_memory, nullptr);
+        staging_buffer_memory = VK_NULL_HANDLE;
+        staging_buffer_size = 0;
+    }
 }
 
-void Shared_Staging_Memory::ensure_allocation_for_object(VkImage image) {
+VkDeviceMemory Device_Memory_Allocator::allocate_staging_memory(VkBuffer buffer) {
     VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(device, image, &memory_requirements);
-    ensure_allocation(memory_requirements);
-}
+    vkGetBufferMemoryRequirements(vk.device, buffer, &memory_requirements);
 
-void Shared_Staging_Memory::ensure_allocation_for_object(VkBuffer buffer) {
-    VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
-    ensure_allocation(memory_requirements);
-}
-
-VkDeviceMemory Shared_Staging_Memory::get_handle() const {
-    return handle;
-}
-
-void Shared_Staging_Memory::ensure_allocation(const VkMemoryRequirements& memory_requirements) {
-    uint32_t required_memory_type_index = find_memory_type(physical_device, memory_requirements.memoryTypeBits,
+    VkMemoryAllocateInfo alloc_info;
+    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.pNext = nullptr;
+    alloc_info.allocationSize = memory_requirements.size;
+    alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    if (size < memory_requirements.size || memory_type_index != required_memory_type_index) {
-        if (handle != VK_NULL_HANDLE) {
-            vkFreeMemory(device, handle, nullptr);
+    VkDeviceMemory chunk;
+    VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &chunk));
+    chunks.push_back(chunk);
+    return chunk;
+}
+
+void Device_Memory_Allocator::ensure_allocation_for_staging_buffer(VkBuffer buffer) {
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements(vk.device, buffer, &memory_requirements);
+
+    if (staging_buffer_size < memory_requirements.size) {
+        if (staging_buffer_memory != VK_NULL_HANDLE) {
+            vkFreeMemory(vk.device, staging_buffer_memory, nullptr);
         }
-        handle = VK_NULL_HANDLE;
-        size = 0;
-        memory_type_index = -1;
+        staging_buffer_memory = VK_NULL_HANDLE;
+        staging_buffer_size = 0;
 
         VkMemoryAllocateInfo alloc_info;
         alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         alloc_info.pNext = nullptr;
         alloc_info.allocationSize = memory_requirements.size;
-        alloc_info.memoryTypeIndex = required_memory_type_index;
+        alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        VK_CHECK(vkAllocateMemory(device, &alloc_info, nullptr, &handle));
-        size = memory_requirements.size;
-        memory_type_index = required_memory_type_index;
+        VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &staging_buffer_memory));
+        staging_buffer_size = memory_requirements.size;
     }
 }
 
-void Device_Memory_Allocator::initialize(VkPhysicalDevice physical_device, VkDevice device) {
-    this->physical_device = physical_device;
-    this->device = device;
-    shared_staging_memory.initialize(physical_device, device);
-}
-
-void Device_Memory_Allocator::deallocate_all() {
-    for (auto chunk : chunks) {
-        vkFreeMemory(device, chunk, nullptr);
-    }
-    chunks.clear();
-    shared_staging_memory.deallocate_all();
-}
-
-VkDeviceMemory Device_Memory_Allocator::allocate_memory(VkImage image) {
-    VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(device, image, &memory_requirements);
-    return allocate_memory(memory_requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-}
-
-VkDeviceMemory Device_Memory_Allocator::allocate_memory(VkBuffer buffer) {
-    VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
-    return allocate_memory(memory_requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-}
-
-VkDeviceMemory Device_Memory_Allocator::allocate_staging_memory(VkBuffer buffer) {
-    VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
-    return allocate_memory(memory_requirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-}
-
-Shared_Staging_Memory& Device_Memory_Allocator::get_shared_staging_memory() {
-    return shared_staging_memory;
-}
-
-VkDeviceMemory Device_Memory_Allocator::allocate_memory(const VkMemoryRequirements& memory_requirements, VkMemoryPropertyFlags properties) {
-    VkMemoryAllocateInfo alloc_info;
-    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    alloc_info.pNext = nullptr;
-    alloc_info.allocationSize = memory_requirements.size;
-    alloc_info.memoryTypeIndex = find_memory_type(physical_device, memory_requirements.memoryTypeBits, properties);
-
-    VkDeviceMemory chunk;
-    VK_CHECK(vkAllocateMemory(device, &alloc_info, nullptr, &chunk));
-    chunks.push_back(chunk);
-    return chunk;
+VkDeviceMemory Device_Memory_Allocator::get_staging_buffer_memory() const {
+    return staging_buffer_memory;
 }

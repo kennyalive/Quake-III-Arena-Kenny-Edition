@@ -11,6 +11,9 @@ const int MAX_SWAPCHAIN_IMAGES = 8;
 const int MAX_VK_PIPELINES = 1024;
 const int MAX_VK_IMAGES = 2048; // should be the same as MAX_DRAWIMAGES
 
+const int IMAGE_CHUNK_SIZE = 32 * 1024 * 1024;
+const int MAX_IMAGE_CHUNKS = 16;
+
 #define VK_CHECK(function_call) { \
     VkResult result = function_call; \
     if (result < 0) \
@@ -113,6 +116,7 @@ struct Vulkan_Instance {
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 
     VkImage depth_image = VK_NULL_HANDLE;
+    VkDeviceMemory depth_image_memory = VK_NULL_HANDLE;
     VkImageView depth_image_view = VK_NULL_HANDLE;
 
     VkRenderPass render_pass = VK_NULL_HANDLE;
@@ -155,4 +159,12 @@ struct Vulkan_Resources {
     VkPipeline pipelines[MAX_VK_PIPELINES];
 
     Vk_Image images[MAX_VK_IMAGES];
+
+    struct Chunk {
+        VkDeviceMemory memory = VK_NULL_HANDLE;
+        VkDeviceSize used = 0;
+    };
+
+    int num_image_chunks = 0;
+    Chunk image_chunks[MAX_IMAGE_CHUNKS];
 };
