@@ -563,20 +563,23 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
 
         if (r_renderAPICompareWindow->integer) {
             HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
-            if (!vk_initialize(hwnd2)) {
+            vk_initialize(hwnd2);
+            g_wv.hWnd_vulkan = hwnd2;
+            /*if (!vk_initialize(hwnd2)) {
                 ShowWindow(hwnd2, SW_HIDE);
                 DestroyWindow(hwnd2);
                 ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
             } else {
                 g_wv.hWnd_vulkan = hwnd2;
-            }
+            }*/
         }
     } else { // vulkan
-        if (!vk_initialize(hwnd)) {
+        vk_initialize(hwnd);
+        /*if (!vk_initialize(hwnd)) {
             ShowWindow(hwnd, SW_HIDE);
             DestroyWindow(hwnd);
             return false;
-        }
+        }*/
 
         g_wv.hWnd = hwnd;
         g_wv.hWnd_vulkan = hwnd;

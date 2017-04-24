@@ -543,341 +543,333 @@ static void deallocate_image_chunks() {
 
 VkPipeline create_pipeline(const Vk_Pipeline_Desc&);
 
-bool vk_initialize(HWND hwnd) {
+void vk_initialize(HWND hwnd) {
     vk_log_file = fopen("vk_dev.log", "w");
 
-    try {
-        auto& g = vk;
+    vk.instance = create_instance();
+    vk.physical_device = select_physical_device(vk.instance);
+    vk.surface = create_surface(vk.instance, hwnd);
+    vk.surface_format = select_surface_format(vk.physical_device, vk.surface);
 
-        g.instance = create_instance();
-        g.physical_device = select_physical_device(g.instance);
-        g.surface = create_surface(g.instance, hwnd);
-        g.surface_format = select_surface_format(g.physical_device, g.surface);
+    vk.queue_family_index = select_queue_family(vk.physical_device, vk.surface);
+    vk.device = create_device(vk.physical_device, vk.queue_family_index);
+    vkGetDeviceQueue(vk.device, vk.queue_family_index, 0, &vk.queue);
 
-        g.queue_family_index = select_queue_family(g.physical_device, g.surface);
-        g.device = create_device(g.physical_device, g.queue_family_index);
-        vkGetDeviceQueue(g.device, g.queue_family_index, 0, &g.queue);
+    vk.swapchain = create_swapchain(vk.physical_device, vk.device, vk.surface, vk.surface_format);
 
-        g.swapchain = create_swapchain(g.physical_device, g.device, g.surface, g.surface_format);
+    VK_CHECK(vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, nullptr));
 
-        VK_CHECK(vkGetSwapchainImagesKHR(g.device, g.swapchain, &vk.swapchain_image_count, nullptr));
+    if (vk.swapchain_image_count > MAX_SWAPCHAIN_IMAGES)
+        ri.Error( ERR_FATAL, "initialize_vulkan: swapchain image count (%d) exceeded limit (%d)", vk.swapchain_image_count, MAX_SWAPCHAIN_IMAGES );
 
-        if (vk.swapchain_image_count > MAX_SWAPCHAIN_IMAGES)
-            ri.Error( ERR_FATAL, "initialize_vulkan: swapchain image count (%d) exceeded limit (%d)", vk.swapchain_image_count, MAX_SWAPCHAIN_IMAGES );
+    VK_CHECK(vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, vk.swapchain_images));
 
-        VK_CHECK(vkGetSwapchainImagesKHR(g.device, g.swapchain, &vk.swapchain_image_count, g.swapchain_images));
-
-        for (std::size_t i = 0; i < vk.swapchain_image_count; i++) {
-            VkImageViewCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.image = g.swapchain_images[i];
-            desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            desc.format = g.surface_format.format;
-            desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-            desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-            desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-            desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-            desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            desc.subresourceRange.baseMipLevel = 0;
-            desc.subresourceRange.levelCount = 1;
-            desc.subresourceRange.baseArrayLayer = 0;
-            desc.subresourceRange.layerCount = 1;
-            VK_CHECK(vkCreateImageView(g.device, &desc, nullptr, &g.swapchain_image_views[i]));
-        }
-
-        {
-            VkCommandPoolCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-            desc.queueFamilyIndex = vk.queue_family_index;
-
-            VK_CHECK(vkCreateCommandPool(g.device, &desc, nullptr, &vk.command_pool));
-        }
-
-        {
-            VkCommandBufferAllocateInfo alloc_info;
-            alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            alloc_info.pNext = nullptr;
-            alloc_info.commandPool = vk.command_pool;
-            alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            alloc_info.commandBufferCount = 1;
-            VK_CHECK(vkAllocateCommandBuffers(vk.device, &alloc_info, &g.command_buffer));
-        }
-
-        //
-        // Depth attachment image.
-        // 
-        {
-            VkFormat depth_format = find_depth_format(vk.physical_device);
-
-            VkImageCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.imageType = VK_IMAGE_TYPE_2D;
-            desc.format = depth_format;
-            desc.extent.width = glConfig.vidWidth;
-            desc.extent.height = glConfig.vidHeight;
-            desc.extent.depth = 1;
-            desc.mipLevels = 1;
-            desc.arrayLayers = 1;
-            desc.samples = VK_SAMPLE_COUNT_1_BIT;
-            desc.tiling = VK_IMAGE_TILING_OPTIMAL;
-            desc.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            desc.queueFamilyIndexCount = 0;
-            desc.pQueueFamilyIndices = nullptr;
-            desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-            VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &vk.depth_image));
-
-            VkMemoryRequirements memory_requirements;
-            vkGetImageMemoryRequirements(vk.device, vk.depth_image, &memory_requirements);
-
-            VkMemoryAllocateInfo alloc_info;
-            alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            alloc_info.pNext = nullptr;
-            alloc_info.allocationSize = memory_requirements.size;
-            alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.depth_image_memory));
-            VK_CHECK(vkBindImageMemory(vk.device, vk.depth_image, vk.depth_image_memory, 0));
-            vk.depth_image_view = create_image_view(vk.depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-            record_and_run_commands(vk.command_pool, vk.queue, [&depth_format](VkCommandBuffer command_buffer) {
-                record_image_layout_transition(command_buffer, vk.depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-            });
-        }
-
-		VkFormat depth_format = find_depth_format(vk.physical_device);
-
-		vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
-
-        {
-            VkImageView attachments[2] = {VK_NULL_HANDLE, vk.depth_image_view};
-
-            VkFramebufferCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.renderPass = vk.render_pass;
-            desc.attachmentCount = 2;
-            desc.pAttachments = attachments;
-            desc.width = glConfig.vidWidth;
-            desc.height = glConfig.vidHeight;
-            desc.layers = 1;
-
-            for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
-                attachments[0] = vk.swapchain_image_views[i]; // set color attachment
-                VK_CHECK(vkCreateFramebuffer(vk.device, &desc, nullptr, &vk.framebuffers[i]));
-            }
-        }
-
-        //
-        // Descriptor pool.
-        //
-        {
-            VkDescriptorPoolSize pool_size;
-            pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            pool_size.descriptorCount = MAX_DRAWIMAGES;
-
-            VkDescriptorPoolCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.maxSets = MAX_DRAWIMAGES;
-            desc.poolSizeCount = 1;
-            desc.pPoolSizes = &pool_size;
-
-            VK_CHECK(vkCreateDescriptorPool(vk.device, &desc, nullptr, &vk.descriptor_pool));
-        }
-
-        //
-        // Descriptor set layout.
-        //
-        {
-            VkDescriptorSetLayoutBinding descriptor_binding;
-            descriptor_binding.binding = 0;
-            descriptor_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptor_binding.descriptorCount = 1;
-            descriptor_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            descriptor_binding.pImmutableSamplers = nullptr;
-
-            VkDescriptorSetLayoutCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.bindingCount = 1;
-            desc.pBindings = &descriptor_binding;
-
-            VK_CHECK(vkCreateDescriptorSetLayout(vk.device, &desc, nullptr, &vk.set_layout));
-        }
-
-        //
-        // Pipeline layout.
-        //
-        {
-            VkPushConstantRange push_range;
-            push_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-            push_range.offset = 0;
-            push_range.size = 64; // sizeof(float[16])
-
-            VkDescriptorSetLayout set_layouts[2] = {vk.set_layout, vk.set_layout};
-
-            VkPipelineLayoutCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.setLayoutCount = 2;
-            desc.pSetLayouts = set_layouts;
-            desc.pushConstantRangeCount = 1;
-            desc.pPushConstantRanges = &push_range;
-
-            VK_CHECK(vkCreatePipelineLayout(vk.device, &desc, nullptr, &vk.pipeline_layout));
-        }
-
-        //
-        // Geometry buffers.
-        //
-        {
-            VkBufferCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            desc.queueFamilyIndexCount = 0;
-            desc.pQueueFamilyIndices = nullptr;
-
-            desc.size = VERTEX_BUFFER_SIZE;
-            desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-            VK_CHECK(vkCreateBuffer(vk.device, &desc, nullptr, &vk.vertex_buffer));
-
-            desc.size = INDEX_BUFFER_SIZE;
-            desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-            VK_CHECK(vkCreateBuffer(vk.device, &desc, nullptr, &vk.index_buffer));
-
-            VkMemoryRequirements vb_memory_requirements;
-            vkGetBufferMemoryRequirements(vk.device, vk.vertex_buffer, &vb_memory_requirements);
-
-            VkMemoryRequirements ib_memory_requirements;
-            vkGetBufferMemoryRequirements(vk.device, vk.index_buffer, &ib_memory_requirements);
-
-            VkDeviceSize mask = ~(ib_memory_requirements.alignment - 1);
-            VkDeviceSize index_buffer_offset = (vb_memory_requirements.size + ib_memory_requirements.alignment - 1) & mask;
-
-            uint32_t memory_type_bits = vb_memory_requirements.memoryTypeBits & ib_memory_requirements.memoryTypeBits;
-            uint32_t memory_type = find_memory_type(vk.physical_device, memory_type_bits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-            VkMemoryAllocateInfo alloc_info;
-            alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            alloc_info.pNext = nullptr;
-            alloc_info.allocationSize = index_buffer_offset + ib_memory_requirements.size;
-            alloc_info.memoryTypeIndex = memory_type;
-            VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.geometry_buffer_memory));
-
-            vkBindBufferMemory(vk.device, vk.vertex_buffer, vk.geometry_buffer_memory, 0);
-            vkBindBufferMemory(vk.device, vk.index_buffer, vk.geometry_buffer_memory, index_buffer_offset);
-
-            void* data;
-            VK_CHECK(vkMapMemory(vk.device, vk.geometry_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
-            vk.vertex_buffer_ptr = (byte*)data;
-            vk.index_buffer_ptr = (byte*)data + index_buffer_offset;
-        }
-
-        //
-        // Sync primitives.
-        //
-        {
-            VkSemaphoreCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-
-            VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.image_acquired));
-            VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.rendering_finished));
-
-            VkFenceCreateInfo fence_desc;
-            fence_desc.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fence_desc.pNext = nullptr;
-            fence_desc.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            VK_CHECK(vkCreateFence(vk.device, &fence_desc, nullptr, &vk.rendering_finished_fence));
-        }
-
-        //
-        // Shader modules.
-        //
-        {
-            auto create_shader_module = [](uint8_t* bytes, int count) {
-                if (count % 4 != 0) {
-                    ri.Error(ERR_FATAL, "Vulkan error: SPIR-V binary buffer size is not multiple of 4");
-                }
-                VkShaderModuleCreateInfo desc;
-                desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-                desc.pNext = nullptr;
-                desc.flags = 0;
-                desc.codeSize = count;
-                desc.pCode = reinterpret_cast<const uint32_t*>(bytes);
-               
-                VkShaderModule module;
-                VK_CHECK(vkCreateShaderModule(vk.device, &desc, nullptr, &module));
-                return module;
-            };
-
-            vk.single_texture_vs = create_shader_module(single_texture_vert_spv, single_texture_vert_spv_size);
-            vk.single_texture_fs = create_shader_module(single_texture_frag_spv, single_texture_frag_spv_size);
-            vk.multi_texture_vs = create_shader_module(multi_texture_vert_spv, multi_texture_vert_spv_size);
-            vk.multi_texture_mul_fs = create_shader_module(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
-            vk.multi_texture_add_fs = create_shader_module(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
-        }
-
-        //
-        // Samplers.
-        //
-        {
-            VkSamplerCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
-            desc.magFilter = VK_FILTER_LINEAR;
-            desc.minFilter = VK_FILTER_LINEAR;
-            desc.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-            desc.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            desc.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            desc.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            desc.mipLodBias = 0.0f;
-            desc.anisotropyEnable = VK_TRUE;
-            desc.maxAnisotropy = 1;
-            desc.compareEnable = VK_FALSE;
-            desc.compareOp = VK_COMPARE_OP_ALWAYS;
-            desc.minLod = 0.0f;
-            desc.maxLod = 0.0f;
-            desc.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            desc.unnormalizedCoordinates = VK_FALSE;
-
-            VK_CHECK(vkCreateSampler(vk.device, &desc, nullptr, &vk.sampler));
-        }
-
-        //
-        // Skybox pipeline.
-        //
-        {
-            Vk_Pipeline_Desc desc;
-            desc.shader_type = Vk_Shader_Type::single_texture;
-            desc.state_bits = 0;
-            desc.face_culling = CT_FRONT_SIDED;
-            desc.polygon_offset = false;
-
-            vk.skybox_pipeline = create_pipeline(desc);
-        }
-
-    } catch (const std::exception&) {
-        return false;
+    for (std::size_t i = 0; i < vk.swapchain_image_count; i++) {
+        VkImageViewCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.image = vk.swapchain_images[i];
+        desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        desc.format = vk.surface_format.format;
+        desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        desc.subresourceRange.baseMipLevel = 0;
+        desc.subresourceRange.levelCount = 1;
+        desc.subresourceRange.baseArrayLayer = 0;
+        desc.subresourceRange.layerCount = 1;
+        VK_CHECK(vkCreateImageView(vk.device, &desc, nullptr, &vk.swapchain_image_views[i]));
     }
-    return true;
+
+    {
+        VkCommandPoolCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        desc.queueFamilyIndex = vk.queue_family_index;
+
+        VK_CHECK(vkCreateCommandPool(vk.device, &desc, nullptr, &vk.command_pool));
+    }
+
+    {
+        VkCommandBufferAllocateInfo alloc_info;
+        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        alloc_info.pNext = nullptr;
+        alloc_info.commandPool = vk.command_pool;
+        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        alloc_info.commandBufferCount = 1;
+        VK_CHECK(vkAllocateCommandBuffers(vk.device, &alloc_info, &vk.command_buffer));
+    }
+
+    //
+    // Depth attachment image.
+    // 
+    {
+        VkFormat depth_format = find_depth_format(vk.physical_device);
+
+        VkImageCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.imageType = VK_IMAGE_TYPE_2D;
+        desc.format = depth_format;
+        desc.extent.width = glConfig.vidWidth;
+        desc.extent.height = glConfig.vidHeight;
+        desc.extent.depth = 1;
+        desc.mipLevels = 1;
+        desc.arrayLayers = 1;
+        desc.samples = VK_SAMPLE_COUNT_1_BIT;
+        desc.tiling = VK_IMAGE_TILING_OPTIMAL;
+        desc.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        desc.queueFamilyIndexCount = 0;
+        desc.pQueueFamilyIndices = nullptr;
+        desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &vk.depth_image));
+
+        VkMemoryRequirements memory_requirements;
+        vkGetImageMemoryRequirements(vk.device, vk.depth_image, &memory_requirements);
+
+        VkMemoryAllocateInfo alloc_info;
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.pNext = nullptr;
+        alloc_info.allocationSize = memory_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.depth_image_memory));
+        VK_CHECK(vkBindImageMemory(vk.device, vk.depth_image, vk.depth_image_memory, 0));
+        vk.depth_image_view = create_image_view(vk.depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+        record_and_run_commands(vk.command_pool, vk.queue, [&depth_format](VkCommandBuffer command_buffer) {
+            record_image_layout_transition(command_buffer, vk.depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        });
+    }
+
+	VkFormat depth_format = find_depth_format(vk.physical_device);
+
+	vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
+
+    {
+        VkImageView attachments[2] = {VK_NULL_HANDLE, vk.depth_image_view};
+
+        VkFramebufferCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.renderPass = vk.render_pass;
+        desc.attachmentCount = 2;
+        desc.pAttachments = attachments;
+        desc.width = glConfig.vidWidth;
+        desc.height = glConfig.vidHeight;
+        desc.layers = 1;
+
+        for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
+            attachments[0] = vk.swapchain_image_views[i]; // set color attachment
+            VK_CHECK(vkCreateFramebuffer(vk.device, &desc, nullptr, &vk.framebuffers[i]));
+        }
+    }
+
+    //
+    // Descriptor pool.
+    //
+    {
+        VkDescriptorPoolSize pool_size;
+        pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        pool_size.descriptorCount = MAX_DRAWIMAGES;
+
+        VkDescriptorPoolCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.maxSets = MAX_DRAWIMAGES;
+        desc.poolSizeCount = 1;
+        desc.pPoolSizes = &pool_size;
+
+        VK_CHECK(vkCreateDescriptorPool(vk.device, &desc, nullptr, &vk.descriptor_pool));
+    }
+
+    //
+    // Descriptor set layout.
+    //
+    {
+        VkDescriptorSetLayoutBinding descriptor_binding;
+        descriptor_binding.binding = 0;
+        descriptor_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_binding.descriptorCount = 1;
+        descriptor_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        descriptor_binding.pImmutableSamplers = nullptr;
+
+        VkDescriptorSetLayoutCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.bindingCount = 1;
+        desc.pBindings = &descriptor_binding;
+
+        VK_CHECK(vkCreateDescriptorSetLayout(vk.device, &desc, nullptr, &vk.set_layout));
+    }
+
+    //
+    // Pipeline layout.
+    //
+    {
+        VkPushConstantRange push_range;
+        push_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        push_range.offset = 0;
+        push_range.size = 64; // sizeof(float[16])
+
+        VkDescriptorSetLayout set_layouts[2] = {vk.set_layout, vk.set_layout};
+
+        VkPipelineLayoutCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.setLayoutCount = 2;
+        desc.pSetLayouts = set_layouts;
+        desc.pushConstantRangeCount = 1;
+        desc.pPushConstantRanges = &push_range;
+
+        VK_CHECK(vkCreatePipelineLayout(vk.device, &desc, nullptr, &vk.pipeline_layout));
+    }
+
+    //
+    // Geometry buffers.
+    //
+    {
+        VkBufferCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        desc.queueFamilyIndexCount = 0;
+        desc.pQueueFamilyIndices = nullptr;
+
+        desc.size = VERTEX_BUFFER_SIZE;
+        desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        VK_CHECK(vkCreateBuffer(vk.device, &desc, nullptr, &vk.vertex_buffer));
+
+        desc.size = INDEX_BUFFER_SIZE;
+        desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        VK_CHECK(vkCreateBuffer(vk.device, &desc, nullptr, &vk.index_buffer));
+
+        VkMemoryRequirements vb_memory_requirements;
+        vkGetBufferMemoryRequirements(vk.device, vk.vertex_buffer, &vb_memory_requirements);
+
+        VkMemoryRequirements ib_memory_requirements;
+        vkGetBufferMemoryRequirements(vk.device, vk.index_buffer, &ib_memory_requirements);
+
+        VkDeviceSize mask = ~(ib_memory_requirements.alignment - 1);
+        VkDeviceSize index_buffer_offset = (vb_memory_requirements.size + ib_memory_requirements.alignment - 1) & mask;
+
+        uint32_t memory_type_bits = vb_memory_requirements.memoryTypeBits & ib_memory_requirements.memoryTypeBits;
+        uint32_t memory_type = find_memory_type(vk.physical_device, memory_type_bits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        VkMemoryAllocateInfo alloc_info;
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.pNext = nullptr;
+        alloc_info.allocationSize = index_buffer_offset + ib_memory_requirements.size;
+        alloc_info.memoryTypeIndex = memory_type;
+        VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.geometry_buffer_memory));
+
+        vkBindBufferMemory(vk.device, vk.vertex_buffer, vk.geometry_buffer_memory, 0);
+        vkBindBufferMemory(vk.device, vk.index_buffer, vk.geometry_buffer_memory, index_buffer_offset);
+
+        void* data;
+        VK_CHECK(vkMapMemory(vk.device, vk.geometry_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+        vk.vertex_buffer_ptr = (byte*)data;
+        vk.index_buffer_ptr = (byte*)data + index_buffer_offset;
+    }
+
+    //
+    // Sync primitives.
+    //
+    {
+        VkSemaphoreCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+
+        VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.image_acquired));
+        VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.rendering_finished));
+
+        VkFenceCreateInfo fence_desc;
+        fence_desc.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_desc.pNext = nullptr;
+        fence_desc.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VK_CHECK(vkCreateFence(vk.device, &fence_desc, nullptr, &vk.rendering_finished_fence));
+    }
+
+    //
+    // Shader modules.
+    //
+    {
+        auto create_shader_module = [](uint8_t* bytes, int count) {
+            if (count % 4 != 0) {
+                ri.Error(ERR_FATAL, "Vulkan error: SPIR-V binary buffer size is not multiple of 4");
+            }
+            VkShaderModuleCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.codeSize = count;
+            desc.pCode = reinterpret_cast<const uint32_t*>(bytes);
+               
+            VkShaderModule module;
+            VK_CHECK(vkCreateShaderModule(vk.device, &desc, nullptr, &module));
+            return module;
+        };
+
+        vk.single_texture_vs = create_shader_module(single_texture_vert_spv, single_texture_vert_spv_size);
+        vk.single_texture_fs = create_shader_module(single_texture_frag_spv, single_texture_frag_spv_size);
+        vk.multi_texture_vs = create_shader_module(multi_texture_vert_spv, multi_texture_vert_spv_size);
+        vk.multi_texture_mul_fs = create_shader_module(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
+        vk.multi_texture_add_fs = create_shader_module(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
+    }
+
+    //
+    // Samplers.
+    //
+    {
+        VkSamplerCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.magFilter = VK_FILTER_LINEAR;
+        desc.minFilter = VK_FILTER_LINEAR;
+        desc.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        desc.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        desc.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        desc.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        desc.mipLodBias = 0.0f;
+        desc.anisotropyEnable = VK_TRUE;
+        desc.maxAnisotropy = 1;
+        desc.compareEnable = VK_FALSE;
+        desc.compareOp = VK_COMPARE_OP_ALWAYS;
+        desc.minLod = 0.0f;
+        desc.maxLod = 0.0f;
+        desc.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        desc.unnormalizedCoordinates = VK_FALSE;
+
+        VK_CHECK(vkCreateSampler(vk.device, &desc, nullptr, &vk.sampler));
+    }
+
+    //
+    // Skybox pipeline.
+    //
+    {
+        Vk_Pipeline_Desc desc;
+        desc.shader_type = Vk_Shader_Type::single_texture;
+        desc.state_bits = 0;
+        desc.face_culling = CT_FRONT_SIDED;
+        desc.polygon_offset = false;
+
+        vk.skybox_pipeline = create_pipeline(desc);
+    }
 }
 
 void vk_deinitialize() {

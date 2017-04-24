@@ -50,7 +50,7 @@ struct Vk_Image {
     VkDescriptorSet descriptor_set;
 };
 
-bool vk_initialize(HWND hwnd);
+void vk_initialize(HWND hwnd);
 void vk_deinitialize();
 void vk_destroy_resources();
 
