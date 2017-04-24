@@ -492,6 +492,27 @@ static void allocate_and_bind_image_memory(VkImage image) {
     VK_CHECK(vkBindImageMemory(vk.device, image, chunk->memory, chunk->used - memory_requirements.size));
 }
 
+static void ensure_allocation_for_staging_buffer(VkBuffer buffer) {
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements(vk.device, buffer, &memory_requirements);
+
+    if (tr.vk_resources.texture_staging_memory_size < memory_requirements.size) {
+        if (tr.vk_resources.texture_staging_memory != VK_NULL_HANDLE) {
+            vkFreeMemory(vk.device, tr.vk_resources.texture_staging_memory, nullptr);
+        }
+
+        VkMemoryAllocateInfo alloc_info;
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.pNext = nullptr;
+        alloc_info.allocationSize = memory_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &tr.vk_resources.texture_staging_memory));
+        tr.vk_resources.texture_staging_memory_size = memory_requirements.size;
+    }
+}
+
 static void deallocate_image_chunks() {
     for (int i = 0; i < tr.vk_resources.num_image_chunks; i++) {
         vkFreeMemory(vk.device, tr.vk_resources.image_chunks[i].memory, nullptr);
@@ -707,40 +728,44 @@ bool vk_initialize(HWND hwnd) {
             desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             desc.pNext = nullptr;
             desc.flags = 0;
+            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            desc.queueFamilyIndexCount = 0;
+            desc.pQueueFamilyIndices = nullptr;
+
             desc.size = VERTEX_BUFFER_SIZE;
             desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            desc.queueFamilyIndexCount = 0;
-            desc.pQueueFamilyIndices = nullptr;
-
             VK_CHECK(vkCreateBuffer(vk.device, &desc, nullptr, &vk.vertex_buffer));
 
-            vk.vertex_buffer_memory = get_allocator()->allocate_staging_memory(vk.vertex_buffer);
-            VK_CHECK(vkBindBufferMemory(vk.device, vk.vertex_buffer, vk.vertex_buffer_memory, 0));
-
-            void* data;
-            VK_CHECK(vkMapMemory(vk.device, vk.vertex_buffer_memory, 0, VERTEX_BUFFER_SIZE, 0, &data));
-            vk.vertex_buffer_ptr = (byte*)data;
-        }
-        {
-            VkBufferCreateInfo desc;
-            desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            desc.pNext = nullptr;
-            desc.flags = 0;
             desc.size = INDEX_BUFFER_SIZE;
             desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            desc.queueFamilyIndexCount = 0;
-            desc.pQueueFamilyIndices = nullptr;
-
             VK_CHECK(vkCreateBuffer(vk.device, &desc, nullptr, &vk.index_buffer));
 
-            vk.index_buffer_memory = get_allocator()->allocate_staging_memory(vk.index_buffer);
-            VK_CHECK(vkBindBufferMemory(vk.device, vk.index_buffer, vk.index_buffer_memory, 0));
+            VkMemoryRequirements vb_memory_requirements;
+            vkGetBufferMemoryRequirements(vk.device, vk.vertex_buffer, &vb_memory_requirements);
+
+            VkMemoryRequirements ib_memory_requirements;
+            vkGetBufferMemoryRequirements(vk.device, vk.index_buffer, &ib_memory_requirements);
+
+            VkDeviceSize mask = ~(ib_memory_requirements.alignment - 1);
+            VkDeviceSize index_buffer_offset = (vb_memory_requirements.size + ib_memory_requirements.alignment - 1) & mask;
+
+            uint32_t memory_type_bits = vb_memory_requirements.memoryTypeBits & ib_memory_requirements.memoryTypeBits;
+            uint32_t memory_type = find_memory_type(vk.physical_device, memory_type_bits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+            VkMemoryAllocateInfo alloc_info;
+            alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            alloc_info.pNext = nullptr;
+            alloc_info.allocationSize = index_buffer_offset + ib_memory_requirements.size;
+            alloc_info.memoryTypeIndex = memory_type;
+            VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.geometry_buffer_memory));
+
+            vkBindBufferMemory(vk.device, vk.vertex_buffer, vk.geometry_buffer_memory, 0);
+            vkBindBufferMemory(vk.device, vk.index_buffer, vk.geometry_buffer_memory, index_buffer_offset);
 
             void* data;
-            VK_CHECK(vkMapMemory(vk.device, vk.index_buffer_memory, 0, INDEX_BUFFER_SIZE, 0, &data));
-            vk.index_buffer_ptr = (byte*)data;
+            VK_CHECK(vkMapMemory(vk.device, vk.geometry_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+            vk.vertex_buffer_ptr = (byte*)data;
+            vk.index_buffer_ptr = (byte*)data + index_buffer_offset;
         }
 
         //
@@ -863,6 +888,7 @@ void vk_deinitialize() {
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
     vkDestroyBuffer(vk.device, vk.vertex_buffer, nullptr);
     vkDestroyBuffer(vk.device, vk.index_buffer, nullptr);
+    vkFreeMemory(vk.device, vk.geometry_buffer_memory, nullptr);
     vkDestroySemaphore(vk.device, vk.image_acquired, nullptr);
     vkDestroySemaphore(vk.device, vk.rendering_finished, nullptr);
     vkDestroyFence(vk.device, vk.rendering_finished_fence, nullptr);
@@ -919,14 +945,13 @@ VkImage vk_create_texture(const uint8_t* rgba_pixels, int image_width, int image
     VkBuffer staging_buffer;
     VK_CHECK(vkCreateBuffer(vk.device, &buffer_desc, nullptr, &staging_buffer));
 
-    get_allocator()->ensure_allocation_for_staging_buffer(staging_buffer);
-    VkDeviceMemory buffer_memory = get_allocator()->get_staging_buffer_memory();
-    VK_CHECK(vkBindBufferMemory(vk.device, staging_buffer, buffer_memory, 0));
+    ensure_allocation_for_staging_buffer(staging_buffer);
+    VK_CHECK(vkBindBufferMemory(vk.device, staging_buffer, tr.vk_resources.texture_staging_memory, 0));
 
     void* buffer_data;
-    VK_CHECK(vkMapMemory(vk.device, buffer_memory, 0, image_size, 0, &buffer_data));
+    VK_CHECK(vkMapMemory(vk.device, tr.vk_resources.texture_staging_memory, 0, image_size, 0, &buffer_data));
     Com_Memcpy(buffer_data, rgba_pixels, image_size);
-    vkUnmapMemory(vk.device, buffer_memory);
+    vkUnmapMemory(vk.device, tr.vk_resources.texture_staging_memory);
 
     // create texture image
     VkImageCreateInfo desc;
@@ -1450,14 +1475,15 @@ void vk_destroy_resources() {
 
     deallocate_image_chunks();
 
+    auto& res = tr.vk_resources;
+
+    if (res.texture_staging_memory != VK_NULL_HANDLE)
+        vkFreeMemory(vk.device, res.texture_staging_memory, nullptr);
+
     // Destroy pipelines
     for (int i = 0; i < tr.vk_resources.num_pipelines; i++) {
         vkDestroyPipeline(vk.device, tr.vk_resources.pipelines[i], nullptr);
     }
-
-    tr.vk_resources.num_pipelines = 0;
-    Com_Memset(tr.vk_resources.pipelines, 0, sizeof(tr.vk_resources.pipelines));
-    Com_Memset(tr.vk_resources.pipeline_desc, 0, sizeof(tr.vk_resources.pipeline_desc));
     pipeline_create_time = 0.0f;
 
     // Destroy Vk_Image resources.
@@ -1473,7 +1499,8 @@ void vk_destroy_resources() {
         if (vk_image.staging_buffer.handle != VK_NULL_HANDLE)
             vkDestroyBuffer(vk.device, vk_image.staging_buffer.handle, nullptr);
     }
-    Com_Memset(tr.vk_resources.images, 0, sizeof(tr.vk_resources.images));
+
+    Com_Memset(&res, 0, sizeof(res));
 
     // Reset geometry buffer's current offsets.
     vk.xyz_elements = 0;

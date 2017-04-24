@@ -127,15 +127,16 @@ struct Vulkan_Instance {
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 
     VkBuffer vertex_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory vertex_buffer_memory = VK_NULL_HANDLE;
     byte* vertex_buffer_ptr = nullptr; // pointer to mapped vertex buffer
     int xyz_elements = 0;
     int color_st_elements = 0;
 
     VkBuffer index_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory index_buffer_memory = VK_NULL_HANDLE;
     byte* index_buffer_ptr = nullptr; // pointer to mapped index buffer
     VkDeviceSize index_buffer_offset = 0;
+
+    // host visible memory that holds vertex/index data
+    VkDeviceMemory geometry_buffer_memory = VK_NULL_HANDLE;
 
     VkSemaphore image_acquired = VK_NULL_HANDLE;
     uint32_t swapchain_image_index = -1;
@@ -167,4 +168,7 @@ struct Vulkan_Resources {
 
     int num_image_chunks = 0;
     Chunk image_chunks[MAX_IMAGE_CHUNKS];
+
+    VkDeviceMemory texture_staging_memory = VK_NULL_HANDLE;
+    VkDeviceSize texture_staging_memory_size = 0;
 };

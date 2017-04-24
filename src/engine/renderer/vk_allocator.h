@@ -11,14 +11,8 @@ public:
 
     VkDeviceMemory allocate_staging_memory(VkBuffer buffer);
 
-    void ensure_allocation_for_staging_buffer(VkBuffer buffer);
-    VkDeviceMemory get_staging_buffer_memory() const;
-
 private:
     std::vector<VkDeviceMemory> chunks;
-
-    VkDeviceMemory staging_buffer_memory;
-    VkDeviceSize staging_buffer_size = 0;
 };
 
 Device_Memory_Allocator* get_allocator();
