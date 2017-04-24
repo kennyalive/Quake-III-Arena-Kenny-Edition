@@ -939,10 +939,6 @@ typedef struct {
 	float					sawToothTable[FUNCTABLE_SIZE];
 	float					inverseSawToothTable[FUNCTABLE_SIZE];
 	float					fogTable[FOG_TABLE_SIZE];
-
-    // VULKAN
-    Vulkan_Resources        vk_resources;
-
 } trGlobals_t;
 
 extern backEndState_t	backEnd;
@@ -951,7 +947,8 @@ extern glconfig_t	glConfig;		// outside of TR since it shouldn't be cleared duri
 extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during ref re-init
 
 // VULKAN
-extern Vulkan_Instance vk;          // same as above - shouldn't be cleared during ref re-init
+extern Vk_Instance  vk;             // shouldn't be cleared during ref re-init
+extern Vk_Resources vk_resources;   // this data is cleared during ref re-init
 
 
 //

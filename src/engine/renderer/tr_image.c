@@ -776,7 +776,7 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	hashTable[hash] = image;
 
     // VULKAN
-    Vk_Image& vk_image = tr.vk_resources.images[image->index];
+    Vk_Image& vk_image = vk_resources.images[image->index];
     vk_image.image = vk_create_texture(pic, width, height, vk_image.image_view);
     vk_image.descriptor_set = vk_create_descriptor_set(vk_image.image_view);
 

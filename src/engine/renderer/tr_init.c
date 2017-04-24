@@ -27,7 +27,8 @@ glconfig_t	glConfig;
 glstate_t	glState;
 
 // VULKAN
-Vulkan_Instance vk;
+Vk_Instance vk;
+Vk_Resources vk_resources;
 
 static void GfxInfo_f( void );
 
@@ -1044,7 +1045,7 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	// shut down platform specific OpenGL stuff
 	if ( destroyWindow ) {
         // VULKAN
-        vk_deinitialize();
+        vk_destroy_instance();
 
 		GLimp_Shutdown();
 	}

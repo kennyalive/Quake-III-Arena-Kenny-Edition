@@ -733,7 +733,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );	
 
         // VULKAN
-        Vk_Image& vk_image = tr.vk_resources.images[tr.scratchImage[client]->index];
+        Vk_Image& vk_image = vk_resources.images[tr.scratchImage[client]->index];
         vkDestroyImage(vk.device, vk_image.image, nullptr);
         vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
         vk_image.image = vk_create_cinematic_image(cols, rows, vk_image.image_view);
@@ -764,7 +764,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 
             // VULKAN
-            const Vk_Image& vk_image = tr.vk_resources.images[tr.scratchImage[client]->index];
+            const Vk_Image& vk_image = vk_resources.images[tr.scratchImage[client]->index];
             vk_update_cinematic_image(vk_image.image, cols, rows, data);
 		}
 	}

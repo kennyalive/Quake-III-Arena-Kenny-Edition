@@ -50,16 +50,26 @@ struct Vk_Image {
     VkDescriptorSet descriptor_set;
 };
 
-void vk_initialize(HWND hwnd);
-void vk_deinitialize();
-void vk_destroy_resources();
 
+//
+// Initialization.
+//
+void vk_create_instance(HWND hwnd); // initializes VK_Instance
+void vk_destroy_instance(); // destroys Vk_Instance resources
+void vk_destroy_resources(); // destroys Vk_Resources resources
+
+//
+// Resources allocation.
+//
 VkImage vk_create_texture(const uint8_t* rgba_pixels, int width, int height, VkImageView& image_view);
 VkImage vk_create_cinematic_image(int width, int height, VkImageView& image_view);
 void vk_update_cinematic_image(VkImage image, int width, int height, const uint8_t* rgba_pixels);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
 VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);
 
+//
+// Rendering setup.
+//
 VkRect2D vk_get_viewport_rect();
 void vk_get_mvp_transform(float mvp[16]);
 
@@ -87,7 +97,7 @@ extern unsigned char multi_texture_mul_frag_spv[];
 extern long long multi_texture_mul_frag_spv_size;
 
 // Vulkan specific structures used by the engine.
-struct Vulkan_Instance {
+struct Vk_Instance {
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -144,7 +154,7 @@ struct Vulkan_Instance {
     VkPipeline skybox_pipeline = VK_NULL_HANDLE;
 };
 
-struct Vulkan_Resources {
+struct Vk_Resources {
     int num_pipelines = 0;
     Vk_Pipeline_Desc pipeline_desc[MAX_VK_PIPELINES];
     VkPipeline pipelines[MAX_VK_PIPELINES];

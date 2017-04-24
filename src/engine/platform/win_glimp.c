@@ -563,7 +563,7 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
 
         if (r_renderAPICompareWindow->integer) {
             HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
-            vk_initialize(hwnd2);
+            vk_create_instance(hwnd2);
             g_wv.hWnd_vulkan = hwnd2;
             /*if (!vk_initialize(hwnd2)) {
                 ShowWindow(hwnd2, SW_HIDE);
@@ -574,7 +574,7 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
             }*/
         }
     } else { // vulkan
-        vk_initialize(hwnd);
+        vk_create_instance(hwnd);
         /*if (!vk_initialize(hwnd)) {
             ShowWindow(hwnd, SW_HIDE);
             DestroyWindow(hwnd);
