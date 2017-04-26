@@ -720,36 +720,7 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		ri.Error (ERR_DROP, "Draw_StretchRaw: size not a power of 2: %i by %i", cols, rows);
 	}
 
-	GL_Bind( tr.scratchImage[client] );
-
-	// if the scratchImage isn't in the format we want, specify it as a new texture
-	if ( cols != tr.scratchImage[client]->width || rows != tr.scratchImage[client]->height ) {
-		tr.scratchImage[client]->width = tr.scratchImage[client]->uploadWidth = cols;
-		tr.scratchImage[client]->height = tr.scratchImage[client]->uploadHeight = rows;
-		qglTexImage2D( GL_TEXTURE_2D, 0, GL_RGB8, cols, rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );	
-
-        // VULKAN
-        Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
-        vkDestroyImage(vk.device, image.handle, nullptr);
-        vkDestroyImageView(vk.device, image.view, nullptr);
-        vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
-        image = vk_create_image(cols, rows, 1);
-        vk_upload_image_data(image.handle, cols, rows, false, data);
-	} else {
-		if (dirty) {
-			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
-			// it and don't try and do a texture compression
-			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
-
-            // VULKAN
-            const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
-            vk_upload_image_data(image.handle, cols, rows, false, data);
-		}
-	}
+    RE_UploadCinematic(w, h, cols, rows, data, client, dirty);
 
 	if ( r_speeds->integer ) {
 		end = ri.Milliseconds();
@@ -772,12 +743,24 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
-		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );	
+		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
+
+        // VULKAN
+        Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+        vkDestroyImage(vk.device, image.handle, nullptr);
+        vkDestroyImageView(vk.device, image.view, nullptr);
+        vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
+        image = vk_create_image(cols, rows, 1);
+        vk_upload_image_data(image.handle, cols, rows, false, data);
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
 			// it and don't try and do a texture compression
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
+
+            // VULKAN
+            const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+            vk_upload_image_data(image.handle, cols, rows, false, data);
 		}
 	}
 }
