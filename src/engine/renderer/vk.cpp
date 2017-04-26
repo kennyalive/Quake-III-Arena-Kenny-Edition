@@ -323,30 +323,6 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
     return render_pass;
 }
 
-static VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags) {
-    VkImageViewCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.image = image;
-    desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    desc.format = format;
-    desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    desc.subresourceRange.aspectMask = aspect_flags;
-    desc.subresourceRange.baseMipLevel = 0;
-    desc.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-    desc.subresourceRange.baseArrayLayer = 0;
-    desc.subresourceRange.layerCount = 1;
-
-    VkImageView image_view;
-    VK_CHECK(vkCreateImageView(vk.device, &desc, nullptr, &image_view));
-    return image_view;
-}
-
-
 static void record_and_run_commands(VkCommandPool command_pool, VkQueue queue, std::function<void(VkCommandBuffer)> recorder) {
 
     VkCommandBufferAllocateInfo alloc_info;
@@ -602,39 +578,64 @@ void vk_create_instance(HWND hwnd) {
     {
         VkFormat depth_format = find_depth_format(vk.physical_device);
 
-        VkImageCreateInfo desc;
-        desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        desc.pNext = nullptr;
-        desc.flags = 0;
-        desc.imageType = VK_IMAGE_TYPE_2D;
-        desc.format = depth_format;
-        desc.extent.width = glConfig.vidWidth;
-        desc.extent.height = glConfig.vidHeight;
-        desc.extent.depth = 1;
-        desc.mipLevels = 1;
-        desc.arrayLayers = 1;
-        desc.samples = VK_SAMPLE_COUNT_1_BIT;
-        desc.tiling = VK_IMAGE_TILING_OPTIMAL;
-        desc.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        desc.queueFamilyIndexCount = 0;
-        desc.pQueueFamilyIndices = nullptr;
-        desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        // create depth image
+        {
+            VkImageCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.imageType = VK_IMAGE_TYPE_2D;
+            desc.format = depth_format;
+            desc.extent.width = glConfig.vidWidth;
+            desc.extent.height = glConfig.vidHeight;
+            desc.extent.depth = 1;
+            desc.mipLevels = 1;
+            desc.arrayLayers = 1;
+            desc.samples = VK_SAMPLE_COUNT_1_BIT;
+            desc.tiling = VK_IMAGE_TILING_OPTIMAL;
+            desc.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            desc.queueFamilyIndexCount = 0;
+            desc.pQueueFamilyIndices = nullptr;
+            desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &vk.depth_image));
+        }
 
-        VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &vk.depth_image));
+        // allocate depth image memory
+        {
+            VkMemoryRequirements memory_requirements;
+            vkGetImageMemoryRequirements(vk.device, vk.depth_image, &memory_requirements);
 
-        VkMemoryRequirements memory_requirements;
-        vkGetImageMemoryRequirements(vk.device, vk.depth_image, &memory_requirements);
+            VkMemoryAllocateInfo alloc_info;
+            alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            alloc_info.pNext = nullptr;
+            alloc_info.allocationSize = memory_requirements.size;
+            alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        VkMemoryAllocateInfo alloc_info;
-        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        alloc_info.pNext = nullptr;
-        alloc_info.allocationSize = memory_requirements.size;
-        alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.depth_image_memory));
+            VK_CHECK(vkBindImageMemory(vk.device, vk.depth_image, vk.depth_image_memory, 0));
+        }
 
-        VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.depth_image_memory));
-        VK_CHECK(vkBindImageMemory(vk.device, vk.depth_image, vk.depth_image_memory, 0));
-        vk.depth_image_view = create_image_view(vk.depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+        // create depth image view
+        {
+            VkImageViewCreateInfo desc;
+            desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            desc.pNext = nullptr;
+            desc.flags = 0;
+            desc.image = vk.depth_image;
+            desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            desc.format = depth_format;
+            desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            desc.subresourceRange.baseMipLevel = 0;
+            desc.subresourceRange.levelCount = 1;
+            desc.subresourceRange.baseArrayLayer = 0;
+            desc.subresourceRange.layerCount = 1;
+            VK_CHECK(vkCreateImageView(vk.device, &desc, nullptr, &vk.depth_image_view));
+        }
 
         record_and_run_commands(vk.command_pool, vk.queue, [&depth_format](VkCommandBuffer command_buffer) {
             record_image_layout_transition(command_buffer, vk.depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -642,10 +643,17 @@ void vk_create_instance(HWND hwnd) {
         });
     }
 
-	VkFormat depth_format = find_depth_format(vk.physical_device);
+    //
+    // Renderpass.
+    //
+    {
+	    VkFormat depth_format = find_depth_format(vk.physical_device);
+	    vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
+    }
 
-	vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
-
+    //
+    // Framebuffers for each swapchain image.
+    //
     {
         VkImageView attachments[2] = {VK_NULL_HANDLE, vk.depth_image_view};
 
@@ -1008,7 +1016,26 @@ Vk_Image vk_create_image(int width, int height, int mip_levels) {
         allocate_and_bind_image_memory(image.handle);
     }
 
-    image.view = create_image_view(image.handle, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+    // create image view
+    {
+        VkImageViewCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.image = image.handle;
+        desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        desc.format = VK_FORMAT_R8G8B8A8_UNORM;
+        desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        desc.subresourceRange.baseMipLevel = 0;
+        desc.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        desc.subresourceRange.baseArrayLayer = 0;
+        desc.subresourceRange.layerCount = 1;
+        VK_CHECK(vkCreateImageView(vk.device, &desc, nullptr, &image.view));
+    }
 
     // create associated descriptor set
     {
