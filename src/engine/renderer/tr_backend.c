@@ -733,30 +733,12 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );	
 
         // VULKAN
-        Vk_Image& vk_image = vk_resources.images[tr.scratchImage[client]->index];
-        vkDestroyImage(vk.device, vk_image.image, nullptr);
-        vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
-        vk_image.image = vk_create_image(cols, rows, vk_image.image_view);
-        vk_upload_image_data(vk_image.image, cols, rows, data);
-
-        VkDescriptorImageInfo image_info;
-        image_info.sampler = vk.sampler;
-        image_info.imageView = vk_image.image_view;
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        VkWriteDescriptorSet descriptor_write;
-        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_write.dstSet = vk_image.descriptor_set;
-        descriptor_write.dstBinding = 0;
-        descriptor_write.dstArrayElement = 0;
-        descriptor_write.descriptorCount = 1;
-        descriptor_write.pNext = nullptr;
-        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptor_write.pImageInfo = &image_info;
-        descriptor_write.pBufferInfo = nullptr;
-        descriptor_write.pTexelBufferView = nullptr;
-
-        vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
+        Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+        vkDestroyImage(vk.device, image.handle, nullptr);
+        vkDestroyImageView(vk.device, image.view, nullptr);
+        vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
+        image = vk_create_image(cols, rows, 1);
+        vk_upload_image_data(image.handle, cols, rows, false, data);
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
@@ -764,8 +746,8 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 
             // VULKAN
-            const Vk_Image& vk_image = vk_resources.images[tr.scratchImage[client]->index];
-            vk_upload_image_data(vk_image.image, cols, rows, data);
+            const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+            vk_upload_image_data(image.handle, cols, rows, false, data);
 		}
 	}
 

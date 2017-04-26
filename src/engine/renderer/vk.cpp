@@ -337,7 +337,7 @@ static VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspe
     desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
     desc.subresourceRange.aspectMask = aspect_flags;
     desc.subresourceRange.baseMipLevel = 0;
-    desc.subresourceRange.levelCount = 1;
+    desc.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
     desc.subresourceRange.baseArrayLayer = 0;
     desc.subresourceRange.layerCount = 1;
 
@@ -677,7 +677,7 @@ void vk_create_instance(HWND hwnd) {
         VkDescriptorPoolCreateInfo desc;
         desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         desc.pNext = nullptr;
-        desc.flags = 0;
+        desc.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT; // used by the cinematic images
         desc.maxSets = MAX_DRAWIMAGES;
         desc.poolSizeCount = 1;
         desc.pPoolSizes = &pool_size;
@@ -857,7 +857,7 @@ void vk_create_instance(HWND hwnd) {
         desc.compareEnable = VK_FALSE;
         desc.compareOp = VK_COMPARE_OP_ALWAYS;
         desc.minLod = 0.0f;
-        desc.maxLod = 0.0f;
+        desc.maxLod = 12.0f;
         desc.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         desc.unnormalizedCoordinates = VK_FALSE;
 
@@ -944,15 +944,17 @@ void vk_destroy_resources() {
     pipeline_create_time = 0.0f;
 
     for (int i = 0; i < MAX_VK_IMAGES; i++) {
-        Vk_Image& vk_image = res.images[i];
+        Vk_Image& image = res.images[i];
 
-        if (vk_image.image != VK_NULL_HANDLE) {
-            vkDestroyImage(vk.device, vk_image.image, nullptr);
-            vkDestroyImageView(vk.device, vk_image.image_view, nullptr);
+        if (image.handle != VK_NULL_HANDLE) {
+            vkDestroyImage(vk.device, image.handle, nullptr);
+            vkDestroyImageView(vk.device, image.view, nullptr);
         }
     }
 
     Com_Memset(&res, 0, sizeof(res));
+
+    VK_CHECK(vkResetDescriptorPool(vk.device, vk.descriptor_pool, 0));
 
     // Reset geometry buffer's current offsets.
     vk.xyz_elements = 0;
@@ -978,41 +980,108 @@ static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer,
     vkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, nullptr, 1, &barrier, 0, nullptr);
 }
 
-VkImage vk_create_image(int width, int height, VkImageView& image_view) {
-    VkImageCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.imageType = VK_IMAGE_TYPE_2D;
-    desc.format = VK_FORMAT_R8G8B8A8_UNORM;
-    desc.extent.width = width;
-    desc.extent.height = height;
-    desc.extent.depth = 1;
-    desc.mipLevels = 1;
-    desc.arrayLayers = 1;
-    desc.samples = VK_SAMPLE_COUNT_1_BIT;
-    desc.tiling = VK_IMAGE_TILING_OPTIMAL;
-    desc.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    desc.queueFamilyIndexCount = 0;
-    desc.pQueueFamilyIndices = nullptr;
-    desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+Vk_Image vk_create_image(int width, int height, int mip_levels) {
+    Vk_Image image;
 
-    VkImage image;
-    VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &image));
-    allocate_and_bind_image_memory(image);
-    image_view = create_image_view(image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+    // create image
+    {
+        VkImageCreateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        desc.pNext = nullptr;
+        desc.flags = 0;
+        desc.imageType = VK_IMAGE_TYPE_2D;
+        desc.format = VK_FORMAT_R8G8B8A8_UNORM;
+        desc.extent.width = width;
+        desc.extent.height = height;
+        desc.extent.depth = 1;
+        desc.mipLevels = mip_levels;
+        desc.arrayLayers = 1;
+        desc.samples = VK_SAMPLE_COUNT_1_BIT;
+        desc.tiling = VK_IMAGE_TILING_OPTIMAL;
+        desc.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        desc.queueFamilyIndexCount = 0;
+        desc.pQueueFamilyIndices = nullptr;
+        desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &image.handle));
+        allocate_and_bind_image_memory(image.handle);
+    }
+
+    image.view = create_image_view(image.handle, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    // create associated descriptor set
+    {
+        VkDescriptorSetAllocateInfo desc;
+        desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        desc.pNext = nullptr;
+        desc.descriptorPool = vk.descriptor_pool;
+        desc.descriptorSetCount = 1;
+        desc.pSetLayouts = &vk.set_layout;
+
+        VK_CHECK(vkAllocateDescriptorSets(vk.device, &desc, &image.descriptor_set));
+
+        VkDescriptorImageInfo image_info;
+        image_info.sampler = vk.sampler;
+        image_info.imageView = image.view;
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet descriptor_write;
+        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write.dstSet = image.descriptor_set;
+        descriptor_write.dstBinding = 0;
+        descriptor_write.dstArrayElement = 0;
+        descriptor_write.descriptorCount = 1;
+        descriptor_write.pNext = nullptr;
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_write.pImageInfo = &image_info;
+        descriptor_write.pBufferInfo = nullptr;
+        descriptor_write.pTexelBufferView = nullptr;
+
+        vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
+    }
+
     return image;
 }
 
-void vk_upload_image_data(VkImage image, int width, int height, const uint8_t* rgba_pixels) {
-    VkDeviceSize size = width * height * 4;
+void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* rgba_pixels) {
+    VkBufferImageCopy regions[16];
+    int num_regions = 0;
 
-    ensure_staging_buffer_allocation(size);
-    Com_Memcpy(vk_resources.staging_buffer_ptr, rgba_pixels, size);
+    int buffer_size = 0;
+
+    while (true) {
+        VkBufferImageCopy region;
+        region.bufferOffset = buffer_size;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = num_regions;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = VkOffset3D{ 0, 0, 0 };
+        region.imageExtent = VkExtent3D{ (uint32_t)width, (uint32_t)height, 1 };
+
+        regions[num_regions] = region;
+        num_regions++;
+
+        buffer_size += width * height * 4;
+
+        if (!mipmap || (width == 1 && height == 1))
+            break;
+
+        width >>= 1;
+        if (width < 1) width = 1;
+
+        height >>= 1;
+        if (height < 1) height = 1;
+    }
+
+    ensure_staging_buffer_allocation(buffer_size);
+    Com_Memcpy(vk_resources.staging_buffer_ptr, rgba_pixels, buffer_size);
 
     record_and_run_commands(vk.command_pool, vk.queue,
-        [&image, &width, &height](VkCommandBuffer command_buffer) {
+        [&image, &num_regions, &regions](VkCommandBuffer command_buffer) {
 
         record_buffer_memory_barrier(command_buffer, vk_resources.staging_buffer,
             VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -1021,18 +1090,7 @@ void vk_upload_image_data(VkImage image, int width, int height, const uint8_t* r
         record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
             0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-        VkBufferImageCopy region;
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
-        region.imageOffset = VkOffset3D{ 0, 0, 0 };
-        region.imageExtent = VkExtent3D{ (uint32_t)width, (uint32_t)height, 1 };
-
-        vkCmdCopyBufferToImage(command_buffer, vk_resources.staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(command_buffer, vk_resources.staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
 
         record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1381,38 +1439,6 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc) {
     vk_resources.pipelines[vk_resources.num_pipelines] = pipeline;
     vk_resources.num_pipelines++;
     return pipeline;
-}
-
-VkDescriptorSet vk_create_descriptor_set(VkImageView image_view) {
-    VkDescriptorSetAllocateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    desc.pNext = nullptr;
-    desc.descriptorPool = vk.descriptor_pool;
-    desc.descriptorSetCount = 1;
-    desc.pSetLayouts = &vk.set_layout;
-
-    VkDescriptorSet set;
-    VK_CHECK(vkAllocateDescriptorSets(vk.device, &desc, &set));
-
-    VkDescriptorImageInfo image_info;
-    image_info.sampler = vk.sampler;
-    image_info.imageView = image_view;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    VkWriteDescriptorSet descriptor_write;
-    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptor_write.dstSet = set;
-    descriptor_write.dstBinding = 0;
-    descriptor_write.dstArrayElement = 0;
-    descriptor_write.descriptorCount = 1;
-    descriptor_write.pNext = nullptr;
-    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptor_write.pImageInfo = &image_info;
-    descriptor_write.pBufferInfo = nullptr;
-    descriptor_write.pTexelBufferView = nullptr;
-
-    vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
-    return set;
 }
 
 VkRect2D vk_get_viewport_rect() {

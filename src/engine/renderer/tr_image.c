@@ -512,7 +512,8 @@ static void Upload32( unsigned *data,
 						  int width, int height, 
 						  qboolean mipmap, 
 						  qboolean picmip, 
-							qboolean lightMap,
+						  qboolean lightMap,
+                          Vk_Image& image,
 						  int *format, 
 						  int *pUploadWidth, int *pUploadHeight )
 {
@@ -523,6 +524,7 @@ static void Upload32( unsigned *data,
 	int			i, c;
 	byte		*scan;
 	GLenum		internalFormat = GL_RGB;
+    int		    miplevel = 0;
 
 	//
 	// convert to exact power of 2 sizes
@@ -629,6 +631,10 @@ static void Upload32( unsigned *data,
 	} else {
 		internalFormat = 3;
 	}
+
+    // VULKAN
+    auto mipmap_buffer = (byte*) ri.Hunk_AllocateTempMemory(int(2.0 * 4 * scaled_width * scaled_height));
+
 	// copy or resample data as appropriate for first MIP level
 	if ( ( scaled_width == width ) && 
 		( scaled_height == height ) ) {
@@ -638,6 +644,9 @@ static void Upload32( unsigned *data,
 			*pUploadWidth = scaled_width;
 			*pUploadHeight = scaled_height;
 			*format = internalFormat;
+
+            // VULKAN
+            Com_Memcpy(mipmap_buffer, data, width * height * 4);
 
 			goto done;
 		}
@@ -668,11 +677,12 @@ static void Upload32( unsigned *data,
 
 	qglTexImage2D (GL_TEXTURE_2D, 0, internalFormat, scaled_width, scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, scaledBuffer );
 
+    // VULKAN
+    Com_Memcpy(mipmap_buffer, scaledBuffer, scaled_width * scaled_height * 4);
+    int mipmap_buffer_size = scaled_width * scaled_height * 4;
+
 	if (mipmap)
 	{
-		int		miplevel;
-
-		miplevel = 0;
 		while (scaled_width > 1 || scaled_height > 1)
 		{
 			R_MipMap( (byte *)scaledBuffer, scaled_width, scaled_height );
@@ -689,9 +699,21 @@ static void Upload32( unsigned *data,
 			}
 
 			qglTexImage2D (GL_TEXTURE_2D, miplevel, internalFormat, scaled_width, scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, scaledBuffer );
+
+            // VULKAN
+            Com_Memcpy(&mipmap_buffer[mipmap_buffer_size], scaledBuffer, scaled_width * scaled_height * 4);
+            mipmap_buffer_size += scaled_width * scaled_height * 4;
 		}
 	}
+
 done:
+
+    // VULKAN
+    image = vk_create_image(*pUploadWidth, *pUploadHeight, miplevel + 1);
+    vk_upload_image_data(image.handle, *pUploadWidth, *pUploadHeight, mipmap == qtrue, mipmap_buffer);
+
+    if (mipmap_buffer != nullptr)
+        ri.Hunk_FreeTempMemory(mipmap_buffer);
 
 	if (mipmap)
 	{
@@ -758,6 +780,7 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 								image->mipmap,
 								allowPicmip,
 								isLightmap,
+                                vk_resources.images[image->index],
 								&image->internalFormat,
 								&image->uploadWidth,
 								&image->uploadHeight );
@@ -774,12 +797,6 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	hash = generateHashValue(name);
 	image->next = hashTable[hash];
 	hashTable[hash] = image;
-
-    // VULKAN
-    Vk_Image& vk_image = vk_resources.images[image->index];
-    vk_image.image = vk_create_image(width, height, vk_image.image_view);
-    vk_upload_image_data(vk_image.image, width, height, pic);
-    vk_image.descriptor_set = vk_create_descriptor_set(vk_image.image_view);
 
 	return image;
 }

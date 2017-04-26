@@ -17,7 +17,7 @@ const int MAX_IMAGE_CHUNKS = 16;
 #define VK_CHECK(function_call) { \
     VkResult result = function_call; \
     if (result < 0) \
-        ri.Error(ERR_FATAL, "Vulkan error: function %s, error code %d", function_call, result); \
+        ri.Error(ERR_FATAL, "Vulkan error: function %s, error code %d", #function_call, result); \
 }
 
 enum class Vk_Shader_Type {
@@ -42,14 +42,13 @@ struct Vk_Pipeline_Desc {
 };
 
 struct Vk_Image {
-    VkImage image = VK_NULL_HANDLE;
-    VkImageView image_view = VK_NULL_HANDLE;
+    VkImage handle = VK_NULL_HANDLE;
+    VkImageView view = VK_NULL_HANDLE;
 
-    // One to one correspondence between images and descriptor sets.
-    // We update descriptor set during image initialization and then never touch it again (except for cinematic images).
-    VkDescriptorSet descriptor_set;
+    // Descriptor set that contains single descriptor used to access the given image.
+    // It is updated only once during image initialization.
+    VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
 };
-
 
 //
 // Initialization.
@@ -61,10 +60,9 @@ void vk_destroy_resources(); // destroys Vk_Resources resources
 //
 // Resources allocation.
 //
-VkImage vk_create_image(int width, int height, VkImageView& image_view);
-void vk_upload_image_data(VkImage image, int width, int height, const uint8_t* rgba_pixels);
+Vk_Image vk_create_image(int width, int height, int mip_levels);
+void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* rgba_pixels);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
-VkDescriptorSet vk_create_descriptor_set(VkImageView image_view);
 
 //
 // Rendering setup.
