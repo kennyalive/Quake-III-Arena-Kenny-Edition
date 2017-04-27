@@ -135,6 +135,9 @@ void GL_TextureMode( const char *string ) {
 	gl_filter_min = modes[i].minimize;
 	gl_filter_max = modes[i].maximize;
 
+    // VULKAN
+    VK_CHECK(vkDeviceWaitIdle(vk.device));
+
 	// change all the existing mipmap texture objects
 	for ( i = 0 ; i < tr.numImages ; i++ ) {
 		glt = tr.images[ i ];
@@ -142,6 +145,10 @@ void GL_TextureMode( const char *string ) {
 			GL_Bind (glt);
 			qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
 			qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
+
+            // VULKAN
+            Vk_Image& image = vk_resources.images[i];
+            vk_update_descriptor_set(image.descriptor_set, image.view, true, glt->wrapClampMode == GL_REPEAT);
 		}
 	}
 }

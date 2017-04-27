@@ -29,13 +29,15 @@ enum class Vk_Shader_Type {
 
 struct Vk_Sampler_Def {
     bool repeat_texture = false; // clamp/repeat texture addressing mode
+    int gl_mag_filter = 0; // GL_XXX mag filter
+    int gl_min_filter = 0; // GL_XXX min filter
 };
 
 struct Vk_Pipeline_Def {
-    Vk_Shader_Type  shader_type     = Vk_Shader_Type::single_texture;
-    unsigned int    state_bits      = 0; // GLS_XXX flags
-    int             face_culling    = 0;// cullType_t
-    bool            polygon_offset  = false;
+    Vk_Shader_Type shader_type = Vk_Shader_Type::single_texture;
+    unsigned int state_bits = 0; // GLS_XXX flags
+    int face_culling = 0;// cullType_t
+    bool polygon_offset = false;
 };
 
 struct Vk_Image {
@@ -59,6 +61,7 @@ void vk_destroy_resources(); // destroys Vk_Resources resources
 //
 Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_texture);
 void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* rgba_pixels);
+void vk_update_descriptor_set(VkDescriptorSet set, VkImageView image_view, bool mipmap, bool repeat_texture);
 VkSampler vk_find_sampler(const Vk_Sampler_Def& def);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);
 
