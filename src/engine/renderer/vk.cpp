@@ -509,7 +509,7 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
     vk_resources.staging_buffer_ptr = (byte*)data;
 }
 
-VkPipeline create_pipeline(const Vk_Pipeline_Desc&);
+VkPipeline create_pipeline(const Vk_Pipeline_Def&);
 
 void vk_create_instance(HWND hwnd) {
     vk_log_file = fopen("vk_dev.log", "w");
@@ -846,43 +846,16 @@ void vk_create_instance(HWND hwnd) {
     }
 
     //
-    // Samplers.
-    //
-    {
-        VkSamplerCreateInfo desc;
-        desc.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        desc.pNext = nullptr;
-        desc.flags = 0;
-        desc.magFilter = VK_FILTER_LINEAR;
-        desc.minFilter = VK_FILTER_LINEAR;
-        desc.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        desc.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        desc.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        desc.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        desc.mipLodBias = 0.0f;
-        desc.anisotropyEnable = VK_TRUE;
-        desc.maxAnisotropy = 1;
-        desc.compareEnable = VK_FALSE;
-        desc.compareOp = VK_COMPARE_OP_ALWAYS;
-        desc.minLod = 0.0f;
-        desc.maxLod = 12.0f;
-        desc.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        desc.unnormalizedCoordinates = VK_FALSE;
-
-        VK_CHECK(vkCreateSampler(vk.device, &desc, nullptr, &vk.sampler));
-    }
-
-    //
     // Skybox pipeline.
     //
     {
-        Vk_Pipeline_Desc desc;
-        desc.shader_type = Vk_Shader_Type::single_texture;
-        desc.state_bits = 0;
-        desc.face_culling = CT_FRONT_SIDED;
-        desc.polygon_offset = false;
+        Vk_Pipeline_Def def;
+        def.shader_type = Vk_Shader_Type::single_texture;
+        def.state_bits = 0;
+        def.face_culling = CT_FRONT_SIDED;
+        def.polygon_offset = false;
 
-        vk.skybox_pipeline = create_pipeline(desc);
+        vk.skybox_pipeline = create_pipeline(def);
     }
 }
 
@@ -920,7 +893,6 @@ void vk_destroy_instance() {
     vkDestroyShaderModule(vk.device, vk.multi_texture_mul_fs, nullptr);
     vkDestroyShaderModule(vk.device, vk.multi_texture_add_fs, nullptr);
 
-    vkDestroySampler(vk.device, vk.sampler, nullptr);
     vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
 
     vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
@@ -945,6 +917,9 @@ void vk_destroy_resources() {
 
     if (res.staging_buffer_memory != VK_NULL_HANDLE)
         vkFreeMemory(vk.device, res.staging_buffer_memory, nullptr);
+
+    for (int i = 0; i < res.num_samplers; i++)
+        vkDestroySampler(vk.device, res.samplers[i], nullptr);
 
     for (int i = 0; i < res.num_pipelines; i++)
         vkDestroyPipeline(vk.device, res.pipelines[i], nullptr);
@@ -988,7 +963,7 @@ static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer,
     vkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, nullptr, 1, &barrier, 0, nullptr);
 }
 
-Vk_Image vk_create_image(int width, int height, int mip_levels) {
+Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_texture) {
     Vk_Image image;
 
     // create image
@@ -1048,8 +1023,11 @@ Vk_Image vk_create_image(int width, int height, int mip_levels) {
 
         VK_CHECK(vkAllocateDescriptorSets(vk.device, &desc, &image.descriptor_set));
 
+        Vk_Sampler_Def sampler_def;
+        sampler_def.repeat_texture = repeat_texture;
+
         VkDescriptorImageInfo image_info;
-        image_info.sampler = vk.sampler;
+        image_info.sampler = vk_find_sampler(sampler_def);
         image_info.imageView = image.view;
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
@@ -1124,7 +1102,7 @@ void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, con
     });
 }
 
-static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
+static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
     auto get_shader_stage_desc = [](VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry) {
         VkPipelineShaderStageCreateInfo desc;
         desc.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1141,13 +1119,13 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
         int32_t alpha_test_func;
     } specialization_data;
 
-    if ((desc.state_bits & GLS_ATEST_BITS) == 0)
+    if ((def.state_bits & GLS_ATEST_BITS) == 0)
         specialization_data.alpha_test_func = 0;
-    else if (desc.state_bits & GLS_ATEST_GT_0)
+    else if (def.state_bits & GLS_ATEST_GT_0)
         specialization_data.alpha_test_func = 1;
-    else if (desc.state_bits & GLS_ATEST_LT_80)
+    else if (def.state_bits & GLS_ATEST_LT_80)
         specialization_data.alpha_test_func = 2;
-    else if (desc.state_bits & GLS_ATEST_GE_80)
+    else if (def.state_bits & GLS_ATEST_GE_80)
         specialization_data.alpha_test_func = 3;
     else
         ri.Error(ERR_DROP, "create_pipeline: invalid alpha test state bits\n");
@@ -1166,20 +1144,20 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages_state;
 
     VkShaderModule* vs_module, *fs_module;
-    if (desc.shader_type == Vk_Shader_Type::single_texture) {
+    if (def.shader_type == Vk_Shader_Type::single_texture) {
         vs_module = &vk.single_texture_vs;
         fs_module = &vk.single_texture_fs;
-    } else if (desc.shader_type == Vk_Shader_Type::multi_texture_mul) {
+    } else if (def.shader_type == Vk_Shader_Type::multi_texture_mul) {
         vs_module = &vk.multi_texture_vs;
         fs_module = &vk.multi_texture_mul_fs;
-    } else if (desc.shader_type == Vk_Shader_Type::multi_texture_add) {
+    } else if (def.shader_type == Vk_Shader_Type::multi_texture_add) {
         vs_module = &vk.multi_texture_vs;
         fs_module = &vk.multi_texture_add_fs;
     }
     shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, *vs_module, "main"));
     shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_FRAGMENT_BIT, *fs_module, "main"));
 
-    if (desc.state_bits & GLS_ATEST_BITS)
+    if (def.state_bits & GLS_ATEST_BITS)
         shader_stages_state.back().pSpecializationInfo = &specialization_info;
 
     //
@@ -1235,9 +1213,9 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     vertex_input_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertex_input_state.pNext = nullptr;
     vertex_input_state.flags = 0;
-    vertex_input_state.vertexBindingDescriptionCount = (desc.shader_type == Vk_Shader_Type::single_texture) ? 3 : 4;
+    vertex_input_state.vertexBindingDescriptionCount = (def.shader_type == Vk_Shader_Type::single_texture) ? 3 : 4;
     vertex_input_state.pVertexBindingDescriptions = bindings;
-    vertex_input_state.vertexAttributeDescriptionCount = (desc.shader_type == Vk_Shader_Type::single_texture) ? 3 : 4;
+    vertex_input_state.vertexAttributeDescriptionCount = (def.shader_type == Vk_Shader_Type::single_texture) ? 3 : 4;
     vertex_input_state.pVertexAttributeDescriptions = attribs;
 
     //
@@ -1271,20 +1249,20 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     rasterization_state.flags = 0;
     rasterization_state.depthClampEnable = VK_FALSE;
     rasterization_state.rasterizerDiscardEnable = VK_FALSE;
-    rasterization_state.polygonMode = (desc.state_bits & GLS_POLYMODE_LINE) ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    rasterization_state.polygonMode = (def.state_bits & GLS_POLYMODE_LINE) ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
-    if (desc.face_culling == CT_TWO_SIDED)
+    if (def.face_culling == CT_TWO_SIDED)
         rasterization_state.cullMode = VK_CULL_MODE_NONE;
-    else if (desc.face_culling == CT_FRONT_SIDED)
+    else if (def.face_culling == CT_FRONT_SIDED)
         rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT;
-    else if (desc.face_culling == CT_BACK_SIDED)
+    else if (def.face_culling == CT_BACK_SIDED)
         rasterization_state.cullMode = VK_CULL_MODE_FRONT_BIT;
     else
         ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode\n");
 
     rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE; // Q3 defaults to clockwise vertex order
 
-    rasterization_state.depthBiasEnable = desc.polygon_offset ? VK_TRUE : VK_FALSE;
+    rasterization_state.depthBiasEnable = def.polygon_offset ? VK_TRUE : VK_FALSE;
     rasterization_state.depthBiasConstantFactor = 0.0f; // dynamic depth bias state
     rasterization_state.depthBiasClamp = 0.0f; // dynamic depth bias state
     rasterization_state.depthBiasSlopeFactor = 0.0f; // dynamic depth bias state
@@ -1305,9 +1283,9 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depth_stencil_state.pNext = nullptr;
     depth_stencil_state.flags = 0;
-    depth_stencil_state.depthTestEnable = (desc.state_bits & GLS_DEPTHTEST_DISABLE) ? VK_FALSE : VK_TRUE;
-    depth_stencil_state.depthWriteEnable = (desc.state_bits & GLS_DEPTHMASK_TRUE) ? VK_TRUE : VK_FALSE;
-    depth_stencil_state.depthCompareOp = (desc.state_bits & GLS_DEPTHFUNC_EQUAL) ? VK_COMPARE_OP_EQUAL : VK_COMPARE_OP_LESS_OR_EQUAL;
+    depth_stencil_state.depthTestEnable = (def.state_bits & GLS_DEPTHTEST_DISABLE) ? VK_FALSE : VK_TRUE;
+    depth_stencil_state.depthWriteEnable = (def.state_bits & GLS_DEPTHMASK_TRUE) ? VK_TRUE : VK_FALSE;
+    depth_stencil_state.depthCompareOp = (def.state_bits & GLS_DEPTHFUNC_EQUAL) ? VK_COMPARE_OP_EQUAL : VK_COMPARE_OP_LESS_OR_EQUAL;
     depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
     depth_stencil_state.stencilTestEnable = VK_FALSE;
     depth_stencil_state.front = {};
@@ -1316,11 +1294,11 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
     depth_stencil_state.maxDepthBounds = 0.0;
 
     VkPipelineColorBlendAttachmentState attachment_blend_state = {};
-    attachment_blend_state.blendEnable = (desc.state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? VK_TRUE : VK_FALSE;
+    attachment_blend_state.blendEnable = (def.state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? VK_TRUE : VK_FALSE;
     attachment_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     
     if (attachment_blend_state.blendEnable) {
-        switch (desc.state_bits & GLS_SRCBLEND_BITS) {
+        switch (def.state_bits & GLS_SRCBLEND_BITS) {
             case GLS_SRCBLEND_ZERO:
                 attachment_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
                 break;
@@ -1352,7 +1330,7 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Desc& desc) {
                 ri.Error( ERR_DROP, "create_pipeline: invalid src blend state bits\n" );
                 break;
         }
-        switch (desc.state_bits & GLS_DSTBLEND_BITS) {
+        switch (def.state_bits & GLS_DSTBLEND_BITS) {
             case GLS_DSTBLEND_ZERO:
                 attachment_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
                 break;
@@ -1447,22 +1425,75 @@ struct Timer {
     }
 };
 
-VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc) {
+VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
+    // Look for sampler among existing samplers.
+    for (int i = 0; i < vk_resources.num_samplers; i++) {
+        const auto& cur_def = vk_resources.sampler_defs[i];
+
+        if (cur_def.repeat_texture == def.repeat_texture)
+        {
+            return vk_resources.samplers[i];
+        }
+    }
+
+    // Create new sampler.
+    if (vk_resources.num_samplers >= MAX_VK_SAMPLERS) {
+        ri.Error(ERR_DROP, "vk_find_sampler: MAX_VK_SAMPLERS hit\n");
+    }
+
+    VkSamplerAddressMode address_mode = def.repeat_texture ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+    VkSamplerCreateInfo desc;
+    desc.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    desc.pNext = nullptr;
+    desc.flags = 0;
+    desc.magFilter = VK_FILTER_LINEAR;
+    desc.minFilter = VK_FILTER_LINEAR;
+    desc.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    desc.addressModeU = address_mode;
+    desc.addressModeV = address_mode;
+    desc.addressModeW = address_mode;
+    desc.mipLodBias = 0.0f;
+    desc.anisotropyEnable = VK_TRUE;
+    desc.maxAnisotropy = 1;
+    desc.compareEnable = VK_FALSE;
+    desc.compareOp = VK_COMPARE_OP_ALWAYS;
+    desc.minLod = 0.0f;
+    desc.maxLod = 12.0f;
+    desc.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    desc.unnormalizedCoordinates = VK_FALSE;
+
+    VkSampler sampler;
+    VK_CHECK(vkCreateSampler(vk.device, &desc, nullptr, &sampler));
+
+    vk_resources.sampler_defs[vk_resources.num_samplers] = def;
+    vk_resources.samplers[vk_resources.num_samplers] = sampler;
+    vk_resources.num_samplers++;
+    return sampler;
+}
+
+VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
     for (int i = 0; i < vk_resources.num_pipelines; i++) {
-        if (vk_resources.pipeline_desc[i] == desc) {
+        const auto& cur_def = vk_resources.pipeline_defs[i];
+
+        if (cur_def.shader_type == def.shader_type &&
+            cur_def.state_bits == def.state_bits &&
+            cur_def.face_culling == def.face_culling &&
+            cur_def.polygon_offset == def.polygon_offset)
+        {
             return vk_resources.pipelines[i];
         }
     }
 
-    if (vk_resources.num_pipelines == MAX_VK_PIPELINES) {
-        ri.Error( ERR_DROP, "vk_find_pipeline: MAX_VK_PIPELINES hit\n");
+    if (vk_resources.num_pipelines >= MAX_VK_PIPELINES) {
+        ri.Error(ERR_DROP, "vk_find_pipeline: MAX_VK_PIPELINES hit\n");
     }
 
     Timer t;
-    VkPipeline pipeline = create_pipeline(desc);
+    VkPipeline pipeline = create_pipeline(def);
     pipeline_create_time += t.Elapsed_Seconds();
 
-    vk_resources.pipeline_desc[vk_resources.num_pipelines] = desc;
+    vk_resources.pipeline_defs[vk_resources.num_pipelines] = def;
     vk_resources.pipelines[vk_resources.num_pipelines] = pipeline;
     vk_resources.num_pipelines++;
     return pipeline;
@@ -1496,7 +1527,7 @@ VkRect2D vk_get_viewport_rect() {
     return r;
 }
 
-void vk_get_mvp_transform(float mvp[16]) {
+static void get_mvp_transform(float* mvp) {
     if (backEnd.projection2D) {
         float mvp0 = 2.0f / glConfig.vidWidth;
         float mvp5 = 2.0f / glConfig.vidHeight;
@@ -1554,7 +1585,7 @@ void vk_bind_resources_shared_between_stages() {
 
     // update mvp transform
     float mvp[16];
-    vk_get_mvp_transform(mvp);
+    get_mvp_transform(mvp);
     vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
 }
 

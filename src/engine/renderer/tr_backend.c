@@ -750,7 +750,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
         vkDestroyImage(vk.device, image.handle, nullptr);
         vkDestroyImageView(vk.device, image.view, nullptr);
         vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
-        image = vk_create_image(cols, rows, 1);
+        image = vk_create_image(cols, rows, 1, false);
         vk_upload_image_data(image.handle, cols, rows, false, data);
 	} else {
 		if (dirty) {

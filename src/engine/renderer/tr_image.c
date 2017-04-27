@@ -507,15 +507,17 @@ Upload32
 
 ===============
 */
-extern qboolean charSet;
 static void Upload32( unsigned *data, 
-						  int width, int height, 
-						  qboolean mipmap, 
-						  qboolean picmip, 
-						  qboolean lightMap,
-                          Vk_Image& image,
-						  int *format, 
-						  int *pUploadWidth, int *pUploadHeight )
+					    int width, int height, 
+					    qboolean mipmap, 
+					    qboolean picmip, 
+					    qboolean lightMap,
+					    int *format, 
+					    int *pUploadWidth, int *pUploadHeight,
+                        // VULKAN
+                        Vk_Image& image,
+                        bool repeat_texture
+                        )
 {
 	int			samples;
 	unsigned	*scaledBuffer = NULL;
@@ -709,7 +711,7 @@ static void Upload32( unsigned *data,
 done:
 
     // VULKAN
-    image = vk_create_image(*pUploadWidth, *pUploadHeight, miplevel + 1);
+    image = vk_create_image(*pUploadWidth, *pUploadHeight, miplevel + 1, repeat_texture);
     vk_upload_image_data(image.handle, *pUploadWidth, *pUploadHeight, mipmap == qtrue, mipmap_buffer);
 
     if (mipmap_buffer != nullptr)
@@ -780,10 +782,12 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 								image->mipmap,
 								allowPicmip,
 								isLightmap,
-                                vk_resources.images[image->index],
 								&image->internalFormat,
 								&image->uploadWidth,
-								&image->uploadHeight );
+								&image->uploadHeight,
+                                vk_resources.images[image->index],
+                                glWrapClampMode == GL_REPEAT
+    );
 
 	qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapClampMode );
 	qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapClampMode );
@@ -1367,7 +1371,7 @@ static void LoadTGA ( const char *name, byte **pic, int *width, int *height)
   ri.FS_FreeFile (buffer);
 }
 
-static void LoadJPG( const char *filename, unsigned char **pic, int *width, int *height ) {
+static void LoadJPG( const char *filename, byte **pic, int *width, int *height ) {
   byte* fbuffer;
   int len = ri.FS_ReadFile ( ( char * ) filename, (void **)&fbuffer);
   if (!fbuffer) {

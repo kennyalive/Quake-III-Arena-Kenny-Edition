@@ -8,6 +8,7 @@
 #include "vulkan/vulkan.h"
 
 const int MAX_SWAPCHAIN_IMAGES = 8;
+const int MAX_VK_SAMPLERS = 32;
 const int MAX_VK_PIPELINES = 1024;
 const int MAX_VK_IMAGES = 2048; // should be the same as MAX_DRAWIMAGES
 
@@ -26,19 +27,15 @@ enum class Vk_Shader_Type {
     multi_texture_add
 };
 
-struct Vk_Pipeline_Desc {
+struct Vk_Sampler_Def {
+    bool repeat_texture = false; // clamp/repeat texture addressing mode
+};
+
+struct Vk_Pipeline_Def {
     Vk_Shader_Type  shader_type     = Vk_Shader_Type::single_texture;
     unsigned int    state_bits      = 0; // GLS_XXX flags
     int             face_culling    = 0;// cullType_t
     bool            polygon_offset  = false;
-
-    bool operator==(const Vk_Pipeline_Desc& other) const {
-        return
-            shader_type == other.shader_type &&
-            state_bits == other.state_bits &&
-            face_culling == other.face_culling &&
-            polygon_offset == other.polygon_offset;
-    }
 };
 
 struct Vk_Image {
@@ -60,19 +57,17 @@ void vk_destroy_resources(); // destroys Vk_Resources resources
 //
 // Resources allocation.
 //
-Vk_Image vk_create_image(int width, int height, int mip_levels);
+Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_texture);
 void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* rgba_pixels);
-VkPipeline vk_find_pipeline(const Vk_Pipeline_Desc& desc);
+VkSampler vk_find_sampler(const Vk_Sampler_Def& def);
+VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);
 
 //
 // Rendering setup.
 //
 VkRect2D vk_get_viewport_rect();
-void vk_get_mvp_transform(float mvp[16]);
-
 void vk_bind_resources_shared_between_stages();
 void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
-
 void vk_begin_frame();
 void vk_end_frame();
 
@@ -130,17 +125,26 @@ struct Vk_Instance {
     VkShaderModule multi_texture_mul_fs = VK_NULL_HANDLE;
     VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
 
-    VkSampler sampler = VK_NULL_HANDLE;
     VkPipeline skybox_pipeline = VK_NULL_HANDLE;
 };
 
 struct Vk_Resources {
+    //
+    // Resources.
+    //
+    int num_samplers = 0;
+    Vk_Sampler_Def sampler_defs[MAX_VK_SAMPLERS];
+    VkSampler samplers[MAX_VK_SAMPLERS];
+
     int num_pipelines = 0;
-    Vk_Pipeline_Desc pipeline_desc[MAX_VK_PIPELINES];
+    Vk_Pipeline_Def pipeline_defs[MAX_VK_PIPELINES];
     VkPipeline pipelines[MAX_VK_PIPELINES];
 
     Vk_Image images[MAX_VK_IMAGES];
 
+    //
+    // Memory allocations.
+    //
     struct Chunk {
         VkDeviceMemory memory = VK_NULL_HANDLE;
         VkDeviceSize used = 0;
