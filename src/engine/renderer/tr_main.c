@@ -854,6 +854,7 @@ static qboolean SurfIsOffscreen( const drawSurf_t *drawSurf, vec4_t clipDest[128
 	// trivially reject
 	if ( pointAnd )
 	{
+        tess.numIndexes = 0;
 		return qtrue;
 	}
 
@@ -883,6 +884,7 @@ static qboolean SurfIsOffscreen( const drawSurf_t *drawSurf, vec4_t clipDest[128
 			numTriangles--;
 		}
 	}
+    tess.numIndexes = 0;
 	if ( !numTriangles )
 	{
 		return qtrue;
