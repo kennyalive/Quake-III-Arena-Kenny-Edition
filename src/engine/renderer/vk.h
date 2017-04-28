@@ -38,6 +38,8 @@ struct Vk_Pipeline_Def {
     unsigned int state_bits = 0; // GLS_XXX flags
     int face_culling = 0;// cullType_t
     bool polygon_offset = false;
+    bool clipping_plane = false;
+    bool mirror = false;
 };
 
 struct Vk_Image {
@@ -123,8 +125,10 @@ struct Vk_Instance {
     VkFence rendering_finished_fence = VK_NULL_HANDLE;
 
     VkShaderModule single_texture_vs = VK_NULL_HANDLE;
+    VkShaderModule single_texture_clipping_plane_vs = VK_NULL_HANDLE;
     VkShaderModule single_texture_fs = VK_NULL_HANDLE;
     VkShaderModule multi_texture_vs = VK_NULL_HANDLE;
+    VkShaderModule multi_texture_clipping_plane_vs = VK_NULL_HANDLE;
     VkShaderModule multi_texture_mul_fs = VK_NULL_HANDLE;
     VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
 

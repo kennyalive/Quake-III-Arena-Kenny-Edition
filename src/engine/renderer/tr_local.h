@@ -320,7 +320,8 @@ typedef struct {
 
     // VULKAN
     VkPipeline      vk_pipeline = VK_NULL_HANDLE;
-
+    VkPipeline      vk_portal_pipeline = VK_NULL_HANDLE;
+    VkPipeline      vk_mirror_pipeline = VK_NULL_HANDLE;
 } shaderStage_t;
 
 struct shaderCommands_s;

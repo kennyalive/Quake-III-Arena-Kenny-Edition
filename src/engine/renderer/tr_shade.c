@@ -842,7 +842,13 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		}
 
         // VULKAN
-        vk_bind_stage_specific_resources(pStage->vk_pipeline, multitexture, input->shader->isSky == qtrue);
+        VkPipeline pipeline = pStage->vk_pipeline;
+        if (backEnd.viewParms.isMirror)
+            pipeline = pStage->vk_mirror_pipeline;
+        else if (backEnd.viewParms.isPortal)
+            pipeline = pStage->vk_portal_pipeline;
+
+        vk_bind_stage_specific_resources(pipeline, multitexture, input->shader->isSky == qtrue);
         vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
         glState.vk_dirty_attachments = true;
 

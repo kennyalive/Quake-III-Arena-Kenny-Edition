@@ -2178,7 +2178,17 @@ static shader_t *FinishShader( void ) {
         else
             ri.Error(ERR_DROP, "ERROR: could not determine vulkan shader type for shader '%s'\n", shader.name);
 
+        def.clipping_plane = false;
+        def.mirror = false;
         pStage->vk_pipeline = vk_find_pipeline(def);
+
+        def.clipping_plane = true;
+        def.mirror = false;
+        pStage->vk_portal_pipeline = vk_find_pipeline(def);
+
+        def.clipping_plane = true;
+        def.mirror = true;
+        pStage->vk_mirror_pipeline = vk_find_pipeline(def);
     }
 
 	return GeneratePermanentShader();

@@ -100,8 +100,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_add_frag.cpp" />
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_clipping_plane_vert.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_mul_frag.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_vert.cpp" />
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_clipping_plane_vert.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_frag.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_vert.cpp" />
     <ClCompile Include="..\..\src\engine\renderer\tr_animation.c" />

@@ -110,6 +110,12 @@
     <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_vert.cpp">
       <Filter>Source Files\spirv</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_clipping_plane_vert.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_clipping_plane_vert.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\engine\qcommon\cm_public.h">

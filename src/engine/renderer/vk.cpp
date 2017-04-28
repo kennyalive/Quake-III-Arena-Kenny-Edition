@@ -166,6 +166,10 @@ static VkDevice create_device(VkPhysicalDevice physical_device, uint32_t queue_f
     queue_desc.queueCount = 1;
     queue_desc.pQueuePriorities = &priority;
 
+    VkPhysicalDeviceFeatures features;
+    Com_Memset(&features, 0, sizeof(features));
+    features.shaderClipDistance = VK_TRUE;
+
     VkDeviceCreateInfo device_desc;
     device_desc.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     device_desc.pNext = nullptr;
@@ -176,7 +180,7 @@ static VkDevice create_device(VkPhysicalDevice physical_device, uint32_t queue_f
     device_desc.ppEnabledLayerNames = nullptr;
     device_desc.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
     device_desc.ppEnabledExtensionNames = device_extensions.data();
-    device_desc.pEnabledFeatures = nullptr;
+    device_desc.pEnabledFeatures = &features;
 
     VkDevice device;
     VK_CHECK(vkCreateDevice(physical_device, &device_desc, nullptr, &device));
@@ -516,6 +520,12 @@ void vk_create_instance(HWND hwnd) {
 
     vk.instance = create_instance();
     vk.physical_device = select_physical_device(vk.instance);
+
+    VkPhysicalDeviceFeatures features;
+    vkGetPhysicalDeviceFeatures(vk.physical_device, &features);
+    if (features.shaderClipDistance == VK_FALSE)
+        ri.Error(ERR_FATAL, "vk_create_instance: shaderClipDistance feature is not supported");
+
     vk.surface = create_surface(vk.instance, hwnd);
     vk.surface_format = select_surface_format(vk.physical_device, vk.surface);
 
@@ -721,7 +731,7 @@ void vk_create_instance(HWND hwnd) {
         VkPushConstantRange push_range;
         push_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         push_range.offset = 0;
-        push_range.size = 64; // sizeof(float[16])
+        push_range.size = 128; // 32 floats
 
         VkDescriptorSetLayout set_layouts[2] = {vk.set_layout, vk.set_layout};
 
@@ -828,6 +838,10 @@ void vk_create_instance(HWND hwnd) {
         extern long long single_texture_vert_spv_size;
         vk.single_texture_vs = create_shader_module(single_texture_vert_spv, single_texture_vert_spv_size);
 
+        extern unsigned char single_texture_clipping_plane_vert_spv[];
+        extern long long single_texture_clipping_plane_vert_spv_size;
+        vk.single_texture_clipping_plane_vs = create_shader_module(single_texture_clipping_plane_vert_spv, single_texture_clipping_plane_vert_spv_size);
+
         extern unsigned char single_texture_frag_spv[];
         extern long long single_texture_frag_spv_size;
         vk.single_texture_fs = create_shader_module(single_texture_frag_spv, single_texture_frag_spv_size);
@@ -835,6 +849,10 @@ void vk_create_instance(HWND hwnd) {
         extern unsigned char multi_texture_vert_spv[];
         extern long long multi_texture_vert_spv_size;
         vk.multi_texture_vs = create_shader_module(multi_texture_vert_spv, multi_texture_vert_spv_size);
+
+        extern unsigned char multi_texture_clipping_plane_vert_spv[];
+        extern long long multi_texture_clipping_plane_vert_spv_size;
+        vk.multi_texture_clipping_plane_vs = create_shader_module(multi_texture_clipping_plane_vert_spv, multi_texture_clipping_plane_vert_spv_size);
 
         extern unsigned char multi_texture_mul_frag_spv[];
         extern long long multi_texture_mul_frag_spv_size;
@@ -854,6 +872,8 @@ void vk_create_instance(HWND hwnd) {
         def.state_bits = 0;
         def.face_culling = CT_FRONT_SIDED;
         def.polygon_offset = false;
+        def.clipping_plane = false;
+        def.mirror = false;
 
         vk.skybox_pipeline = create_pipeline(def);
     }
@@ -888,8 +908,10 @@ void vk_destroy_instance() {
     vkDestroyFence(vk.device, vk.rendering_finished_fence, nullptr);
 
     vkDestroyShaderModule(vk.device, vk.single_texture_vs, nullptr);
+    vkDestroyShaderModule(vk.device, vk.single_texture_clipping_plane_vs, nullptr);
     vkDestroyShaderModule(vk.device, vk.single_texture_fs, nullptr);
     vkDestroyShaderModule(vk.device, vk.multi_texture_vs, nullptr);
+    vkDestroyShaderModule(vk.device, vk.multi_texture_clipping_plane_vs, nullptr);
     vkDestroyShaderModule(vk.device, vk.multi_texture_mul_fs, nullptr);
     vkDestroyShaderModule(vk.device, vk.multi_texture_add_fs, nullptr);
 
@@ -1155,13 +1177,13 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 
     VkShaderModule* vs_module, *fs_module;
     if (def.shader_type == Vk_Shader_Type::single_texture) {
-        vs_module = &vk.single_texture_vs;
+        vs_module = def.clipping_plane ? &vk.single_texture_clipping_plane_vs :  &vk.single_texture_vs;
         fs_module = &vk.single_texture_fs;
     } else if (def.shader_type == Vk_Shader_Type::multi_texture_mul) {
-        vs_module = &vk.multi_texture_vs;
+        vs_module = def.clipping_plane ? &vk.multi_texture_clipping_plane_vs : &vk.multi_texture_vs;
         fs_module = &vk.multi_texture_mul_fs;
     } else if (def.shader_type == Vk_Shader_Type::multi_texture_add) {
-        vs_module = &vk.multi_texture_vs;
+        vs_module = def.clipping_plane ? &vk.multi_texture_clipping_plane_vs : &vk.multi_texture_vs;
         fs_module = &vk.multi_texture_add_fs;
     }
     shader_stages_state.push_back(get_shader_stage_desc(VK_SHADER_STAGE_VERTEX_BIT, *vs_module, "main"));
@@ -1264,9 +1286,9 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
     if (def.face_culling == CT_TWO_SIDED)
         rasterization_state.cullMode = VK_CULL_MODE_NONE;
     else if (def.face_culling == CT_FRONT_SIDED)
-        rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT;
+        rasterization_state.cullMode = (def.mirror ? VK_CULL_MODE_FRONT_BIT : VK_CULL_MODE_BACK_BIT);
     else if (def.face_culling == CT_BACK_SIDED)
-        rasterization_state.cullMode = VK_CULL_MODE_FRONT_BIT;
+        rasterization_state.cullMode = (def.mirror ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT);
     else
         ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode\n");
 
@@ -1527,7 +1549,9 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
         if (cur_def.shader_type == def.shader_type &&
             cur_def.state_bits == def.state_bits &&
             cur_def.face_culling == def.face_culling &&
-            cur_def.polygon_offset == def.polygon_offset)
+            cur_def.polygon_offset == def.polygon_offset &&
+            cur_def.clipping_plane == def.clipping_plane &&
+            cur_def.mirror == def.mirror)
         {
             return vk_resources.pipelines[i];
         }
@@ -1631,10 +1655,43 @@ void vk_bind_resources_shared_between_stages() {
     vkCmdBindIndexBuffer(vk.command_buffer, vk.index_buffer, vk.index_buffer_offset, VK_INDEX_TYPE_UINT32);
     vk.index_buffer_offset += indexes_size;
 
-    // update mvp transform
-    float mvp[16];
-    get_mvp_transform(mvp);
-    vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 64, mvp);
+    // specify push constants
+    float push_constants[16 + 12 + 4]; // mvp transform + eye transform + clipping plane in eye space
+
+    get_mvp_transform(push_constants);
+    int push_constants_size = 64;
+
+    if (backEnd.viewParms.isPortal) {
+        // Eye space transform.
+        // NOTE: backEnd.or.modelMatrix incorporates s_flipMatrix, so it should be taken into account 
+        // when computing clipping plane too.
+        float* eye_xform = push_constants + 16;
+        for (int i = 0; i < 12; i++) {
+            eye_xform[i] = backEnd.or.modelMatrix[(i%4)*4 + i/4 ];
+        }
+
+        // Clipping plane in eye coordinates.
+        float world_plane[4];
+        world_plane[0] = backEnd.viewParms.portalPlane.normal[0];
+        world_plane[1] = backEnd.viewParms.portalPlane.normal[1];
+        world_plane[2] = backEnd.viewParms.portalPlane.normal[2];
+        world_plane[3] = backEnd.viewParms.portalPlane.dist;
+
+        float eye_plane[4];
+        eye_plane[0] = DotProduct (backEnd.viewParms.or.axis[0], world_plane);
+        eye_plane[1] = DotProduct (backEnd.viewParms.or.axis[1], world_plane);
+        eye_plane[2] = DotProduct (backEnd.viewParms.or.axis[2], world_plane);
+        eye_plane[3] = DotProduct (world_plane, backEnd.viewParms.or.origin) - world_plane[3];
+
+        // Apply s_flipMatrix to be in the same coordinate system as eye_xfrom.
+        push_constants[28] = -eye_plane[1];
+        push_constants[29] =  eye_plane[2];
+        push_constants[30] = -eye_plane[0];
+        push_constants[31] =  eye_plane[3];
+
+        push_constants_size += 64;
+    }
+    vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, push_constants_size, push_constants);
 }
 
 void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky) {
