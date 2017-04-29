@@ -138,6 +138,11 @@ struct Vk_Instance {
     // dim 1 is directly a cullType_t enum value.
     // dim 2 is a polygon offset value (0 - off, 1 - on).
     VkPipeline fog_pipelines[2][3][2];
+
+    // dim 0 is based on dlight additive flag: 0 - not additive, 1 - additive
+    // dim 1 is directly a cullType_t enum value.
+    // dim 2 is a polygon offset value (0 - off, 1 - on).
+    VkPipeline dlight_pipelines[2][3][2];
 };
 
 struct Vk_Resources {

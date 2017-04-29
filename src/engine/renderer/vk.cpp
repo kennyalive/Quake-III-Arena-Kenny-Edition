@@ -880,31 +880,42 @@ void vk_create_instance(HWND hwnd) {
             vk.skybox_pipeline = create_pipeline(def);
         }
 
-        // fog
+        // fog and dlights
         {
             Vk_Pipeline_Def def;
             def.shader_type = Vk_Shader_Type::single_texture;
             def.clipping_plane = false;
             def.mirror = false;
 
-            unsigned int state_bits[2] = {
+            unsigned int fog_state_bits[2] = {
                 GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_DEPTHFUNC_EQUAL,
                 GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA
+            };
+            unsigned int dlight_state_bits[2] = {
+                GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ONE | GLS_DEPTHFUNC_EQUAL,
+                GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHFUNC_EQUAL
             };
             bool polygon_offset[2] = {false, true};
 
             for (int i = 0; i < 2; i++) {
-                def.state_bits = state_bits[i];
+                unsigned fog_state = fog_state_bits[i];
+                unsigned dlight_state = dlight_state_bits[i];
+
                 for (int j = 0; j < 3; j++) {
                     def.face_culling = j; // cullType_t value
+
                     for (int k = 0; k < 2; k++) {
                         def.polygon_offset = polygon_offset[k];
+
+                        def.state_bits = fog_state;
                         vk.fog_pipelines[i][j][k] = create_pipeline(def);
+
+                        def.state_bits = dlight_state;
+                        vk.dlight_pipelines[i][j][k] = create_pipeline(def);
                     }
                 }
             }
         }
-
     }
 }
 
@@ -947,8 +958,10 @@ void vk_destroy_instance() {
     vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 3; j++)
-            for (int k = 0; k < 2; k++)
+            for (int k = 0; k < 2; k++) {
                 vkDestroyPipeline(vk.device, vk.fog_pipelines[i][j][k], nullptr);
+                vkDestroyPipeline(vk.device, vk.dlight_pipelines[i][j][k], nullptr);
+            }
 
     vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
     vkDestroyDevice(vk.device, nullptr);

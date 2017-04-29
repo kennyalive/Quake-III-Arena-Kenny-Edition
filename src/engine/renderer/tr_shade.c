@@ -248,8 +248,6 @@ static void ProjectDlightTexture( void ) {
 	float	*texCoords;
 	byte	*colors;
 	byte	clipBits[SHADER_MAX_VERTEXES];
-	MAC_STATIC float	texCoordsArray[SHADER_MAX_VERTEXES][2];
-	byte	colorArray[SHADER_MAX_VERTEXES][4];
 	unsigned	hitIndexes[SHADER_MAX_INDEXES];
 	int		numIndexes;
 	float	scale;
@@ -267,8 +265,8 @@ static void ProjectDlightTexture( void ) {
 		if ( !( tess.dlightBits & ( 1 << l ) ) ) {
 			continue;	// this surface definately doesn't have any of this light
 		}
-		texCoords = texCoordsArray[0];
-		colors = colorArray[0];
+		texCoords = tess.svars.texcoords[0][0];
+		colors = tess.svars.colors[0];
 
 		dl = &backEnd.refdef.dlights[l];
 		VectorCopy( dl->transformed, origin );
@@ -345,10 +343,10 @@ static void ProjectDlightTexture( void ) {
 		}
 
 		qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
-		qglTexCoordPointer( 2, GL_FLOAT, 0, texCoordsArray[0] );
+		qglTexCoordPointer( 2, GL_FLOAT, 0, tess.svars.texcoords[0] );
 
 		qglEnableClientState( GL_COLOR_ARRAY );
-		qglColorPointer( 4, GL_UNSIGNED_BYTE, 0, colorArray );
+		qglColorPointer( 4, GL_UNSIGNED_BYTE, 0, tess.svars.colors );
 
 		GL_Bind( tr.dlightImage );
 		// include GLS_DEPTHFUNC_EQUAL so alpha tested surfaces don't add light
@@ -362,6 +360,12 @@ static void ProjectDlightTexture( void ) {
 		R_DrawElements( numIndexes, hitIndexes );
 		backEnd.pc.c_totalIndexes += numIndexes;
 		backEnd.pc.c_dlightIndexes += numIndexes;
+
+        // VULKAN
+        VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+        vk_bind_stage_specific_resources(pipeline, false, false);
+        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+        glState.vk_dirty_attachments = true;
 	}
 }
 
