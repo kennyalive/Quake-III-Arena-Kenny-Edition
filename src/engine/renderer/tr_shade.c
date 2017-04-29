@@ -244,21 +244,7 @@ Perform dynamic lighting with another rendering pass
 */
 static void ProjectDlightTexture( void ) {
 	int		i, l;
-#if idppc_altivec
-	vec_t	origin0, origin1, origin2;
-	float   texCoords0, texCoords1;
-	vector float floatColorVec0, floatColorVec1;
-	vector float modulateVec, colorVec, zero;
-	vector short colorShort;
-	vector signed int colorInt;
-	vector unsigned char floatColorVecPerm, modulatePerm, colorChar;
-	vector unsigned char vSel = (vector unsigned char)(0x00, 0x00, 0x00, 0xff,
-							   0x00, 0x00, 0x00, 0xff,
-							   0x00, 0x00, 0x00, 0xff,
-							   0x00, 0x00, 0x00, 0xff);
-#else
 	vec3_t	origin;
-#endif
 	float	*texCoords;
 	byte	*colors;
 	byte	clipBits[SHADER_MAX_VERTEXES];
@@ -275,15 +261,6 @@ static void ProjectDlightTexture( void ) {
 		return;
 	}
 
-#if idppc_altivec
-	// There has to be a better way to do this so that floatColor 
-	// and/or modulate are already 16-byte aligned.
-	floatColorVecPerm = vec_lvsl(0,(float *)floatColor);
-	modulatePerm = vec_lvsl(0,(float *)&modulate);
-	modulatePerm = (vector unsigned char)vec_splat((vector unsigned int)modulatePerm,0);
-	zero = (vector float)vec_splat_s8(0);
-#endif
-
 	for ( l = 0 ; l < backEnd.refdef.num_dlights ; l++ ) {
 		dlight_t	*dl;
 
@@ -294,82 +271,20 @@ static void ProjectDlightTexture( void ) {
 		colors = colorArray[0];
 
 		dl = &backEnd.refdef.dlights[l];
-#if idppc_altivec
-		origin0 = dl->transformed[0];
-		origin1 = dl->transformed[1];
-		origin2 = dl->transformed[2];
-#else
 		VectorCopy( dl->transformed, origin );
-#endif
-		radius = dl->radius;
+        radius = dl->radius;
 		scale = 1.0f / radius;
 
 		floatColor[0] = dl->color[0] * 255.0f;
 		floatColor[1] = dl->color[1] * 255.0f;
 		floatColor[2] = dl->color[2] * 255.0f;
-#if idppc_altivec
-		floatColorVec0 = vec_ld(0, floatColor);
-		floatColorVec1 = vec_ld(11, floatColor);
-		floatColorVec0 = vec_perm(floatColorVec0,floatColorVec0,floatColorVecPerm);
-#endif
+
 		for ( i = 0 ; i < tess.numVertexes ; i++, texCoords += 2, colors += 4 ) {
-#if idppc_altivec
-			vec_t dist0, dist1, dist2;
-#else
 			vec3_t	dist;
-#endif
 			int		clip;
 
 			backEnd.pc.c_dlightVertexes++;
 
-#if idppc_altivec
-			//VectorSubtract( origin, tess.xyz[i], dist );
-			dist0 = origin0 - tess.xyz[i][0];
-			dist1 = origin1 - tess.xyz[i][1];
-			dist2 = origin2 - tess.xyz[i][2];
-			texCoords0 = 0.5f + dist0 * scale;
-			texCoords1 = 0.5f + dist1 * scale;
-
-			clip = 0;
-			if ( texCoords0 < 0.0f ) {
-				clip |= 1;
-			} else if ( texCoords0 > 1.0f ) {
-				clip |= 2;
-			}
-			if ( texCoords1 < 0.0f ) {
-				clip |= 4;
-			} else if ( texCoords1 > 1.0f ) {
-				clip |= 8;
-			}
-			texCoords[0] = texCoords0;
-			texCoords[1] = texCoords1;
-			
-			// modulate the strength based on the height and color
-			if ( dist2 > radius ) {
-				clip |= 16;
-				modulate = 0.0f;
-			} else if ( dist2 < -radius ) {
-				clip |= 32;
-				modulate = 0.0f;
-			} else {
-				dist2 = Q_fabs(dist2);
-				if ( dist2 < radius * 0.5f ) {
-					modulate = 1.0f;
-				} else {
-					modulate = 2.0f * (radius - dist2) * scale;
-				}
-			}
-			clipBits[i] = clip;
-
-			modulateVec = vec_ld(0,(float *)&modulate);
-			modulateVec = vec_perm(modulateVec,modulateVec,modulatePerm);
-			colorVec = vec_madd(floatColorVec0,modulateVec,zero);
-			colorInt = vec_cts(colorVec,0);	// RGBx
-			colorShort = vec_pack(colorInt,colorInt);		// RGBxRGBx
-			colorChar = vec_packsu(colorShort,colorShort);	// RGBxRGBxRGBxRGBx
-			colorChar = vec_sel(colorChar,vSel,vSel);		// RGBARGBARGBARGBA replace alpha with 255
-			vec_ste((vector unsigned int)colorChar,0,(unsigned int *)colors);	// store color
-#else
 			VectorSubtract( origin, tess.xyz[i], dist );
 			texCoords[0] = 0.5f + dist[0] * scale;
 			texCoords[1] = 0.5f + dist[1] * scale;
@@ -406,7 +321,6 @@ static void ProjectDlightTexture( void ) {
 			colors[1] = myftol(floatColor[1] * modulate);
 			colors[2] = myftol(floatColor[2] * modulate);
 			colors[3] = 255;
-#endif
 		}
 
 		// build a list of triangles that need light
