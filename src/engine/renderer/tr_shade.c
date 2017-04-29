@@ -486,6 +486,13 @@ static void RB_FogPass( void ) {
 	}
 
 	R_DrawElements( tess.numIndexes, tess.indexes );
+
+    // VULKAN
+    assert(tess.shader->fogPass > 0);
+    VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+    vk_bind_stage_specific_resources(pipeline, false, false);
+    vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+    glState.vk_dirty_attachments = true;
 }
 
 /*
@@ -858,9 +865,6 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			break;
 		}
 	}
-
-    // VULKAN
-    vk.xyz_elements += tess.numVertexes;
 }
 
 
@@ -958,6 +962,9 @@ void RB_StageIteratorGeneric( void )
 	if ( tess.fogNum && tess.shader->fogPass ) {
 		RB_FogPass();
 	}
+
+    // VULKAN
+    vk.xyz_elements += tess.numVertexes;
 
 	// 
 	// unlock arrays

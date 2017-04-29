@@ -133,6 +133,11 @@ struct Vk_Instance {
     VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
 
     VkPipeline skybox_pipeline = VK_NULL_HANDLE;
+
+    // dim 0 is based on fogPass_t: 0 - corresponds to FP_EQUAL, 1 - corresponds to FP_LE.
+    // dim 1 is directly a cullType_t enum value.
+    // dim 2 is a polygon offset value (0 - off, 1 - on).
+    VkPipeline fog_pipelines[2][3][2];
 };
 
 struct Vk_Resources {

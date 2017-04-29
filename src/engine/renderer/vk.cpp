@@ -864,18 +864,47 @@ void vk_create_instance(HWND hwnd) {
     }
 
     //
-    // Skybox pipeline.
+    // Standard pipelines.
     //
     {
-        Vk_Pipeline_Def def;
-        def.shader_type = Vk_Shader_Type::single_texture;
-        def.state_bits = 0;
-        def.face_culling = CT_FRONT_SIDED;
-        def.polygon_offset = false;
-        def.clipping_plane = false;
-        def.mirror = false;
+        // skybox
+        {
+            Vk_Pipeline_Def def;
+            def.shader_type = Vk_Shader_Type::single_texture;
+            def.state_bits = 0;
+            def.face_culling = CT_FRONT_SIDED;
+            def.polygon_offset = false;
+            def.clipping_plane = false;
+            def.mirror = false;
 
-        vk.skybox_pipeline = create_pipeline(def);
+            vk.skybox_pipeline = create_pipeline(def);
+        }
+
+        // fog
+        {
+            Vk_Pipeline_Def def;
+            def.shader_type = Vk_Shader_Type::single_texture;
+            def.clipping_plane = false;
+            def.mirror = false;
+
+            unsigned int state_bits[2] = {
+                GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_DEPTHFUNC_EQUAL,
+                GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA
+            };
+            bool polygon_offset[2] = {false, true};
+
+            for (int i = 0; i < 2; i++) {
+                def.state_bits = state_bits[i];
+                for (int j = 0; j < 3; j++) {
+                    def.face_culling = j; // cullType_t value
+                    for (int k = 0; k < 2; k++) {
+                        def.polygon_offset = polygon_offset[k];
+                        vk.fog_pipelines[i][j][k] = create_pipeline(def);
+                    }
+                }
+            }
+        }
+
     }
 }
 
@@ -916,6 +945,10 @@ void vk_destroy_instance() {
     vkDestroyShaderModule(vk.device, vk.multi_texture_add_fs, nullptr);
 
     vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 3; j++)
+            for (int k = 0; k < 2; k++)
+                vkDestroyPipeline(vk.device, vk.fog_pipelines[i][j][k], nullptr);
 
     vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
     vkDestroyDevice(vk.device, nullptr);
@@ -1655,7 +1688,9 @@ void vk_bind_resources_shared_between_stages() {
     vkCmdBindIndexBuffer(vk.command_buffer, vk.index_buffer, vk.index_buffer_offset, VK_INDEX_TYPE_UINT32);
     vk.index_buffer_offset += indexes_size;
 
-    // specify push constants
+    //
+    // Specify push constants.
+    //
     float push_constants[16 + 12 + 4]; // mvp transform + eye transform + clipping plane in eye space
 
     get_mvp_transform(push_constants);
@@ -1691,6 +1726,7 @@ void vk_bind_resources_shared_between_stages() {
 
         push_constants_size += 64;
     }
+
     vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, push_constants_size, push_constants);
 }
 
