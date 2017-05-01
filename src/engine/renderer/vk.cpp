@@ -1617,9 +1617,8 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
     return pipeline;
 }
 
-VkRect2D vk_get_viewport_rect() {
+static VkRect2D get_viewport_rect() {
     VkRect2D r;
-
     if (backEnd.projection2D) {
         r.offset.x = 0.0f;
         r.offset.y = 0.0f;
@@ -1627,21 +1626,53 @@ VkRect2D vk_get_viewport_rect() {
         r.extent.height = glConfig.vidHeight;
     } else {
         r.offset.x = backEnd.viewParms.viewportX;
-        if (r.offset.x < 0)
-            r.offset.x = 0;
-
         r.offset.y = glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight);
-        if (r.offset.y < 0)
-            r.offset.y = 0;
-
         r.extent.width = backEnd.viewParms.viewportWidth;
-        if (r.offset.x + r.extent.width > glConfig.vidWidth)
-            r.extent.width = glConfig.vidWidth - r.offset.x;
-
         r.extent.height = backEnd.viewParms.viewportHeight;
-        if (r.offset.y + r.extent.height > glConfig.vidHeight)
-            r.extent.height = glConfig.vidHeight - r.offset.y;
     }
+    return r;
+}
+
+static VkViewport get_viewport(bool sky_depth_range) {
+    VkRect2D r = get_viewport_rect();
+
+    VkViewport viewport;
+    viewport.x = (float)r.offset.x;
+    viewport.y = (float)r.offset.y;
+    viewport.width = (float)r.extent.width;
+    viewport.height = (float)r.extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
+        viewport.maxDepth = 0.3f;
+    }
+
+    if (sky_depth_range) {
+        if (r_showsky->integer) {
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 0.0f;
+        } else {
+            viewport.minDepth = 1.0f;
+            viewport.maxDepth = 1.0f;
+        }
+    }
+    return viewport;
+}
+
+VkRect2D vk_get_scissor_rect() {
+    VkRect2D r = get_viewport_rect();
+
+    if (r.offset.x < 0)
+        r.offset.x = 0;
+    if (r.offset.y < 0)
+        r.offset.y = 0;
+
+    if (r.offset.x + r.extent.width > glConfig.vidWidth)
+        r.extent.width = glConfig.vidWidth - r.offset.x;
+    if (r.offset.y + r.extent.height > glConfig.vidHeight)
+        r.extent.height = glConfig.vidHeight - r.offset.y;
+
     return r;
 }
 
@@ -1743,7 +1774,7 @@ void vk_bind_resources_shared_between_stages() {
     vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, push_constants_size, push_constants);
 }
 
-void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky) {
+void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky_depth_range) {
     //
     // Specify color/st for each draw call since they are regenerated for each Q3 shader's stage.
     // xyz are specified only once for all stages.
@@ -1801,31 +1832,10 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     // configure pipeline's dynamic state
-    VkRect2D r = vk_get_viewport_rect();
-    vkCmdSetScissor(vk.command_buffer, 0, 1, &r);
+    VkRect2D scissor_rect = vk_get_scissor_rect();
+    vkCmdSetScissor(vk.command_buffer, 0, 1, &scissor_rect);
 
-    VkViewport viewport;
-    viewport.x = (float)r.offset.x;
-    viewport.y = (float)r.offset.y;
-    viewport.width = (float)r.extent.width;
-    viewport.height = (float)r.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-	if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
-		viewport.maxDepth = 0.3f;
-	}
-
-	if (sky) {
-		if (r_showsky->integer) {
-			viewport.minDepth = 0.0f;
-			viewport.maxDepth = 0.0f;
-		} else {
-			viewport.minDepth = 1.0f;
-			viewport.maxDepth = 1.0f;
-		}
-	}
-
+    VkViewport viewport = get_viewport(sky_depth_range);
     vkCmdSetViewport(vk.command_buffer, 0, 1, &viewport);
 
     if (tess.shader->polygonOffset) {

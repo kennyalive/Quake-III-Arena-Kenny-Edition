@@ -70,7 +70,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);
 //
 // Rendering setup.
 //
-VkRect2D vk_get_viewport_rect();
+VkRect2D vk_get_scissor_rect();
 void vk_bind_resources_shared_between_stages();
 void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
 void vk_begin_frame();

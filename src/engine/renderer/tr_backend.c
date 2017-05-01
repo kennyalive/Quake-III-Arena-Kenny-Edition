@@ -457,7 +457,7 @@ void RB_BeginDrawingView (void) {
         }
 
         VkClearRect clear_rect[2];
-		clear_rect[0].rect = vk_get_viewport_rect();
+		clear_rect[0].rect = vk_get_scissor_rect();
 		clear_rect[0].baseArrayLayer = 0;
 		clear_rect[0].layerCount = 1;
 		int rect_count = 1;
