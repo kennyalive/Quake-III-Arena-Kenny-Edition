@@ -46,11 +46,8 @@ void ( APIENTRY * qglBindTexture )(GLenum target, GLuint texture);
 void ( APIENTRY * qglBlendFunc )(GLenum sfactor, GLenum dfactor);
 void ( APIENTRY * qglClear )(GLbitfield mask);
 void ( APIENTRY * qglClearColor )(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
-void ( APIENTRY * qglClearDepth )(GLclampd depth);
-void ( APIENTRY * qglClearStencil )(GLint s);
 void ( APIENTRY * qglClipPlane )(GLenum plane, const GLdouble *equation);
 void ( APIENTRY * qglColor3f )(GLfloat red, GLfloat green, GLfloat blue);
-void ( APIENTRY * qglColor4f )(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
 void ( APIENTRY * qglColorMask )(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
 void ( APIENTRY * qglColorPointer )(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
 void ( APIENTRY * qglCullFace )(GLenum mode);
@@ -80,9 +77,7 @@ void ( APIENTRY * qglPopMatrix )(void);
 void ( APIENTRY * qglPushMatrix )(void);
 void ( APIENTRY * qglReadPixels )(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
 void ( APIENTRY * qglScissor )(GLint x, GLint y, GLsizei width, GLsizei height);
-void ( APIENTRY * qglShadeModel )(GLenum mode);
 void ( APIENTRY * qglStencilFunc )(GLenum func, GLint ref, GLuint mask);
-void ( APIENTRY * qglStencilMask )(GLuint mask);
 void ( APIENTRY * qglStencilOp )(GLenum fail, GLenum zfail, GLenum zpass);
 void ( APIENTRY * qglTexCoord2f )(GLfloat s, GLfloat t);
 void ( APIENTRY * qglTexCoord2fv )(const GLfloat *v);
@@ -105,11 +100,8 @@ static void ( APIENTRY * dllBindTexture )(GLenum target, GLuint texture);
 static void ( APIENTRY * dllBlendFunc )(GLenum sfactor, GLenum dfactor);
 static void ( APIENTRY * dllClear )(GLbitfield mask);
 static void ( APIENTRY * dllClearColor )(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
-static void ( APIENTRY * dllClearDepth )(GLclampd depth);
-static void ( APIENTRY * dllClearStencil )(GLint s);
 static void ( APIENTRY * dllClipPlane )(GLenum plane, const GLdouble *equation);
 static void ( APIENTRY * dllColor3f )(GLfloat red, GLfloat green, GLfloat blue);
-static void ( APIENTRY * dllColor4f )(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
 static void ( APIENTRY * dllColorMask )(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
 static void ( APIENTRY * dllColorPointer )(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
 static void ( APIENTRY * dllCullFace )(GLenum mode);
@@ -139,9 +131,7 @@ static void ( APIENTRY * dllPopMatrix )(void);
 static void ( APIENTRY * dllPushMatrix )(void);
 static void ( APIENTRY * dllReadPixels )(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
 static void ( APIENTRY * dllScissor )(GLint x, GLint y, GLsizei width, GLsizei height);
-static void ( APIENTRY * dllShadeModel )(GLenum mode);
 static void ( APIENTRY * dllStencilFunc )(GLenum func, GLint ref, GLuint mask);
-static void ( APIENTRY * dllStencilMask )(GLuint mask);
 static void ( APIENTRY * dllStencilOp )(GLenum fail, GLenum zfail, GLenum zpass);
 static void ( APIENTRY * dllTexCoord2f )(GLfloat s, GLfloat t);
 static void ( APIENTRY * dllTexCoord2fv )(const GLfloat *v);
@@ -355,16 +345,6 @@ static void APIENTRY logClearColor(GLclampf red, GLclampf green, GLclampf blue, 
 	fprintf( glw_state.log_fp, "glClearColor\n" );
 	dllClearColor( red, green, blue, alpha );
 }
-static void APIENTRY logClearDepth(GLclampd depth)
-{
-	fprintf( glw_state.log_fp, "glClearDepth( %f )\n", ( float ) depth );
-	dllClearDepth( depth );
-}
-static void APIENTRY logClearStencil(GLint s)
-{
-	fprintf( glw_state.log_fp, "glClearStencil( %d )\n", s );
-	dllClearStencil( s );
-}
 static void APIENTRY logClipPlane(GLenum plane, const GLdouble *equation)
 {
 	fprintf( glw_state.log_fp, "glClipPlane\n" );
@@ -378,11 +358,6 @@ static void APIENTRY logColor3f(GLfloat red, GLfloat green, GLfloat blue)
 
 #define SIG( x ) fprintf( glw_state.log_fp, x "\n" )
 
-static void APIENTRY logColor4f(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
-{
-	fprintf( glw_state.log_fp, "glColor4f( %f,%f,%f,%f )\n", red, green, blue, alpha );
-	dllColor4f( red, green, blue, alpha );
-}
 static void APIENTRY logColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
 {
 	SIG( "glColorMask" );
@@ -530,20 +505,10 @@ static void APIENTRY logScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 	fprintf( glw_state.log_fp, "glScissor( %d, %d, %d, %d )\n", x, y, width, height );
 	dllScissor( x, y, width, height );
 }
-static void APIENTRY logShadeModel(GLenum mode)
-{
-	SIG( "glShadeModel" );
-	dllShadeModel( mode );
-}
 static void APIENTRY logStencilFunc(GLenum func, GLint ref, GLuint mask)
 {
 	SIG( "glStencilFunc" );
 	dllStencilFunc( func, ref, mask );
-}
-static void APIENTRY logStencilMask(GLuint mask)
-{
-	SIG( "glStencilMask" );
-	dllStencilMask( mask );
 }
 static void APIENTRY logStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 {
@@ -641,11 +606,8 @@ void QGL_Shutdown( void )
 	qglBlendFunc                 = NULL;
 	qglClear                     = NULL;
 	qglClearColor                = NULL;
-	qglClearDepth                = NULL;
-	qglClearStencil              = NULL;
 	qglClipPlane                 = NULL;
 	qglColor3f                   = NULL;
-	qglColor4f                   = NULL;
 	qglColorMask                 = NULL;
 	qglColorPointer              = NULL;
 	qglCullFace                  = NULL;
@@ -675,9 +637,7 @@ void QGL_Shutdown( void )
 	qglPushMatrix                = NULL;
 	qglReadPixels                = NULL;
 	qglScissor                   = NULL;
-	qglShadeModel                = NULL;
 	qglStencilFunc               = NULL;
-	qglStencilMask               = NULL;
 	qglStencilOp                 = NULL;
 	qglTexCoord2f                = NULL;
 	qglTexCoord2fv               = NULL;
@@ -733,11 +693,8 @@ qboolean QGL_Init( const char *dllname )
 	qglBlendFunc                 = dllBlendFunc = (decltype(dllBlendFunc))GPA("glBlendFunc");
 	qglClear                     = dllClear = (decltype(dllClear))GPA("glClear");
 	qglClearColor                = dllClearColor = (decltype(dllClearColor))GPA("glClearColor");
-	qglClearDepth                = dllClearDepth = (decltype(dllClearDepth))GPA("glClearDepth");
-	qglClearStencil              = dllClearStencil = (decltype(dllClearStencil))GPA("glClearStencil");
 	qglClipPlane                 = dllClipPlane = (decltype(dllClipPlane))GPA("glClipPlane");
 	qglColor3f                   = dllColor3f = (decltype(dllColor3f))GPA("glColor3f");
-	qglColor4f                   = dllColor4f = (decltype(dllColor4f))GPA("glColor4f");
 	qglColorMask                 = dllColorMask = (decltype(dllColorMask))GPA("glColorMask");
 	qglColorPointer              = dllColorPointer = (decltype(dllColorPointer))GPA("glColorPointer");
 	qglCullFace                  = dllCullFace = (decltype(dllCullFace))GPA("glCullFace");
@@ -767,9 +724,7 @@ qboolean QGL_Init( const char *dllname )
 	qglPushMatrix                = 	dllPushMatrix                = (decltype(dllPushMatrix))GPA("glPushMatrix");
 	qglReadPixels                = 	dllReadPixels                = (decltype(dllReadPixels))GPA("glReadPixels");
 	qglScissor                   = 	dllScissor                   = (decltype(dllScissor))GPA("glScissor");
-	qglShadeModel                = 	dllShadeModel                = (decltype(dllShadeModel))GPA("glShadeModel");
 	qglStencilFunc               = 	dllStencilFunc               = (decltype(dllStencilFunc))GPA("glStencilFunc");
-	qglStencilMask               = 	dllStencilMask               = (decltype(dllStencilMask))GPA("glStencilMask");
 	qglStencilOp                 = 	dllStencilOp                 = (decltype(dllStencilOp))GPA("glStencilOp");
 	qglTexCoord2f                = 	dllTexCoord2f                = (decltype(dllTexCoord2f))GPA("glTexCoord2f");
 	qglTexCoord2fv               = 	dllTexCoord2fv               = (decltype(dllTexCoord2fv))GPA("glTexCoord2fv");
@@ -849,11 +804,8 @@ void QGL_EnableLogging( qboolean enable )
 		qglBlendFunc                 = logBlendFunc;
 		qglClear                     = logClear;
 		qglClearColor                = logClearColor;
-		qglClearDepth                = logClearDepth;
-		qglClearStencil              = logClearStencil;
 		qglClipPlane                 = logClipPlane;
 		qglColor3f                   = logColor3f;
-		qglColor4f                   = logColor4f;
 		qglColorMask                 = logColorMask;
 		qglColorPointer              = logColorPointer;
 		qglCullFace                  = logCullFace;
@@ -883,9 +835,7 @@ void QGL_EnableLogging( qboolean enable )
 		qglPushMatrix                = 	logPushMatrix                ;
 		qglReadPixels                = 	logReadPixels                ;
 		qglScissor                   = 	logScissor                   ;
-		qglShadeModel                = 	logShadeModel                ;
 		qglStencilFunc               = 	logStencilFunc               ;
-		qglStencilMask               = 	logStencilMask               ;
 		qglStencilOp                 = 	logStencilOp                 ;
 		qglTexCoord2f                = 	logTexCoord2f                ;
 		qglTexCoord2fv               = 	logTexCoord2fv               ;
@@ -914,11 +864,8 @@ void QGL_EnableLogging( qboolean enable )
 		qglBlendFunc                 = dllBlendFunc;
 		qglClear                     = dllClear;
 		qglClearColor                = dllClearColor;
-		qglClearDepth                = dllClearDepth;
-		qglClearStencil              = dllClearStencil;
 		qglClipPlane                 = dllClipPlane;
 		qglColor3f                   = dllColor3f;
-		qglColor4f                   = dllColor4f;
 		qglColorMask                 = dllColorMask;
 		qglColorPointer              = dllColorPointer;
 		qglCullFace                  = dllCullFace;
@@ -948,9 +895,7 @@ void QGL_EnableLogging( qboolean enable )
 		qglPushMatrix                = 	dllPushMatrix                ;
 		qglReadPixels                = 	dllReadPixels                ;
 		qglScissor                   = 	dllScissor                   ;
-		qglShadeModel                = 	dllShadeModel                ;
 		qglStencilFunc               = 	dllStencilFunc               ;
-		qglStencilMask               = 	dllStencilMask               ;
 		qglStencilOp                 = 	dllStencilOp                 ;
 		qglTexCoord2f                = 	dllTexCoord2f                ;
 		qglTexCoord2fv               = 	dllTexCoord2fv               ;

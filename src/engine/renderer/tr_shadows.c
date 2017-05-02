@@ -289,7 +289,7 @@ void RB_ShadowFinish( void ) {
 	qglVertex3f( -100, -100, -10 );
 	qglEnd ();
 
-	qglColor4f(1,1,1,1);
+	qglColor3f(1,1,1);
 	qglDisable( GL_STENCIL_TEST );
 }
 

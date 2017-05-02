@@ -333,8 +333,6 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 		{
 			R_SyncRenderThread();
 			qglEnable( GL_STENCIL_TEST );
-			qglStencilMask( ~0U );
-			qglClearStencil( 0U );
 			qglStencilFunc( GL_ALWAYS, 0U, ~0U );
 			qglStencilOp( GL_KEEP, GL_INCR, GL_INCR );
 		}

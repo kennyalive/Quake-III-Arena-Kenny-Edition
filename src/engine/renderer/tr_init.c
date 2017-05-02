@@ -692,11 +692,9 @@ void R_ScreenShotJPEG_f (void) {
 */
 void GL_SetDefaultState( void )
 {
-	qglClearDepth( 1.0f );
-
 	qglCullFace(GL_FRONT);
 
-	qglColor4f (1,1,1,1);
+	qglColor3f (1,1,1);
 
 	// initialize downstream texture unit
 	GL_SelectTexture( 1 );
@@ -709,7 +707,6 @@ void GL_SetDefaultState( void )
 	GL_TextureMode( r_textureMode->string );
 	GL_TexEnv( GL_MODULATE );
 
-	qglShadeModel( GL_SMOOTH );
 	qglDepthFunc( GL_LEQUAL );
 
 	// the vertex array is always enabled, but the color and texture
