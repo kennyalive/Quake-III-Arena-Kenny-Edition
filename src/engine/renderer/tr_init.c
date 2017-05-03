@@ -29,6 +29,8 @@ glstate_t	glState;
 // VULKAN
 Vk_Instance vk;
 Vk_Resources vk_resources;
+bool gl_active;
+bool vk_active;
 
 static void GfxInfo_f( void );
 
@@ -989,6 +991,9 @@ void R_Init( void ) {
 	}
 	R_ToggleSmpFrame();
 
+    gl_active = (r_renderAPI->integer == 0 || r_renderAPICompareWindow->integer > 0);
+    vk_active = (r_renderAPI->integer > 0 || r_renderAPICompareWindow->integer > 0);
+
 	InitOpenGL();
 
 	R_InitImages();
@@ -1027,23 +1032,23 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	ri.Cmd_RemoveCommand( "modelist" );
 	ri.Cmd_RemoveCommand( "shaderstate" );
 
+    // VULKAN
+    if (vk_active) {
+        vk_destroy_resources();
+        if (destroyWindow)
+            vk_destroy_instance();
+    }
 
 	if ( tr.registered ) {
 		R_SyncRenderThread();
 		R_ShutdownCommandBuffers();
 		R_DeleteTextures();
-
-        // VULKAN
-        vk_destroy_resources();
 	}
 
 	R_DoneFreeType();
 
 	// shut down platform specific OpenGL stuff
 	if ( destroyWindow ) {
-        // VULKAN
-        vk_destroy_instance();
-
 		GLimp_Shutdown();
 	}
 

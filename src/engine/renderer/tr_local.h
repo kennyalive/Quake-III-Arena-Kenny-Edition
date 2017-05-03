@@ -805,14 +805,6 @@ typedef struct {
 	int			texEnv[2];
 	int			faceCulling;
 	unsigned long	glStateBits;
-
-    // VULKAN
-    
-    // This flag is used to decide whether framebuffer's attachments should be cleared with vmCmdClearAttachment (vk_dirty_attachments == true),
-    // or they have just been cleared by render pass instance clear op (vk_dirty_attachments == false).
-    bool vk_dirty_attachments;
-
-    image_t* vk_current_images[2];
 } glstate_t;
 
 
@@ -950,6 +942,8 @@ extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during
 // VULKAN
 extern Vk_Instance  vk;             // shouldn't be cleared during ref re-init
 extern Vk_Resources vk_resources;   // this data is cleared during ref re-init
+extern bool gl_active;
+extern bool vk_active;
 
 
 //

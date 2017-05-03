@@ -34,6 +34,12 @@ static float	s_flipMatrix[16] = {
 	0, 0, 0, 1
 };
 
+#ifdef _DEBUG
+float fast_sky_color[4] = { 0.8f, 0.7f, 0.4f, 1.0f };
+#else
+float fast_sky_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+#endif
+
 
 /*
 ** GL_Bind
@@ -58,7 +64,10 @@ void GL_Bind( image_t *image ) {
 		qglBindTexture (GL_TEXTURE_2D, texnum);
 
         // VULKAN
-        glState.vk_current_images[glState.currenttmu] = final_image;
+        if (vk_active) {
+            VkDescriptorSet set = vk_resources.images[final_image->index].descriptor_set;
+            vk_resources.current_descriptor_sets[glState.currenttmu] = set;
+        }
 	}
 }
 
@@ -423,61 +432,17 @@ void RB_BeginDrawingView (void) {
 		clearBits |= GL_STENCIL_BUFFER_BIT;
 	}
 
-#ifdef _DEBUG
-    float sky_color[4] = { 0.8f, 0.7f, 0.4f, 1.0f }; // FIXME: get color of sky
-#else
-    float sky_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // FIXME: get color of sky
-#endif
-
     bool fast_sky = r_fastsky->integer && !( backEnd.refdef.rdflags & RDF_NOWORLDMODEL );
 	if ( fast_sky )
 	{
 		clearBits |= GL_COLOR_BUFFER_BIT;	// FIXME: only if sky shaders have been used
-        qglClearColor(sky_color[0], sky_color[1], sky_color[2], sky_color[3]);
+        qglClearColor(fast_sky_color[0], fast_sky_color[1], fast_sky_color[2], fast_sky_color[3]);
 	}
 
 	qglClear( clearBits );
 
     // VULKAN
-    if (glState.vk_dirty_attachments || fast_sky) {
-        VkClearAttachment attachments[2];
-        uint32_t attachment_count = fast_sky ? 2 : 1;
-
-        attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        attachments[0].clearValue.depthStencil.depth = 1.0f;
-
-        if (clear_stencil) {
-            attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-            attachments[0].clearValue.depthStencil.stencil = 0;
-        }
-        if (fast_sky) {
-            attachments[1].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            attachments[1].colorAttachment = 0;
-            attachments[1].clearValue.color = { sky_color[0], sky_color[1], sky_color[2], sky_color[3] };
-        }
-
-        VkClearRect clear_rect[2];
-		clear_rect[0].rect = vk_get_scissor_rect();
-		clear_rect[0].baseArrayLayer = 0;
-		clear_rect[0].layerCount = 1;
-		int rect_count = 1;
-
-		// Split viewport rectangle into two non-overlapping rectangles.
-		// It's a HACK to prevent Vulkan validation layer's performance warning:
-		//		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
-		//		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
-		//
-		if (fast_sky) {
-			uint32_t h = clear_rect[0].rect.extent.height / 2;
-			clear_rect[0].rect.extent.height = h;
-
-			clear_rect[1] = clear_rect[0];
-			clear_rect[1].rect.offset.y = h;
-			rect_count = 2;
-		}
-
-        vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, rect_count, clear_rect);
-    }
+    vk_clear_attachments(clear_stencil, fast_sky);
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{
@@ -746,12 +711,15 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
 
         // VULKAN
-        Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
-        vkDestroyImage(vk.device, image.handle, nullptr);
-        vkDestroyImageView(vk.device, image.view, nullptr);
-        vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
-        image = vk_create_image(cols, rows, 1, false);
-        vk_upload_image_data(image.handle, cols, rows, false, data);
+        if (vk_active) {
+            Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+            vkDestroyImage(vk.device, image.handle, nullptr);
+            vkDestroyImageView(vk.device, image.view, nullptr);
+            vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
+            image = vk_create_image(cols, rows, 1, false);
+            vk_upload_image_data(image.handle, cols, rows, false, data);
+            vk_resources.current_descriptor_sets[glState.currenttmu] = image.descriptor_set;
+        }
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
@@ -759,8 +727,10 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 
             // VULKAN
-            const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
-            vk_upload_image_data(image.handle, cols, rows, false, data);
+            if (vk_active) {
+                const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+                vk_upload_image_data(image.handle, cols, rows, false, data);
+            }
 		}
 	}
 }
@@ -900,7 +870,7 @@ const void	*RB_DrawBuffer( const void *data ) {
 	qglDrawBuffer( cmd->buffer );
 
     // VULKAN
-	vk_begin_frame();
+    vk_begin_frame();
 
 	return (const void *)(cmd + 1);
 }

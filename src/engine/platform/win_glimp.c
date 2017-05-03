@@ -574,6 +574,16 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
             }*/
         }
     } else { // vulkan
+        if (r_renderAPICompareWindow->integer) {
+            HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
+            if (!GLW_InitDriver(hwnd2)) {
+                DestroyWindow(hwnd2);
+                ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
+            } else {
+                g_wv.hWnd_opengl = hwnd2;
+            }
+        }
+
         vk_create_instance(hwnd);
         /*if (!vk_initialize(hwnd)) {
             ShowWindow(hwnd, SW_HIDE);
@@ -583,17 +593,6 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
 
         g_wv.hWnd = hwnd;
         g_wv.hWnd_vulkan = hwnd;
-
-        if (r_renderAPICompareWindow->integer) {
-            HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
-            if (!GLW_InitDriver(hwnd2)) {
-                ShowWindow(hwnd2, SW_HIDE);
-                DestroyWindow(hwnd2);
-                ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
-            } else {
-                g_wv.hWnd_opengl = hwnd2;
-            }
-        }
     }
 
     SetForegroundWindow(g_wv.hWnd);
@@ -606,6 +605,12 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
 */
 static void GLW_InitExtensions( void )
 {
+    if (!gl_active) {
+        qglActiveTextureARB = [] (GLenum)  {};
+        qglClientActiveTextureARB = [](GLenum) {};
+        return;
+    }
+
 	ri.Printf( PRINT_ALL, "Initializing OpenGL extensions\n" );
 
 	// GL_S3_s3tc
@@ -745,7 +750,6 @@ void GLimp_EndFrame (void)
 */
 void GLimp_Init( void )
 {
-	cvar_t *lastValidRenderer = ri.Cvar_Get( "r_lastValidRenderer", "(uninitialized)", CVAR_ARCHIVE );
 	cvar_t	*cv;
 
 	ri.Printf( PRINT_ALL, "Initializing OpenGL subsystem\n" );
@@ -774,19 +778,6 @@ void GLimp_Init( void )
 	Q_strncpyz(glConfig.renderer_string, (const char*)qglGetString(GL_RENDERER), sizeof(glConfig.renderer_string));
 	Q_strncpyz(glConfig.version_string, (const char*)qglGetString(GL_VERSION), sizeof(glConfig.version_string));
 	Q_strncpyz(glConfig.extensions_string, (const char*)qglGetString(GL_EXTENSIONS), sizeof(glConfig.extensions_string));
-
-	//
-	// NOTE: if changing cvars, do it within this block.  This allows them
-	// to be overridden when testing driver fixes, etc. but only sets
-	// them to their default state when the hardware is first installed/run.
-	//
-	if ( Q_stricmp( lastValidRenderer->string, glConfig.renderer_string ) )
-	{
-		ri.Cvar_Set( "r_textureMode", "GL_LINEAR_MIPMAP_NEAREST" );
-        ri.Cvar_Set("r_picmip", "1");
-	}
-
-	ri.Cvar_Set( "r_lastValidRenderer", glConfig.renderer_string );
 
 	GLW_InitExtensions();
 	WG_CheckHardwareGamma();

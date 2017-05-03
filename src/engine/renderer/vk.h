@@ -71,6 +71,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);
 // Rendering setup.
 //
 VkRect2D vk_get_scissor_rect();
+void vk_clear_attachments(bool clear_stencil, bool fast_sky);
 void vk_bind_resources_shared_between_stages();
 void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
 void vk_begin_frame();
@@ -175,4 +176,16 @@ struct Vk_Resources {
     VkDeviceMemory staging_buffer_memory = VK_NULL_HANDLE;
     VkDeviceSize staging_buffer_size = 0;
     byte* staging_buffer_ptr = nullptr; // pointer to mapped staging buffer
+
+    //
+    // State.
+    //
+
+    // Descriptor sets corresponding to bound texture images.
+    VkDescriptorSet current_descriptor_sets[2];
+
+    // This flag is used to decide whether framebuffer's attachments should be cleared
+    // with vmCmdClearAttachment (dirty_attachments == true), or they have just been
+    // cleared by render pass instance clear op (dirty_attachments == false).
+    bool dirty_attachments;
 };

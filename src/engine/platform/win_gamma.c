@@ -91,7 +91,7 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 	int		i, j;
 	int		ret;
 
-	if ( !glConfig.deviceSupportsGamma || r_ignorehwgamma->integer || !glw_state.hDC ) {
+	if ( !glConfig.deviceSupportsGamma || r_ignorehwgamma->integer ) {
 		return;
 	}
 
@@ -123,10 +123,18 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 		}
 	}
 
-	ret = SetDeviceGammaRamp( glw_state.hDC, table );
+    HDC gamma_hdc = glw_state.hDC;
+    if (gamma_hdc == NULL)
+        gamma_hdc = GetDC(NULL);
+
+	ret = SetDeviceGammaRamp( gamma_hdc, table );
 	if ( !ret ) {
 		Com_Printf( "SetDeviceGammaRamp failed.\n" );
 	}
+
+    if (glw_state.hDC == NULL)
+        ReleaseDC(NULL, gamma_hdc);
+
 }
 
 /*

@@ -118,8 +118,7 @@ GL_TextureMode
 ===============
 */
 void GL_TextureMode( const char *string ) {
-	int		i;
-	image_t	*glt;
+	int i;
 
 	for ( i=0 ; i< 6 ; i++ ) {
 		if ( !Q_stricmp( modes[i].name, string ) ) {
@@ -135,22 +134,27 @@ void GL_TextureMode( const char *string ) {
 	gl_filter_min = modes[i].minimize;
 	gl_filter_max = modes[i].maximize;
 
-    // VULKAN
-    VK_CHECK(vkDeviceWaitIdle(vk.device));
-
 	// change all the existing mipmap texture objects
 	for ( i = 0 ; i < tr.numImages ; i++ ) {
-		glt = tr.images[ i ];
+        image_t* glt = tr.images[ i ];
 		if ( glt->mipmap ) {
 			GL_Bind (glt);
 			qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
 			qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
-
-            // VULKAN
-            Vk_Image& image = vk_resources.images[i];
-            vk_update_descriptor_set(image.descriptor_set, image.view, true, glt->wrapClampMode == GL_REPEAT);
 		}
 	}
+
+    // VULKAN
+    if (vk_active) {
+        VK_CHECK(vkDeviceWaitIdle(vk.device));
+        for ( i = 0 ; i < tr.numImages ; i++ ) {
+            image_t* glt = tr.images[i];
+            if (glt->mipmap) {
+                Vk_Image& image = vk_resources.images[i];
+                vk_update_descriptor_set(image.descriptor_set, image.view, true, glt->wrapClampMode == GL_REPEAT);
+            }
+        }
+    }
 }
 
 /*
@@ -718,9 +722,10 @@ static void Upload32( unsigned *data,
 done:
 
     // VULKAN
-    image = vk_create_image(*pUploadWidth, *pUploadHeight, miplevel + 1, repeat_texture);
-    vk_upload_image_data(image.handle, *pUploadWidth, *pUploadHeight, mipmap == qtrue, mipmap_buffer);
-
+    if (vk_active) {
+        image = vk_create_image(*pUploadWidth, *pUploadHeight, miplevel + 1, repeat_texture);
+        vk_upload_image_data(image.handle, *pUploadWidth, *pUploadHeight, mipmap == qtrue, mipmap_buffer);
+    }
     if (mipmap_buffer != nullptr)
         ri.Hunk_FreeTempMemory(mipmap_buffer);
 
@@ -1879,10 +1884,6 @@ void R_DeleteTextures( void ) {
 	tr.numImages = 0;
 
 	Com_Memset( glState.currenttextures, 0, sizeof( glState.currenttextures ) );
-
-    // VULKAN
-    vkDeviceWaitIdle(vk.device);
-    Com_Memset( glState.vk_current_images, 0, sizeof( glState.vk_current_images ) );
 
 	if ( qglBindTexture ) {
 		GL_SelectTexture( 1 );

@@ -362,10 +362,12 @@ static void ProjectDlightTexture( void ) {
 		backEnd.pc.c_dlightIndexes += numIndexes;
 
         // VULKAN
-        VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
-        vk_bind_stage_specific_resources(pipeline, false, false);
-        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-        glState.vk_dirty_attachments = true;
+        if (vk_active) {
+            VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+            vk_bind_stage_specific_resources(pipeline, false, false);
+            vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+            vk_resources.dirty_attachments = true;
+        }
 	}
 }
 
@@ -406,11 +408,13 @@ static void RB_FogPass( void ) {
 	R_DrawElements( tess.numIndexes, tess.indexes );
 
     // VULKAN
-    assert(tess.shader->fogPass > 0);
-    VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
-    vk_bind_stage_specific_resources(pipeline, false, false);
-    vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-    glState.vk_dirty_attachments = true;
+    if (vk_active) {
+        assert(tess.shader->fogPass > 0);
+        VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+        vk_bind_stage_specific_resources(pipeline, false, false);
+        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+        vk_resources.dirty_attachments = true;
+    }
 }
 
 /*
@@ -714,10 +718,6 @@ static void ComputeTexCoords( shaderStage_t *pStage ) {
 static void RB_IterateStagesGeneric( shaderCommands_t *input )
 {
     // VULKAN
-    extern FILE* vk_log_file;
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "vk_draw (passes %d, vert %d, inds %d)\n", input->numPasses, tess.numVertexes, tess.numIndexes);
-
     vk_bind_resources_shared_between_stages();
 
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
@@ -767,15 +767,17 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		}
 
         // VULKAN
-        VkPipeline pipeline = pStage->vk_pipeline;
-        if (backEnd.viewParms.isMirror)
-            pipeline = pStage->vk_mirror_pipeline;
-        else if (backEnd.viewParms.isPortal)
-            pipeline = pStage->vk_portal_pipeline;
+        if (vk_active) {
+            VkPipeline pipeline = pStage->vk_pipeline;
+            if (backEnd.viewParms.isMirror)
+                pipeline = pStage->vk_mirror_pipeline;
+            else if (backEnd.viewParms.isPortal)
+                pipeline = pStage->vk_portal_pipeline;
 
-        vk_bind_stage_specific_resources(pipeline, multitexture, input->shader->isSky == qtrue);
-        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-        glState.vk_dirty_attachments = true;
+            vk_bind_stage_specific_resources(pipeline, multitexture, input->shader->isSky == qtrue);
+            vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+            vk_resources.dirty_attachments = true;
+        }
 
 		// allow skipping out to show just lightmaps during development
 		if ( r_lightmap->integer && ( pStage->bundle[0].isLightmap || pStage->bundle[1].isLightmap ) )

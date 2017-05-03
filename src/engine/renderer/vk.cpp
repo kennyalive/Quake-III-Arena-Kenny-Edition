@@ -7,6 +7,8 @@
 
 FILE* vk_log_file;
 
+extern float fast_sky_color[4];
+
 const int VERTEX_CHUNK_SIZE = 512 * 1024;
 
 const int XYZ_SIZE      = 4 * VERTEX_CHUNK_SIZE;
@@ -1617,6 +1619,51 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
     return pipeline;
 }
 
+void vk_clear_attachments(bool clear_stencil, bool fast_sky) {
+    if (!vk_active)
+        return;
+
+    if (!vk_resources.dirty_attachments && !fast_sky)
+        return;
+
+    VkClearAttachment attachments[2];
+    uint32_t attachment_count = fast_sky ? 2 : 1;
+
+    attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    attachments[0].clearValue.depthStencil.depth = 1.0f;
+
+    if (clear_stencil) {
+        attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        attachments[0].clearValue.depthStencil.stencil = 0;
+    }
+    if (fast_sky) {
+        attachments[1].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        attachments[1].colorAttachment = 0;
+        attachments[1].clearValue.color = { fast_sky_color[0], fast_sky_color[1], fast_sky_color[2], fast_sky_color[3] };
+    }
+
+    VkClearRect clear_rect[2];
+    clear_rect[0].rect = vk_get_scissor_rect();
+    clear_rect[0].baseArrayLayer = 0;
+    clear_rect[0].layerCount = 1;
+    int rect_count = 1;
+
+    // Split viewport rectangle into two non-overlapping rectangles.
+    // It's a HACK to prevent Vulkan validation layer's performance warning:
+    //		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
+    //		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
+    //
+    if (fast_sky) {
+        uint32_t h = clear_rect[0].rect.extent.height / 2;
+        clear_rect[0].rect.extent.height = h;
+        clear_rect[1] = clear_rect[0];
+        clear_rect[1].rect.offset.y = h;
+        rect_count = 2;
+    }
+
+    vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, rect_count, clear_rect);
+}
+
 static VkRect2D get_viewport_rect() {
     VkRect2D r;
     if (backEnd.projection2D) {
@@ -1708,6 +1755,8 @@ static void get_mvp_transform(float* mvp) {
 }
 
 void vk_bind_resources_shared_between_stages() {
+    if (!vk_active) return;
+
     // xyz
     {
         if ((vk.xyz_elements + tess.numVertexes) * sizeof(vec4_t) > XYZ_SIZE)
@@ -1821,12 +1870,7 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
 
     // bind descriptor sets
     uint32_t set_count = multitexture ? 2 : 1;
-    VkDescriptorSet sets[2];
-    sets[0] = vk_resources.images[glState.vk_current_images[0]->index].descriptor_set;
-    if (multitexture) {
-        sets[1] = vk_resources.images[glState.vk_current_images[1]->index].descriptor_set;
-    }
-    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, sets, 0, nullptr);
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, vk_resources.current_descriptor_sets, 0, nullptr);
 
     // bind pipeline
     vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -1844,6 +1888,9 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
 }
 
 void vk_begin_frame() {
+    if (!vk_active)
+        return;
+
 	if (r_logFile->integer)
 		fprintf(vk_log_file, "vk_begin_frame\n");
 
@@ -1876,15 +1923,17 @@ void vk_begin_frame() {
 	render_pass_begin_info.pClearValues = clear_values;
 
 	vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vk_resources.dirty_attachments = false;
 
 	vk.xyz_elements = 0;
 	vk.color_st_elements = 0;
 	vk.index_buffer_offset = 0;
-
-	glState.vk_dirty_attachments = false;
 }
 
 void vk_end_frame() {
+    if (!vk_active)
+        return;
+
     if (r_logFile->integer)
         fprintf(vk_log_file, "end_frame (vb_size %d, ib_size %d)\n", 
             vk.xyz_elements * 16 + vk.color_st_elements * 20,

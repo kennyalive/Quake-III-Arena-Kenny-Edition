@@ -450,52 +450,56 @@ static void DrawSkyBox( shader_t *shader )
 			         sky_mins_subd,
 					 sky_maxs_subd );
 
-        // VULKAN
-        glState.vk_current_images[0] = shader->sky.outerbox[sky_texorder[i]];
-        tess.numVertexes = 0;
-        tess.numIndexes = 0;
+        // VULKAN: draw skybox side
+        if (vk_active) {
+            VkDescriptorSet set = vk_resources.images[shader->sky.outerbox[sky_texorder[i]]->index].descriptor_set;
+            vk_resources.current_descriptor_sets[0] = set;
 
-        for ( t = sky_mins_subd[1]+HALF_SKY_SUBDIVISIONS; t < sky_maxs_subd[1]+HALF_SKY_SUBDIVISIONS; t++ )
-        {
-            for ( s = sky_mins_subd[0]+HALF_SKY_SUBDIVISIONS; s < sky_maxs_subd[0]+HALF_SKY_SUBDIVISIONS; s++ )
+            tess.numVertexes = 0;
+            tess.numIndexes = 0;
+
+            for ( t = sky_mins_subd[1]+HALF_SKY_SUBDIVISIONS; t < sky_maxs_subd[1]+HALF_SKY_SUBDIVISIONS; t++ )
             {
-                int ndx = tess.numVertexes;
+                for ( s = sky_mins_subd[0]+HALF_SKY_SUBDIVISIONS; s < sky_maxs_subd[0]+HALF_SKY_SUBDIVISIONS; s++ )
+                {
+                    int ndx = tess.numVertexes;
 
-                tess.indexes[ tess.numIndexes ] = ndx;
-                tess.indexes[ tess.numIndexes + 1 ] = ndx + 1;
-                tess.indexes[ tess.numIndexes + 2 ] = ndx + 2;
+                    tess.indexes[ tess.numIndexes ] = ndx;
+                    tess.indexes[ tess.numIndexes + 1 ] = ndx + 1;
+                    tess.indexes[ tess.numIndexes + 2 ] = ndx + 2;
 
-                tess.indexes[ tess.numIndexes + 3 ] = ndx + 2;
-                tess.indexes[ tess.numIndexes + 4 ] = ndx + 1;
-                tess.indexes[ tess.numIndexes + 5 ] = ndx + 3;
-                tess.numIndexes += 6;
+                    tess.indexes[ tess.numIndexes + 3 ] = ndx + 2;
+                    tess.indexes[ tess.numIndexes + 4 ] = ndx + 1;
+                    tess.indexes[ tess.numIndexes + 5 ] = ndx + 3;
+                    tess.numIndexes += 6;
 
-                VectorCopy(s_skyPoints[t][s], tess.xyz[ndx]);
-                tess.svars.texcoords[0][ndx][0] = s_skyTexCoords[t][s][0];
-                tess.svars.texcoords[0][ndx][1] = s_skyTexCoords[t][s][1];
+                    VectorCopy(s_skyPoints[t][s], tess.xyz[ndx]);
+                    tess.svars.texcoords[0][ndx][0] = s_skyTexCoords[t][s][0];
+                    tess.svars.texcoords[0][ndx][1] = s_skyTexCoords[t][s][1];
 
-                VectorCopy(s_skyPoints[t + 1][s], tess.xyz[ndx + 1]);
-                tess.svars.texcoords[0][ndx + 1][0] = s_skyTexCoords[t + 1][s][0];
-                tess.svars.texcoords[0][ndx + 1][1] = s_skyTexCoords[t + 1][s][1];
+                    VectorCopy(s_skyPoints[t + 1][s], tess.xyz[ndx + 1]);
+                    tess.svars.texcoords[0][ndx + 1][0] = s_skyTexCoords[t + 1][s][0];
+                    tess.svars.texcoords[0][ndx + 1][1] = s_skyTexCoords[t + 1][s][1];
 
-                VectorCopy(s_skyPoints[t][s + 1], tess.xyz[ndx + 2]);
-                tess.svars.texcoords[0][ndx + 2][0] = s_skyTexCoords[t][s + 1][0];
-                tess.svars.texcoords[0][ndx + 2][1] = s_skyTexCoords[t][s + 1][1];
+                    VectorCopy(s_skyPoints[t][s + 1], tess.xyz[ndx + 2]);
+                    tess.svars.texcoords[0][ndx + 2][0] = s_skyTexCoords[t][s + 1][0];
+                    tess.svars.texcoords[0][ndx + 2][1] = s_skyTexCoords[t][s + 1][1];
 
-                VectorCopy(s_skyPoints[t + 1][s + 1], tess.xyz[ndx + 3]);
-                tess.svars.texcoords[0][ndx + 3][0] = s_skyTexCoords[t + 1][s + 1][0];
-                tess.svars.texcoords[0][ndx + 3][1] = s_skyTexCoords[t + 1][s + 1][1];
+                    VectorCopy(s_skyPoints[t + 1][s + 1], tess.xyz[ndx + 3]);
+                    tess.svars.texcoords[0][ndx + 3][0] = s_skyTexCoords[t + 1][s + 1][0];
+                    tess.svars.texcoords[0][ndx + 3][1] = s_skyTexCoords[t + 1][s + 1][1];
 
-                tess.numVertexes += 4;
+                    tess.numVertexes += 4;
+                }
             }
-        }
 
-        Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
-        vk_bind_resources_shared_between_stages();
-        vk_bind_stage_specific_resources(vk.skybox_pipeline, false, true);
-        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-        glState.vk_dirty_attachments = true;
-        vk.xyz_elements += tess.numVertexes;
+            Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+            vk_bind_resources_shared_between_stages();
+            vk_bind_stage_specific_resources(vk.skybox_pipeline, false, true);
+            vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+            vk_resources.dirty_attachments = true;
+            vk.xyz_elements += tess.numVertexes;
+        }
 	}
 
 }
