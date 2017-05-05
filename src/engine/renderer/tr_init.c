@@ -33,7 +33,7 @@ Vk_Resources vk_resources;
 static void GfxInfo_f( void );
 
 cvar_t *r_renderAPI;
-cvar_t *r_renderAPICompareWindow;
+cvar_t *r_twinMode;
 
 cvar_t	*r_flareSize;
 cvar_t	*r_flareFade;
@@ -193,11 +193,11 @@ static void InitRenderAPI( void )
 	//
 	if ( glConfig.vidWidth == 0 )
 	{
-		if (gl_enabled)
+		if (gl_enabled())
 			GLimp_Init();
 
 		// VULKAN
-		if (vk_enabled) {
+		if (vk_enabled()) {
 			vk_imp_init();
 			vk_initialize();
 		}
@@ -788,7 +788,7 @@ R_Register
 void R_Register( void ) 
 {
     r_renderAPI = ri.Cvar_Get( "r_renderAPI", "0", CVAR_ARCHIVE | CVAR_LATCH ) ;
-    r_renderAPICompareWindow = ri.Cvar_Get( "r_renderAPICompareWindow", "0", 0 ) ;
+    r_twinMode = ri.Cvar_Get( "r_twinMode", "0", CVAR_LATCH ) ;
 
 	//
 	// latched and archived variables

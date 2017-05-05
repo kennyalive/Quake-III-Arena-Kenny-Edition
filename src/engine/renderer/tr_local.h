@@ -947,8 +947,12 @@ extern Vk_Resources vk_resources;   // this data is cleared during ref re-init
 //
 // cvars
 //
-extern cvar_t   *r_renderAPI;
-extern cvar_t   *r_renderAPICompareWindow;
+extern cvar_t   *r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan.
+
+extern cvar_t   *r_twinMode;			// If enabled, renderer creates two separate windows.
+										// The first window uses rendering API specified by r_renderAPI,
+										// the second window uses rendering API corresponding to (1 - r_renderAPI).
+
 extern cvar_t	*r_flareSize;
 extern cvar_t	*r_flareFade;
 
@@ -1422,8 +1426,8 @@ void	RB_CalcDiffuseColor( unsigned char *colors );
 
 void myGlMultMatrix( const float *a, const float *b, float *out );
 
-#define gl_enabled (r_renderAPI->integer == 0 || r_renderAPICompareWindow->integer)
-#define vk_enabled (r_renderAPI->integer != 0 || r_renderAPICompareWindow->integer)
+inline bool gl_enabled() { return r_renderAPI->integer == 0 || r_twinMode->integer; }
+inline bool vk_enabled() { return r_renderAPI->integer != 0 || r_twinMode->integer; }
 
 /*
 =============================================================

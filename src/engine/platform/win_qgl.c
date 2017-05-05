@@ -667,7 +667,7 @@ static void APIENTRY logViewport(GLint x, GLint y, GLsizei width, GLsizei height
 */
 void QGL_Shutdown( void )
 {
-	if (gl_enabled) {
+	if (gl_enabled()) {
 		ri.Printf( PRINT_ALL, "...shutting down QGL\n" );
 
 		if ( hinstOpenGL )
@@ -739,7 +739,7 @@ void QGL_Shutdown( void )
 }
 
 #	pragma warning (disable : 4113 4133 4047 )
-#	define GPA( a ) (gl_enabled ? (void*)GetProcAddress(hinstOpenGL, #a) : (void*)(&no ## a))
+#	define GPA( a ) (gl_enabled() ? (void*)GetProcAddress(hinstOpenGL, #a) : (void*)(&no ## a))
 
 /*
 ** QGL_Init
@@ -752,7 +752,7 @@ void QGL_Shutdown( void )
 */
 qboolean QGL_Init( const char *dllname )
 {
-	if (gl_enabled) {
+	if (gl_enabled()) {
 		assert( hinstOpenGL == 0 );
 
 		ri.Printf( PRINT_ALL, "...initializing QGL\n" );
@@ -830,7 +830,7 @@ qboolean QGL_Init( const char *dllname )
 	qglLockArraysEXT = 0;
 	qglUnlockArraysEXT = 0;
 
-	if (gl_enabled) {
+	if (gl_enabled()) {
 		// check logging
 		QGL_EnableLogging( (qboolean) r_logFile->integer );
 	}

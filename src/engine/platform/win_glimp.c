@@ -44,10 +44,10 @@ extern void WG_CheckHardwareGamma( void );
 extern void WG_RestoreGamma( void );
 
 #define	MAIN_WINDOW_CLASS_NAME	"Quake 3: Arena"
-#define	API_COMPARE_WINDOW_CLASS_NAME	"Quake 3: Arena [API compare]"
+#define	TWIN_WINDOW_CLASS_NAME	"Quake 3: Arena [Twin]"
 
 static bool s_main_window_class_registered = false;
-static bool s_api_compare_window_class_registered = false;
+static bool s_twin_window_class_registered = false;
 
 void	 QGL_EnableLogging( qboolean enable );
 qboolean QGL_Init( const char *dllname );
@@ -431,12 +431,12 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
     return hwnd;
 }
 
-static HWND create_api_compare_window(int width, int height)
+static HWND create_twin_window(int width, int height)
 {
     //
     // register the window class if necessary
     //
-    if (!s_api_compare_window_class_registered)
+    if (!s_twin_window_class_registered)
     {
         WNDCLASS wc;
 
@@ -451,14 +451,14 @@ static HWND create_api_compare_window(int width, int height)
         wc.hCursor       = LoadCursor (NULL,IDC_ARROW);
         wc.hbrBackground = (HBRUSH) (void *)COLOR_GRAYTEXT;
         wc.lpszMenuName  = 0;
-        wc.lpszClassName = API_COMPARE_WINDOW_CLASS_NAME;
+        wc.lpszClassName = TWIN_WINDOW_CLASS_NAME;
 
         if ( !RegisterClass( &wc ) )
         {
-            ri.Error( ERR_FATAL, "create_api_compare_window: could not register window class" );
+            ri.Error( ERR_FATAL, "create_twin_window: could not register window class" );
         }
-        s_api_compare_window_class_registered = true;
-        ri.Printf( PRINT_ALL, "...registered api compare window class\n" );
+		s_twin_window_class_registered = true;
+        ri.Printf( PRINT_ALL, "...registered twin window class\n" );
     }
 
     //
@@ -499,14 +499,14 @@ static HWND create_api_compare_window(int width, int height)
             y = ( desktop_height - h );
     }
 
-    // If r_renderAPI = 0 (OpenGL) then compare window uses Vulkan API.
-    // If r_renderAPI = 1 (Vulkan) then compare window uses OpenGL API.
+    // If r_renderAPI = 0 (OpenGL) then twin window uses Vulkan API.
+    // If r_renderAPI = 1 (Vulkan) then twin window uses OpenGL API.
     char window_name[1024];
-    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, r_renderAPI->integer ? "OpenGL" : "Vulkan");
+    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, r_renderAPI->integer == 0 ? "Vulkan" : "OpenGL");
 
     HWND hwnd = CreateWindowEx(
         0, 
-        API_COMPARE_WINDOW_CLASS_NAME,
+        TWIN_WINDOW_CLASS_NAME,
         window_name,
         stylebits,
         x, y, w, h,
@@ -517,12 +517,12 @@ static HWND create_api_compare_window(int width, int height)
 
     if (!hwnd)
     {
-        ri.Error (ERR_FATAL, "create_api_compare_window() - Couldn't create window");
+        ri.Error (ERR_FATAL, "create_twin_window() - Couldn't create window");
     }
 
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
-    ri.Printf(PRINT_ALL, "...created api compare window@%d,%d (%dx%d)\n", x, y, w, h);
+    ri.Printf(PRINT_ALL, "...created twin window@%d,%d (%dx%d)\n", x, y, w, h);
     return hwnd;
 }
 
@@ -704,7 +704,7 @@ void GLimp_Init( void )
 		g_wv.hWnd_opengl = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_opengl;
 	} else {
-		g_wv.hWnd_opengl = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
+		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight);
 	}
 
 	if (!GLW_InitDriver(g_wv.hWnd_opengl)) {
@@ -788,7 +788,7 @@ void GLimp_LogComment( char *comment )
 void vk_imp_init() {
 	ri.Printf(PRINT_ALL, "Initializing Vulkan subsystem\n");
 
-	if (!gl_enabled) {
+	if (!gl_enabled()) {
 		QGL_Init(nullptr); // this will set qgl pointers to no-op placeholders
 		qglActiveTextureARB = [] (GLenum)  {};
 		qglClientActiveTextureARB = [](GLenum) {};
@@ -800,7 +800,7 @@ void vk_imp_init() {
 		g_wv.hWnd_vulkan = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_vulkan;
 	} else {
-		g_wv.hWnd_vulkan = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
+		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight);
 	}
 
 	// In order to create surface we need to create VkInstance first.
