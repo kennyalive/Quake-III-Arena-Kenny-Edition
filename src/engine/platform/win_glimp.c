@@ -38,7 +38,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../renderer/tr_local.h"
 #include "../qcommon/qcommon.h"
 #include "resource.h"
-#include "glw_win.h"
 #include "win_local.h"
 
 extern void WG_CheckHardwareGamma( void );
@@ -50,20 +49,14 @@ extern void WG_RestoreGamma( void );
 static bool s_main_window_class_registered = false;
 static bool s_api_compare_window_class_registered = false;
 
-//
-// function declaration
-//
 void	 QGL_EnableLogging( qboolean enable );
 qboolean QGL_Init( const char *dllname );
 void     QGL_Shutdown( void );
 
-//
-// variable declarations
-//
 static HDC gl_hdc; // handle to device context
 static HGLRC gl_hglrc; // handle to GL rendering context
 
-glwstate_t glw_state;
+FILE* log_fp;
 
 static int GetDesktopCaps(int index) {
     HDC hdc = GetDC(GetDesktopWindow());
@@ -779,16 +772,16 @@ void GLimp_Shutdown( void )
 	memset(&glConfig, 0, sizeof(glConfig));
 	memset(&glState, 0, sizeof(glState));
 
-	if (glw_state.log_fp) {
-		fclose(glw_state.log_fp);
-		glw_state.log_fp = 0;
+	if (log_fp) {
+		fclose(log_fp);
+		log_fp = 0;
 	}
 }
 
 void GLimp_LogComment( char *comment ) 
 {
-	if ( glw_state.log_fp ) {
-		fprintf( glw_state.log_fp, "%s", comment );
+	if ( log_fp ) {
+		fprintf( log_fp, "%s", comment );
 	}
 }
 
@@ -850,9 +843,9 @@ void vk_imp_shutdown() {
 	memset(&glConfig, 0, sizeof(glConfig));
 	memset(&glState, 0, sizeof(glState));
 
-	if (glw_state.log_fp) {
-		fclose(glw_state.log_fp);
-		glw_state.log_fp = 0;
+	if (log_fp) {
+		fclose(log_fp);
+		log_fp = 0;
 	}
 }
 

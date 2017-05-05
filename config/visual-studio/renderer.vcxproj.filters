@@ -121,9 +121,6 @@
     <ClInclude Include="..\..\src\engine\qcommon\cm_public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\engine\platform\glw_win.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\game\q_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>

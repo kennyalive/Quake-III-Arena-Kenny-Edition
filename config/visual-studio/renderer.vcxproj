@@ -136,7 +136,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\engine\qcommon\cm_public.h" />
-    <ClInclude Include="..\..\src\engine\platform\glw_win.h" />
     <ClInclude Include="..\..\src\engine\renderer\vk.h" />
     <ClInclude Include="..\..\src\game\q_shared.h" />
     <ClInclude Include="..\..\src\engine\qcommon\qcommon.h" />
