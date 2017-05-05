@@ -175,9 +175,6 @@ void S_PaintChannels(int endtime);
 void S_memoryLoad(sfx_t *sfx);
 portable_samplepair_t *S_GetRawSamplePointer();
 
-// spatializes a channel
-void S_Spatialize(channel_t *ch);
-
 // adpcm functions
 int  S_AdpcmMemoryNeeded( const wavinfo_t *info );
 void S_AdpcmEncodeSound( sfx_t *sfx, short *samples );

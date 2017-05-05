@@ -123,18 +123,12 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 		}
 	}
 
-    HDC gamma_hdc = glw_state.hDC;
-    if (gamma_hdc == NULL)
-        gamma_hdc = GetDC(NULL);
-
-	ret = SetDeviceGammaRamp( gamma_hdc, table );
+    HDC hdc = GetDC(NULL);
+	ret = SetDeviceGammaRamp( hdc, table );
 	if ( !ret ) {
 		Com_Printf( "SetDeviceGammaRamp failed.\n" );
 	}
-
-    if (glw_state.hDC == NULL)
-        ReleaseDC(NULL, gamma_hdc);
-
+    ReleaseDC(NULL, hdc);
 }
 
 /*

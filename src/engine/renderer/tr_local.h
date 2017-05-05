@@ -942,8 +942,6 @@ extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during
 // VULKAN
 extern Vk_Instance  vk;             // shouldn't be cleared during ref re-init
 extern Vk_Resources vk_resources;   // this data is cleared during ref re-init
-extern bool gl_active;
-extern bool vk_active;
 
 
 //
@@ -1197,13 +1195,15 @@ IMPLEMENTATION SPECIFIC FUNCTIONS
 void		GLimp_Init( void );
 void		GLimp_Shutdown( void );
 void		GLimp_EndFrame( void );
+void		GLimp_LogComment( char *comment );
 
 qboolean	GLimp_SpawnRenderThread( void (*function)( void ) );
 void		*GLimp_RendererSleep( void );
 void		GLimp_FrontEndSleep( void );
 void		GLimp_WakeRenderer( void *data );
 
-void		GLimp_LogComment( char *comment );
+void vk_imp_init();
+void vk_imp_shutdown();
 
 // NOTE TTimo linux works with float gamma value, not the gamma table
 //   the params won't be used, getting the r_gamma cvar directly
@@ -1421,6 +1421,9 @@ void	RB_CalcSpecularAlpha( unsigned char *alphas );
 void	RB_CalcDiffuseColor( unsigned char *colors );
 
 void myGlMultMatrix( const float *a, const float *b, float *out );
+
+#define gl_enabled (r_renderAPI->integer == 0 || r_renderAPICompareWindow->integer)
+#define vk_enabled (r_renderAPI->integer != 0 || r_renderAPICompareWindow->integer)
 
 /*
 =============================================================

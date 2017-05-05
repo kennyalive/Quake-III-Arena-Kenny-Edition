@@ -451,7 +451,7 @@ static void DrawSkyBox( shader_t *shader )
 					 sky_maxs_subd );
 
         // VULKAN: draw skybox side
-        if (vk_active) {
+        if (vk.active) {
             VkDescriptorSet set = vk_resources.images[shader->sky.outerbox[sky_texorder[i]]->index].descriptor_set;
             vk_resources.current_descriptor_sets[0] = set;
 

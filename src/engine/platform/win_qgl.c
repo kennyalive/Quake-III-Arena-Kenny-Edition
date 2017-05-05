@@ -32,6 +32,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../renderer/tr_local.h"
 #include "glw_win.h"
 
+static HINSTANCE hinstOpenGL; // HINSTANCE for the OpenGL library
+
 void QGL_EnableLogging( qboolean enable );
 
 HGLRC ( WINAPI * qwglCreateContext)(HDC);
@@ -664,15 +666,17 @@ static void APIENTRY logViewport(GLint x, GLint y, GLsizei width, GLsizei height
 */
 void QGL_Shutdown( void )
 {
-	ri.Printf( PRINT_ALL, "...shutting down QGL\n" );
+	if (gl_enabled) {
+		ri.Printf( PRINT_ALL, "...shutting down QGL\n" );
 
-	if ( glw_state.hinstOpenGL )
-	{
-		ri.Printf( PRINT_ALL, "...unloading OpenGL DLL\n" );
-		FreeLibrary( glw_state.hinstOpenGL );
+		if ( hinstOpenGL )
+		{
+			ri.Printf( PRINT_ALL, "...unloading OpenGL DLL\n" );
+			FreeLibrary( hinstOpenGL );
+		}
 	}
 
-	glw_state.hinstOpenGL = NULL;
+	hinstOpenGL = NULL;
 
 	qglAlphaFunc                 = NULL;
 	qglBegin                     = NULL;
@@ -734,7 +738,7 @@ void QGL_Shutdown( void )
 }
 
 #	pragma warning (disable : 4113 4133 4047 )
-#	define GPA( a ) (gl_active ? (void*)GetProcAddress(glw_state.hinstOpenGL, #a) : (void*)(&no ## a))
+#	define GPA( a ) (gl_enabled ? (void*)GetProcAddress(hinstOpenGL, #a) : (void*)(&no ## a))
 
 /*
 ** QGL_Init
@@ -747,17 +751,19 @@ void QGL_Shutdown( void )
 */
 qboolean QGL_Init( const char *dllname )
 {
-	assert( glw_state.hinstOpenGL == 0 );
+	if (gl_enabled) {
+		assert( hinstOpenGL == 0 );
 
-	ri.Printf( PRINT_ALL, "...initializing QGL\n" );
-	ri.Printf( PRINT_ALL, "...calling LoadLibrary('%s'): ", dllname );
+		ri.Printf( PRINT_ALL, "...initializing QGL\n" );
+		ri.Printf( PRINT_ALL, "...calling LoadLibrary('%s'): ", dllname );
 
-	if ( ( glw_state.hinstOpenGL = LoadLibrary( dllname ) ) == 0 )
-	{
-		ri.Printf( PRINT_ALL, "failed\n" );
-		return qfalse;
+		if ( ( hinstOpenGL = LoadLibrary( dllname ) ) == 0 )
+		{
+			ri.Printf( PRINT_ALL, "failed\n" );
+			return qfalse;
+		}
+		ri.Printf( PRINT_ALL, "succeeded\n" );
 	}
-	ri.Printf( PRINT_ALL, "succeeded\n" );
 
 	qglAlphaFunc                 = dllAlphaFunc = (decltype(dllAlphaFunc))GPA(glAlphaFunc);
 	qglBegin                     = dllBegin = (decltype(dllBegin))GPA(glBegin);
@@ -823,8 +829,10 @@ qboolean QGL_Init( const char *dllname )
 	qglLockArraysEXT = 0;
 	qglUnlockArraysEXT = 0;
 
-	// check logging
-	QGL_EnableLogging( (qboolean) r_logFile->integer );
+	if (gl_enabled) {
+		// check logging
+		QGL_EnableLogging( (qboolean) r_logFile->integer );
+	}
 
 	return qtrue;
 }

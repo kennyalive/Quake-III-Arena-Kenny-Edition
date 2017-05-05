@@ -362,7 +362,7 @@ static void ProjectDlightTexture( void ) {
 		backEnd.pc.c_dlightIndexes += numIndexes;
 
         // VULKAN
-        if (vk_active) {
+        if (vk.active) {
             VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
             vk_bind_stage_specific_resources(pipeline, false, false);
             vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
@@ -408,7 +408,7 @@ static void RB_FogPass( void ) {
 	R_DrawElements( tess.numIndexes, tess.indexes );
 
     // VULKAN
-    if (vk_active) {
+    if (vk.active) {
         assert(tess.shader->fogPass > 0);
         VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
         vk_bind_stage_specific_resources(pipeline, false, false);
@@ -767,7 +767,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		}
 
         // VULKAN
-        if (vk_active) {
+        if (vk.active) {
             VkPipeline pipeline = pStage->vk_pipeline;
             if (backEnd.viewParms.isMirror)
                 pipeline = pStage->vk_mirror_pipeline;

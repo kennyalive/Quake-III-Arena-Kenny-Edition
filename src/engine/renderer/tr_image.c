@@ -145,7 +145,7 @@ void GL_TextureMode( const char *string ) {
 	}
 
     // VULKAN
-    if (vk_active) {
+    if (vk.active) {
         VK_CHECK(vkDeviceWaitIdle(vk.device));
         for ( i = 0 ; i < tr.numImages ; i++ ) {
             image_t* glt = tr.images[i];
@@ -722,7 +722,7 @@ static void Upload32( unsigned *data,
 done:
 
     // VULKAN
-    if (vk_active) {
+    if (vk.active) {
         image = vk_create_image(*pUploadWidth, *pUploadHeight, miplevel + 1, repeat_texture);
         vk_upload_image_data(image.handle, *pUploadWidth, *pUploadHeight, mipmap == qtrue, mipmap_buffer);
     }

@@ -95,33 +95,6 @@ static uint32_t select_queue_family(VkPhysicalDevice physical_device, VkSurfaceK
     return -1;
 }
 
-static VkInstance create_instance() {
-    uint32_t count = 0;
-    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
-
-    std::vector<VkExtensionProperties> extension_properties(count);
-    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, extension_properties.data()));
-
-    for (auto name : instance_extensions) {
-        if (!is_extension_available(extension_properties, name))
-            ri.Error(ERR_FATAL, "Vulkan error: required instance extension is not available: %s", name);
-    }
-
-    VkInstanceCreateInfo desc;
-    desc.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.pApplicationInfo = nullptr;
-    desc.enabledLayerCount = 0;
-    desc.ppEnabledLayerNames = nullptr;
-    desc.enabledExtensionCount = static_cast<uint32_t>(instance_extensions.size());
-    desc.ppEnabledExtensionNames = instance_extensions.data();
-
-    VkInstance instance;
-    VK_CHECK(vkCreateInstance(&desc, nullptr, &instance));
-    return instance;
-}
-
 static VkPhysicalDevice select_physical_device(VkInstance instance) {
     uint32_t count;
     VK_CHECK(vkEnumeratePhysicalDevices(instance, &count, nullptr));
@@ -517,18 +490,41 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 
 VkPipeline create_pipeline(const Vk_Pipeline_Def&);
 
-void vk_create_instance(HWND hwnd) {
+void vk_create_instance() {
+	uint32_t count = 0;
+	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
+
+	std::vector<VkExtensionProperties> extension_properties(count);
+	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, extension_properties.data()));
+
+	for (auto name : instance_extensions) {
+		if (!is_extension_available(extension_properties, name))
+			ri.Error(ERR_FATAL, "Vulkan error: required instance extension is not available: %s", name);
+	}
+
+	VkInstanceCreateInfo desc;
+	desc.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	desc.pNext = nullptr;
+	desc.flags = 0;
+	desc.pApplicationInfo = nullptr;
+	desc.enabledLayerCount = 0;
+	desc.ppEnabledLayerNames = nullptr;
+	desc.enabledExtensionCount = static_cast<uint32_t>(instance_extensions.size());
+	desc.ppEnabledExtensionNames = instance_extensions.data();
+
+	VK_CHECK(vkCreateInstance(&desc, nullptr, &vk.instance));
+}
+
+void vk_initialize() {
     vk_log_file = fopen("vk_dev.log", "w");
 
-    vk.instance = create_instance();
-    vk.physical_device = select_physical_device(vk.instance);
+	vk.physical_device = select_physical_device(vk.instance);
 
     VkPhysicalDeviceFeatures features;
     vkGetPhysicalDeviceFeatures(vk.physical_device, &features);
     if (features.shaderClipDistance == VK_FALSE)
         ri.Error(ERR_FATAL, "vk_create_instance: shaderClipDistance feature is not supported");
-
-    vk.surface = create_surface(vk.instance, hwnd);
+    
     vk.surface_format = select_surface_format(vk.physical_device, vk.surface);
 
     vk.queue_family_index = select_queue_family(vk.physical_device, vk.surface);
@@ -919,9 +915,10 @@ void vk_create_instance(HWND hwnd) {
             }
         }
     }
+	vk.active = true;
 }
 
-void vk_destroy_instance() {
+void vk_shutdown() {
     fclose(vk_log_file);
     vk_log_file = nullptr;
 
@@ -975,7 +972,7 @@ void vk_destroy_instance() {
 
 static float pipeline_create_time;
 
-void vk_destroy_resources() {
+void vk_release_resources() {
     vkDeviceWaitIdle(vk.device);
     auto& res = vk_resources;
 
@@ -1620,7 +1617,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
 }
 
 void vk_clear_attachments(bool clear_stencil, bool fast_sky) {
-    if (!vk_active)
+    if (!vk.active)
         return;
 
     if (!vk_resources.dirty_attachments && !fast_sky)
@@ -1755,7 +1752,7 @@ static void get_mvp_transform(float* mvp) {
 }
 
 void vk_bind_resources_shared_between_stages() {
-    if (!vk_active) return;
+    if (!vk.active) return;
 
     // xyz
     {
@@ -1888,7 +1885,7 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
 }
 
 void vk_begin_frame() {
-    if (!vk_active)
+    if (!vk.active)
         return;
 
 	if (r_logFile->integer)
@@ -1931,7 +1928,7 @@ void vk_begin_frame() {
 }
 
 void vk_end_frame() {
-    if (!vk_active)
+    if (!vk.active)
         return;
 
     if (r_logFile->integer)

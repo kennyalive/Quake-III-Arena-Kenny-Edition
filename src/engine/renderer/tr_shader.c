@@ -2161,7 +2161,7 @@ static shader_t *FinishShader( void ) {
 	}
 
     // VULKAN: create pipelines for each shader stage
-    if (vk_active) {
+    if (vk.active) {
         Vk_Pipeline_Def def;
         def.face_culling = shader.cullType;
         def.polygon_offset = (shader.polygonOffset == qtrue);

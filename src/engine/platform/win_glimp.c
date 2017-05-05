@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ** WIN_GLIMP.C
 **
 ** This file contains ALL Win32 specific stuff having to do with the
-** OpenGL refresh.  When a port is being made the following functions
+** OpenGL/Vulkan refresh.  When a port is being made the following functions
 ** must be implemented by the port:
 **
 ** GLimp_EndFrame
@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ** GLimp_LogComment
 ** GLimp_Shutdown
 **
-** Note that the GLW_xxx functions are Windows specific GL-subsystem
-** related functions that are relevant ONLY to win_glimp.c
+** vk_imp_init
+** vk_imp_shutdown
 */
 #include <assert.h>
 #include "../renderer/tr_local.h"
@@ -60,7 +60,20 @@ void     QGL_Shutdown( void );
 //
 // variable declarations
 //
+static HDC gl_hdc; // handle to device context
+static HGLRC gl_hglrc; // handle to GL rendering context
+
 glwstate_t glw_state;
+
+static int GetDesktopCaps(int index) {
+    HDC hdc = GetDC(GetDesktopWindow());
+    int value = GetDeviceCaps(hdc, index);
+    ReleaseDC(GetDesktopWindow(), hdc);
+    return value;
+}
+static int GetDesktopColorDepth() { return GetDesktopCaps(BITSPIXEL); }
+static int GetDesktopWidth() { return GetDesktopCaps(HORZRES); }
+static int GetDesktopHeight() { return GetDesktopCaps(VERTRES); }
 
 /*
 ** ChoosePFD
@@ -251,15 +264,12 @@ static bool GLW_SetPixelFormat(HDC hdc, PIXELFORMATDESCRIPTOR *pPFD, int colorbi
 static qboolean GLW_InitDriver(HWND hwnd) {
 	ri.Printf( PRINT_ALL, "Initializing OpenGL driver\n" );
 
-    glw_state.hDC = NULL;
-    glw_state.hGLRC = NULL;
-
 	//
 	// get a DC for our window
 	//
 	ri.Printf(PRINT_ALL, "...getting DC: ");
-    HDC hdc = GetDC(hwnd);
-	if (hdc == NULL) {
+    gl_hdc = GetDC(hwnd);
+	if (gl_hdc == NULL) {
 		ri.Printf(PRINT_ALL, "failed\n");
 		return qfalse;
 	}
@@ -268,13 +278,14 @@ static qboolean GLW_InitDriver(HWND hwnd) {
 	//
 	// set pixel format
 	//
-    int colorbits = glw_state.desktopBitsPixel;
+    int colorbits = GetDesktopColorDepth();
     int depthbits = (r_depthbits->integer == 0) ? 24 : r_depthbits->integer;
     int stencilbits = r_stencilbits->integer;
 
     PIXELFORMATDESCRIPTOR pfd;
-    if (!GLW_SetPixelFormat(hdc, &pfd, colorbits, depthbits, stencilbits, (qboolean)r_stereo->integer)) {
-        ReleaseDC(hwnd, hdc);
+    if (!GLW_SetPixelFormat(gl_hdc, &pfd, colorbits, depthbits, stencilbits, (qboolean)r_stereo->integer)) {
+        ReleaseDC(hwnd, gl_hdc);
+		gl_hdc = NULL;
         ri.Printf(PRINT_ALL, "...failed to find an appropriate PIXELFORMAT\n");
         return qfalse;
 	}
@@ -288,34 +299,30 @@ static qboolean GLW_InitDriver(HWND hwnd) {
     // startup the OpenGL subsystem by creating a context and making it current
     //
     ri.Printf(PRINT_ALL, "...creating GL context: ");
-    HGLRC hglrc = qwglCreateContext(hdc);
-    if (hglrc == NULL) {
-        ReleaseDC(hwnd, hdc);
+    gl_hglrc = qwglCreateContext(gl_hdc);
+    if (gl_hglrc == NULL) {
+        ReleaseDC(hwnd, gl_hdc);
+		gl_hdc = NULL;
         ri.Printf(PRINT_ALL, "failed\n");
         return qfalse;
     }
     ri.Printf(PRINT_ALL, "succeeded\n");
 
     ri.Printf(PRINT_ALL, "...making context current: ");
-    if (!qwglMakeCurrent(hdc, hglrc)) {
-        qwglDeleteContext(hglrc);
-        ReleaseDC(hwnd, hdc);
+    if (!qwglMakeCurrent(gl_hdc, gl_hglrc)) {
+        qwglDeleteContext(gl_hglrc);
+		gl_hglrc = NULL;
+        ReleaseDC(hwnd, gl_hdc);
+		gl_hdc = NULL;
         ri.Printf(PRINT_ALL, "failed\n");
         return qfalse;
     }
     ri.Printf(PRINT_ALL, "succeeded\n");
 
-    //
-	// update global state and return
-	//
-    glw_state.hDC = hdc;
-    glw_state.hGLRC = hglrc;
-
 	glConfig.colorBits = ( int ) pfd.cColorBits;
 	glConfig.depthBits = ( int ) pfd.cDepthBits;
 	glConfig.stencilBits = ( int ) pfd.cStencilBits;
     glConfig.stereoEnabled = (pfd.dwFlags & PFD_STEREO) ? qtrue : qfalse;
-
 	return qtrue;
 }
 
@@ -326,12 +333,16 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
 	//
 	if (!s_main_window_class_registered)
 	{
+        cvar_t* cv = ri.Cvar_Get( "win_wndproc", "", 0 );
+        WNDPROC	wndproc;
+        sscanf(cv->string, "%p", (void **)&wndproc);
+
 		WNDCLASS wc;
 
 		memset( &wc, 0, sizeof( wc ) );
 
 		wc.style         = 0;
-		wc.lpfnWndProc   = glw_state.wndproc;
+		wc.lpfnWndProc   = wndproc;
 		wc.cbClsExtra    = 0;
 		wc.cbWndExtra    = 0;
 		wc.hInstance     = g_wv.hInstance;
@@ -393,13 +404,15 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
 		if ( y < 0 )
 			y = 0;
 
-		if ( w < glw_state.desktopWidth &&
-				h < glw_state.desktopHeight )
+        int desktop_width = GetDesktopWidth();
+        int desktop_height = GetDesktopHeight();
+
+		if (w < desktop_width && h < desktop_height)
 		{
-			if ( x + w > glw_state.desktopWidth )
-				x = ( glw_state.desktopWidth - w );
-			if ( y + h > glw_state.desktopHeight )
-				y = ( glw_state.desktopHeight - h );
+			if ( x + w > desktop_width )
+				x = ( desktop_width - w );
+			if ( y + h > desktop_height )
+				y = ( desktop_height - h );
 		}
 	}
 
@@ -482,13 +495,15 @@ static HWND create_api_compare_window(int width, int height)
     if ( y < 0 )
         y = 0;
 
-    if ( w < glw_state.desktopWidth &&
-        h < glw_state.desktopHeight )
+    int desktop_width = GetDesktopWidth();
+    int desktop_height = GetDesktopHeight();
+
+    if (w < desktop_width && h < desktop_height)
     {
-        if ( x + w > glw_state.desktopWidth )
-            x = ( glw_state.desktopWidth - w );
-        if ( y + h > glw_state.desktopHeight )
-            y = ( glw_state.desktopHeight - h );
+        if ( x + w > desktop_width )
+            x = ( desktop_width - w );
+        if ( y + h > desktop_height )
+            y = ( desktop_height - h );
     }
 
     // If r_renderAPI = 0 (OpenGL) then compare window uses Vulkan API.
@@ -518,86 +533,21 @@ static HWND create_api_compare_window(int width, int height)
     return hwnd;
 }
 
-/*
-** GLW_SetMode
-*/
-static bool GLW_SetMode(int mode, qboolean fullscreen) {
-    {
-	    HDC hDC = GetDC(GetDesktopWindow());
-	    glw_state.desktopBitsPixel = GetDeviceCaps(hDC, BITSPIXEL);
-	    glw_state.desktopWidth = GetDeviceCaps(hDC, HORZRES);
-	    glw_state.desktopHeight = GetDeviceCaps(hDC, VERTRES);
-	    ReleaseDC(GetDesktopWindow(), hDC);
-    }
-
+static void SetMode(int mode, qboolean fullscreen) {
 	if (fullscreen) {
 		ri.Printf( PRINT_ALL, "...setting fullscreen mode:");
-		glConfig.vidWidth = glw_state.desktopWidth;
-		glConfig.vidHeight = glw_state.desktopHeight;
+		glConfig.vidWidth = GetDesktopWidth();
+		glConfig.vidHeight = GetDesktopHeight();
 		glConfig.windowAspect = 1.0f;
-	}
-	else {
+	} else {
 		ri.Printf( PRINT_ALL, "...setting mode %d:", mode );
 		if (!R_GetModeInfo(&glConfig.vidWidth, &glConfig.vidHeight, &glConfig.windowAspect, mode)) {
 			ri.Printf( PRINT_ALL, " invalid mode\n" );
-			return false;
+			ri.Error(ERR_FATAL, "SetMode - could not set the given mode (%d)\n", mode);
 		}
 	}
-    glConfig.isFullscreen = fullscreen;
+	glConfig.isFullscreen = fullscreen;
 	ri.Printf( PRINT_ALL, " %d %d %s\n", glConfig.vidWidth, glConfig.vidHeight, fullscreen ? "FS" : "W");
-
-    g_wv.hWnd = NULL;
-    g_wv.hWnd_opengl = NULL;
-    g_wv.hWnd_vulkan = NULL;
-
-    HWND hwnd = create_main_window(glConfig.vidWidth, glConfig.vidHeight, fullscreen);
-
-    if (r_renderAPI->integer == 0) { // opengl
-        if (!GLW_InitDriver(hwnd)) {
-            ShowWindow(hwnd, SW_HIDE);
-            DestroyWindow(hwnd);
-            return false;
-        }
-        g_wv.hWnd = hwnd;
-        g_wv.hWnd_opengl = hwnd;
-
-        if (r_renderAPICompareWindow->integer) {
-            HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
-            vk_create_instance(hwnd2);
-            g_wv.hWnd_vulkan = hwnd2;
-            /*if (!vk_initialize(hwnd2)) {
-                ShowWindow(hwnd2, SW_HIDE);
-                DestroyWindow(hwnd2);
-                ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
-            } else {
-                g_wv.hWnd_vulkan = hwnd2;
-            }*/
-        }
-    } else { // vulkan
-        if (r_renderAPICompareWindow->integer) {
-            HWND hwnd2 = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
-            if (!GLW_InitDriver(hwnd2)) {
-                DestroyWindow(hwnd2);
-                ri.Printf(PRINT_WARNING, "GLW_SetMode: could not create API compare window");
-            } else {
-                g_wv.hWnd_opengl = hwnd2;
-            }
-        }
-
-        vk_create_instance(hwnd);
-        /*if (!vk_initialize(hwnd)) {
-            ShowWindow(hwnd, SW_HIDE);
-            DestroyWindow(hwnd);
-            return false;
-        }*/
-
-        g_wv.hWnd = hwnd;
-        g_wv.hWnd_vulkan = hwnd;
-    }
-
-    SetForegroundWindow(g_wv.hWnd);
-    SetFocus(g_wv.hWnd);
-	return true;
 }
 
 /*
@@ -605,12 +555,6 @@ static bool GLW_SetMode(int mode, qboolean fullscreen) {
 */
 static void GLW_InitExtensions( void )
 {
-    if (!gl_active) {
-        qglActiveTextureARB = [] (GLenum)  {};
-        qglClientActiveTextureARB = [](GLenum) {};
-        return;
-    }
-
 	ri.Printf( PRINT_ALL, "Initializing OpenGL extensions\n" );
 
 	// GL_S3_s3tc
@@ -731,7 +675,7 @@ void GLimp_EndFrame (void)
 	// don't flip if drawing to front buffer
 	if ( Q_stricmp( r_drawBuffer->string, "GL_FRONT" ) != 0 )
 	{
-			SwapBuffers( glw_state.hDC );
+			SwapBuffers( gl_hdc );
 	}
 
 	// check logging
@@ -750,13 +694,7 @@ void GLimp_EndFrame (void)
 */
 void GLimp_Init( void )
 {
-	cvar_t	*cv;
-
 	ri.Printf( PRINT_ALL, "Initializing OpenGL subsystem\n" );
-
-	// save wndproc
-	cv = ri.Cvar_Get( "win_wndproc", "", 0 );
-	sscanf( cv->string, "%p", (void **)&glw_state.wndproc );
 
 	// load appropriate DLL and initialize subsystem
     //
@@ -767,11 +705,21 @@ void GLimp_Init( void )
         ri.Error(ERR_FATAL, "QGL_Init - could not load OpenGL driver\n");
     }
 
-    // create the window and set up the context
-    if (!GLW_SetMode(r_mode->integer, (qboolean)r_fullscreen->integer))
-    {
-        ri.Error(ERR_FATAL, "GLW_SetMode - could not set the given mode (%d)\n", r_mode->integer);
-    }
+	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
+
+	if (r_renderAPI->integer == 0) {
+		g_wv.hWnd_opengl = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
+		g_wv.hWnd = g_wv.hWnd_opengl;
+	} else {
+		g_wv.hWnd_opengl = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
+	}
+
+	if (!GLW_InitDriver(g_wv.hWnd_opengl)) {
+		ri.Error(ERR_FATAL, "GLW_InitDriver - could not initialize OpenGL subsystem\n");
+	}
+
+	SetForegroundWindow(g_wv.hWnd);
+	SetFocus(g_wv.hWnd);
 
 	// get our config strings
 	Q_strncpyz( glConfig.vendor_string, (const char*) qglGetString (GL_VENDOR), sizeof( glConfig.vendor_string ) );
@@ -792,31 +740,24 @@ void GLimp_Init( void )
 void GLimp_Shutdown( void )
 {
 	const char *success[] = { "failed", "success" };
-	int retVal;
 
 	ri.Printf(PRINT_ALL, "Shutting down OpenGL subsystem\n");
 
-	// restore gamma.  We do this first because 3Dfx's extension needs a valid OGL subsystem
-	WG_RestoreGamma();
-
-	// set current context to NULL
 	if (qwglMakeCurrent) {
-		retVal = qwglMakeCurrent(NULL, NULL) != 0;
+		int retVal = qwglMakeCurrent(NULL, NULL) != 0;
 		ri.Printf(PRINT_ALL, "...wglMakeCurrent( NULL, NULL ): %s\n", success[retVal]);
 	}
 
-	// delete HGLRC
-	if (glw_state.hGLRC) {
-		retVal = qwglDeleteContext(glw_state.hGLRC) != 0;
+	if (gl_hglrc) {
+		int retVal = qwglDeleteContext(gl_hglrc) != 0;
 		ri.Printf(PRINT_ALL, "...deleting GL context: %s\n", success[retVal]);
-		glw_state.hGLRC = NULL;
+		gl_hglrc = NULL;
 	}
 
-	// release DC
-	if (glw_state.hDC) {
-		retVal = ReleaseDC(g_wv.hWnd_opengl, glw_state.hDC) != 0;
+	if (gl_hdc) {
+		int retVal = ReleaseDC(g_wv.hWnd_opengl, gl_hdc) != 0;
 		ri.Printf(PRINT_ALL, "...releasing DC: %s\n", success[retVal]);
-		glw_state.hDC = NULL;
+		gl_hdc = NULL;
 	}
 
 	// destroy window
@@ -824,32 +765,26 @@ void GLimp_Shutdown( void )
 		ri.Printf(PRINT_ALL, "...destroying opengl window\n");
 		ShowWindow(g_wv.hWnd_opengl, SW_HIDE);
 		DestroyWindow(g_wv.hWnd_opengl);
+
+		if (g_wv.hWnd == g_wv.hWnd_opengl)
+			g_wv.hWnd = NULL;
+
 		g_wv.hWnd_opengl = NULL;
 	}
-    if (g_wv.hWnd_vulkan) {
-        ri.Printf(PRINT_ALL, "...destroying vulkan window\n");
-        ShowWindow(g_wv.hWnd_vulkan, SW_HIDE);
-        DestroyWindow(g_wv.hWnd_vulkan);
-        g_wv.hWnd_vulkan = NULL;
-    }
-    g_wv.hWnd = NULL;
 
-	// close the r_logFile
+	QGL_Shutdown();
+
+	WG_RestoreGamma();
+
+	memset(&glConfig, 0, sizeof(glConfig));
+	memset(&glState, 0, sizeof(glState));
+
 	if (glw_state.log_fp) {
 		fclose(glw_state.log_fp);
 		glw_state.log_fp = 0;
 	}
-
-	// shutdown QGL subsystem
-	QGL_Shutdown();
-
-	memset(&glConfig, 0, sizeof(glConfig));
-	memset(&glState, 0, sizeof(glState));
 }
 
-/*
-** GLimp_LogComment
-*/
 void GLimp_LogComment( char *comment ) 
 {
 	if ( glw_state.log_fp ) {
@@ -857,6 +792,69 @@ void GLimp_LogComment( char *comment )
 	}
 }
 
+void vk_imp_init() {
+	ri.Printf(PRINT_ALL, "Initializing Vulkan subsystem\n");
+
+	if (!gl_enabled) {
+		QGL_Init(nullptr); // this will set qgl pointers to no-op placeholders
+		qglActiveTextureARB = [] (GLenum)  {};
+		qglClientActiveTextureARB = [](GLenum) {};
+	}
+
+	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
+
+	if (r_renderAPI->integer != 0) {
+		g_wv.hWnd_vulkan = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
+		g_wv.hWnd = g_wv.hWnd_vulkan;
+	} else {
+		g_wv.hWnd_vulkan = create_api_compare_window(glConfig.vidWidth, glConfig.vidHeight);
+	}
+
+	// In order to create surface we need to create VkInstance first.
+	vk_create_instance();
+
+	// Create VkSurfaceKHR for Win32 platform.
+	VkWin32SurfaceCreateInfoKHR desc;
+	desc.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+	desc.pNext = nullptr;
+	desc.flags = 0;
+	desc.hinstance = ::GetModuleHandle(nullptr);
+	desc.hwnd = g_wv.hWnd_vulkan;
+	VK_CHECK(vkCreateWin32SurfaceKHR(vk.instance, &desc, nullptr, &vk.surface));
+
+	SetForegroundWindow(g_wv.hWnd);
+	SetFocus(g_wv.hWnd);
+
+	WG_CheckHardwareGamma();
+}
+
+void vk_imp_shutdown() {
+	ri.Printf(PRINT_ALL, "Shutting down Vulkan subsystem\n");
+
+	if (g_wv.hWnd_vulkan) {
+		ri.Printf(PRINT_ALL, "...destroying vulkan window\n");
+		DestroyWindow(g_wv.hWnd_vulkan);
+
+		if (g_wv.hWnd == g_wv.hWnd_vulkan)
+			g_wv.hWnd = NULL;
+
+		g_wv.hWnd_vulkan = NULL;
+	}
+
+	// For vulkan mode we still have qgl pointers initialized with placeholder values.
+	// Thus reset them the same way as we do in opengl mode.
+	QGL_Shutdown();
+
+	WG_RestoreGamma();
+
+	memset(&glConfig, 0, sizeof(glConfig));
+	memset(&glState, 0, sizeof(glState));
+
+	if (glw_state.log_fp) {
+		fclose(glw_state.log_fp);
+		glw_state.log_fp = 0;
+	}
+}
 
 /*
 ===========================================================
@@ -876,7 +874,7 @@ void GLimp_RenderThreadWrapper( void ) {
 	glimpRenderThread();
 
 	// unbind the context before we die
-	qwglMakeCurrent( glw_state.hDC, NULL );
+	qwglMakeCurrent( gl_hdc, NULL );
 }
 
 /*
@@ -915,7 +913,7 @@ static	int		wglErrors;
 void *GLimp_RendererSleep( void ) {
 	void	*data;
 
-	if ( !qwglMakeCurrent( glw_state.hDC, NULL ) ) {
+	if ( !qwglMakeCurrent( gl_hdc, NULL ) ) {
 		wglErrors++;
 	}
 
@@ -926,7 +924,7 @@ void *GLimp_RendererSleep( void ) {
 
 	WaitForSingleObject( renderCommandsEvent, INFINITE );
 
-	if ( !qwglMakeCurrent( glw_state.hDC, glw_state.hGLRC ) ) {
+	if ( !qwglMakeCurrent( gl_hdc, gl_hglrc ) ) {
 		wglErrors++;
 	}
 
@@ -945,7 +943,7 @@ void *GLimp_RendererSleep( void ) {
 void GLimp_FrontEndSleep( void ) {
 	WaitForSingleObject( renderCompletedEvent, INFINITE );
 
-	if ( !qwglMakeCurrent( glw_state.hDC, glw_state.hGLRC ) ) {
+	if ( !qwglMakeCurrent( gl_hdc, gl_hglrc ) ) {
 		wglErrors++;
 	}
 }
@@ -954,7 +952,7 @@ void GLimp_FrontEndSleep( void ) {
 void GLimp_WakeRenderer( void *data ) {
 	smpData = data;
 
-	if ( !qwglMakeCurrent( glw_state.hDC, NULL ) ) {
+	if ( !qwglMakeCurrent( gl_hdc, NULL ) ) {
 		wglErrors++;
 	}
 

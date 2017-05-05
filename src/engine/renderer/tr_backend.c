@@ -64,7 +64,7 @@ void GL_Bind( image_t *image ) {
 		qglBindTexture (GL_TEXTURE_2D, texnum);
 
         // VULKAN
-        if (vk_active) {
+        if (vk.active) {
             VkDescriptorSet set = vk_resources.images[final_image->index].descriptor_set;
             vk_resources.current_descriptor_sets[glState.currenttmu] = set;
         }
@@ -711,7 +711,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
 
         // VULKAN
-        if (vk_active) {
+        if (vk.active) {
             Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
             vkDestroyImage(vk.device, image.handle, nullptr);
             vkDestroyImageView(vk.device, image.view, nullptr);
@@ -727,7 +727,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 
             // VULKAN
-            if (vk_active) {
+            if (vk.active) {
                 const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
                 vk_upload_image_data(image.handle, cols, rows, false, data);
             }

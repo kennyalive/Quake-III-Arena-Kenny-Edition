@@ -54,9 +54,20 @@ struct Vk_Image {
 //
 // Initialization.
 //
-void vk_create_instance(HWND hwnd); // initializes VK_Instance
-void vk_destroy_instance(); // destroys Vk_Instance resources
-void vk_destroy_resources(); // destroys Vk_Resources resources
+
+// Creates VkInstance and stores it as Vk_Instance::instance.
+void vk_create_instance();
+
+// Initializes VK_Instance structure.
+// After calling this function we get fully functional vulkan subsystem.
+void vk_initialize();
+
+// Shutdown vulkan subsystem by releasing resources acquired by Vk_Instance.
+void vk_shutdown();
+
+// Releases vulkan resources allocated during program execution.
+// This effectively puts vulkan subsystem into initial state (the state we have after vk_initialize call).
+void vk_release_resources();
 
 //
 // Resources allocation.
@@ -79,6 +90,7 @@ void vk_end_frame();
 
 // Vulkan specific structures used by the engine.
 struct Vk_Instance {
+    bool active = false;
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;

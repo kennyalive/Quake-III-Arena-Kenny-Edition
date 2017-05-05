@@ -29,8 +29,6 @@ glstate_t	glState;
 // VULKAN
 Vk_Instance vk;
 Vk_Resources vk_resources;
-bool gl_active;
-bool vk_active;
 
 static void GfxInfo_f( void );
 
@@ -178,14 +176,9 @@ static void AssertCvarRange( cvar_t *cv, float minVal, float maxVal, qboolean sh
 
 
 /*
-** InitOpenGL
-**
-** This function is responsible for initializing a valid OpenGL subsystem.  This
-** is done by calling GLimp_Init (which gives us a working OGL subsystem) then
-** setting variables, checking GL constants, and reporting the gfx system config
-** to the user.
+** This function is responsible for initializing a valid OpenGL/Vulkan subsystem.
 */
-static void InitOpenGL( void )
+static void InitRenderAPI( void )
 {
 	//
 	// initialize OS specific portions of the renderer
@@ -200,10 +193,17 @@ static void InitOpenGL( void )
 	//
 	if ( glConfig.vidWidth == 0 )
 	{
-		GLimp_Init();
+		if (gl_enabled)
+			GLimp_Init();
+
+		// VULKAN
+		if (vk_enabled) {
+			vk_imp_init();
+			vk_initialize();
+		}
 
 		// OpenGL driver constants
-        GLint temp;
+		GLint temp;
 		qglGetIntegerv( GL_MAX_TEXTURE_SIZE, &temp );
 		glConfig.maxTextureSize = temp;
 	}
@@ -930,6 +930,7 @@ void R_Init( void ) {
 	Com_Memset( &tr, 0, sizeof( tr ) );
 	Com_Memset( &backEnd, 0, sizeof( backEnd ) );
 	Com_Memset( &tess, 0, sizeof( tess ) );
+	Com_Memset( &vk_resources, 0, sizeof( vk_resources ) );
 
 	if ( (intptr_t)tess.xyz & 15 ) {
 		Com_Printf( "WARNING: tess.xyz not 16 byte aligned\n" );
@@ -991,10 +992,7 @@ void R_Init( void ) {
 	}
 	R_ToggleSmpFrame();
 
-    gl_active = (r_renderAPI->integer == 0 || r_renderAPICompareWindow->integer > 0);
-    vk_active = (r_renderAPI->integer > 0 || r_renderAPICompareWindow->integer > 0);
-
-	InitOpenGL();
+	InitRenderAPI();
 
 	R_InitImages();
 
@@ -1032,13 +1030,6 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	ri.Cmd_RemoveCommand( "modelist" );
 	ri.Cmd_RemoveCommand( "shaderstate" );
 
-    // VULKAN
-    if (vk_active) {
-        vk_destroy_resources();
-        if (destroyWindow)
-            vk_destroy_instance();
-    }
-
 	if ( tr.registered ) {
 		R_SyncRenderThread();
 		R_ShutdownCommandBuffers();
@@ -1050,6 +1041,15 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	// shut down platform specific OpenGL stuff
 	if ( destroyWindow ) {
 		GLimp_Shutdown();
+	}
+
+	// VULKAN
+	if (vk.active) {
+		vk_release_resources();
+		if (destroyWindow) {
+			vk_shutdown();
+			vk_imp_shutdown();
+		}
 	}
 
 	tr.registered = qfalse;

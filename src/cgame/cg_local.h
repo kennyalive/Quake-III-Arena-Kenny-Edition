@@ -1539,10 +1539,6 @@ void trap_CIN_SetExtents (int handle, int x, int y, int w, int h);
 
 void trap_SnapVector( float *v );
 
-qboolean	trap_loadCamera(const char *name);
-void		trap_startCamera(int time);
-qboolean	trap_getCameraInfo(int time, vec3_t *origin, vec3_t *angles);
-
 qboolean	trap_GetEntityToken( char *buffer, int bufferSize );
 
 void	CG_ClearParticles (void);
