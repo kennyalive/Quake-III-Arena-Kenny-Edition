@@ -2782,7 +2782,7 @@ static void ScanAndLoadShaderFiles( void )
 		char filename[MAX_QPATH];
 
 		Com_sprintf( filename, sizeof( filename ), "scripts/%s", shaderFiles[i] );
-		ri.Printf( PRINT_ALL, "...loading '%s'\n", filename );
+		// ri.Printf( PRINT_ALL, "...loading '%s'\n", filename );
 		sum += ri.FS_ReadFile( filename, (void **)&buffers[i] );
 		if ( !buffers[i] ) {
 			ri.Error( ERR_DROP, "Couldn't load %s", filename );
@@ -2927,7 +2927,7 @@ R_InitShaders
 ==================
 */
 void R_InitShaders( void ) {
-	ri.Printf( PRINT_ALL, "Initializing Shaders\n" );
+	//ri.Printf( PRINT_ALL, "Initializing Shaders\n" );
 
 	Com_Memset(hashTable, 0, sizeof(hashTable));
 

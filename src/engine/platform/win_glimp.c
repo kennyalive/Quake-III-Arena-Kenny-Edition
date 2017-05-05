@@ -803,7 +803,7 @@ void vk_imp_init() {
 		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight);
 	}
 
-	// In order to create surface we need to create VkInstance first.
+	// In order to create a surface we need to create VkInstance first.
 	vk_create_instance();
 
 	// Create VkSurfaceKHR for Win32 platform.

@@ -748,13 +748,19 @@ void GfxInfo_f( void )
 		"fullscreen"
 	};
 
-	ri.Printf( PRINT_ALL, "\nGL_VENDOR: %s\n", glConfig.vendor_string );
-	ri.Printf( PRINT_ALL, "GL_RENDERER: %s\n", glConfig.renderer_string );
-	ri.Printf( PRINT_ALL, "GL_VERSION: %s\n", glConfig.version_string );
-	ri.Printf( PRINT_ALL, "GL_MAX_TEXTURE_SIZE: %d\n", glConfig.maxTextureSize );
-	ri.Printf( PRINT_ALL, "GL_MAX_ACTIVE_TEXTURES_ARB: %d\n", glConfig.maxActiveTextures );
-	ri.Printf( PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits );
+	if (gl_enabled()) {
+		ri.Printf( PRINT_ALL, "\nGL_VENDOR: %s\n", glConfig.vendor_string );
+		ri.Printf( PRINT_ALL, "GL_RENDERER: %s\n", glConfig.renderer_string );
+		ri.Printf( PRINT_ALL, "GL_VERSION: %s\n", glConfig.version_string );
+		ri.Printf( PRINT_ALL, "GL_MAX_TEXTURE_SIZE: %d\n", glConfig.maxTextureSize );
+		ri.Printf( PRINT_ALL, "GL_MAX_ACTIVE_TEXTURES_ARB: %d\n", glConfig.maxActiveTextures );
+		ri.Printf( PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits );
+	} else {
+		ri.Printf( PRINT_ALL, "\n");
+	}
+
 	ri.Printf( PRINT_ALL, "MODE: %d, %d x %d %s\n", r_mode->integer, glConfig.vidWidth, glConfig.vidHeight, fsstrings[r_fullscreen->integer == 1] );
+
 	if ( glConfig.deviceSupportsGamma )
 	{
 		ri.Printf( PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits );
@@ -763,20 +769,52 @@ void GfxInfo_f( void )
 	{
 		ri.Printf( PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits );
 	}
-	ri.Printf( PRINT_ALL, "CPU: %s\n", sys_cpustring->string );
 
 	ri.Printf( PRINT_ALL, "texturemode: %s\n", r_textureMode->string );
 	ri.Printf( PRINT_ALL, "picmip: %d\n", r_picmip->integer );
 	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer );
-	ri.Printf( PRINT_ALL, "compiled vertex arrays: %s\n", enablestrings[qglLockArraysEXT != 0 ] );
-	ri.Printf( PRINT_ALL, "texenv add: %s\n", enablestrings[glConfig.textureEnvAddAvailable != 0] );
-	ri.Printf( PRINT_ALL, "compressed textures: %s\n", enablestrings[glConfig.textureCompression!=TC_NONE] );
+
+	if (gl_enabled()) {
+		ri.Printf( PRINT_ALL, "compiled vertex arrays: %s\n", enablestrings[qglLockArraysEXT != 0 ] );
+		ri.Printf( PRINT_ALL, "texenv add: %s\n", enablestrings[glConfig.textureEnvAddAvailable != 0] );
+		ri.Printf( PRINT_ALL, "compressed textures: %s\n", enablestrings[glConfig.textureCompression!=TC_NONE] );
+	}
+
 	if ( r_vertexLight->integer )
 	{
 		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
 	}
-	if ( glConfig.smpActive ) {
+	if ( gl_enabled() && glConfig.smpActive ) {
 		ri.Printf( PRINT_ALL, "Using dual processor acceleration\n" );
+	}
+
+	// VULKAN
+	if (vk_enabled()) {
+		VkPhysicalDeviceProperties props;
+		vkGetPhysicalDeviceProperties(vk.physical_device, &props);
+
+		uint32_t major = VK_VERSION_MAJOR(props.apiVersion);
+		uint32_t minor = VK_VERSION_MINOR(props.apiVersion);
+		uint32_t patch = VK_VERSION_PATCH(props.apiVersion);
+
+		const char* device_type;
+		if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+			device_type = "INTEGRATED_GPU";
+		else if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			device_type = "DISCRETE_GPU";
+		else if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+			device_type = "VIRTUAL_GPU";
+		else if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+			device_type = "CPU";
+		else
+			device_type = "Unknown";
+
+		ri.Printf(PRINT_ALL, "\nVk api version: %d.%d.%d\n", major, minor, patch);
+		ri.Printf(PRINT_ALL, "Vk driver version: %d\n", props.driverVersion);
+		ri.Printf(PRINT_ALL, "Vk vendor id: %d\n", props.vendorID);
+		ri.Printf(PRINT_ALL, "Vk device id: %d\n", props.deviceID);
+		ri.Printf(PRINT_ALL, "Vk device type: %s\n", device_type);
+		ri.Printf(PRINT_ALL, "Vk device name: %s\n\n", props.deviceName);
 	}
 }
 
