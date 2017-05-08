@@ -1208,6 +1208,7 @@ void		GLimp_WakeRenderer( void *data );
 
 void vk_imp_init();
 void vk_imp_shutdown();
+void vk_imp_create_surface();
 
 // NOTE TTimo linux works with float gamma value, not the gamma table
 //   the params won't be used, getting the r_gamma cvar directly

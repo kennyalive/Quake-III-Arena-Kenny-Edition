@@ -33,15 +33,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 **
 ** vk_imp_init
 ** vk_imp_shutdown
+** vk_imp_create_surface
 */
-#include <assert.h>
 #include "../renderer/tr_local.h"
-#include "../qcommon/qcommon.h"
 #include "resource.h"
 #include "win_local.h"
-
-extern void WG_CheckHardwareGamma( void );
-extern void WG_RestoreGamma( void );
 
 #define	MAIN_WINDOW_CLASS_NAME	"Quake 3: Arena"
 #define	TWIN_WINDOW_CLASS_NAME	"Quake 3: Arena [Twin]"
@@ -49,14 +45,18 @@ extern void WG_RestoreGamma( void );
 static bool s_main_window_class_registered = false;
 static bool s_twin_window_class_registered = false;
 
-void	 QGL_EnableLogging( qboolean enable );
-qboolean QGL_Init( const char *dllname );
-void     QGL_Shutdown( void );
-
 static HDC gl_hdc; // handle to device context
 static HGLRC gl_hglrc; // handle to GL rendering context
 
+static HINSTANCE vk_library_handle; // HINSTANCE for the Vulkan library
+
 FILE* log_fp;
+
+qboolean QGL_Init(const char *dllname);
+void QGL_Shutdown();
+void QGL_EnableLogging(qboolean enable);
+void WG_CheckHardwareGamma();
+void WG_RestoreGamma();
 
 static int GetDesktopCaps(int index) {
     HDC hdc = GetDC(GetDesktopWindow());
@@ -703,6 +703,9 @@ void GLimp_Init( void )
 	if (r_renderAPI->integer == 0) {
 		g_wv.hWnd_opengl = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_opengl;
+		SetForegroundWindow(g_wv.hWnd);
+		SetFocus(g_wv.hWnd);
+		WG_CheckHardwareGamma();
 	} else {
 		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight);
 	}
@@ -711,9 +714,6 @@ void GLimp_Init( void )
 		ri.Error(ERR_FATAL, "GLW_InitDriver - could not initialize OpenGL subsystem\n");
 	}
 
-	SetForegroundWindow(g_wv.hWnd);
-	SetFocus(g_wv.hWnd);
-
 	// get our config strings
 	Q_strncpyz( glConfig.vendor_string, (const char*) qglGetString (GL_VENDOR), sizeof( glConfig.vendor_string ) );
 	Q_strncpyz(glConfig.renderer_string, (const char*)qglGetString(GL_RENDERER), sizeof(glConfig.renderer_string));
@@ -721,7 +721,6 @@ void GLimp_Init( void )
 	Q_strncpyz(glConfig.extensions_string, (const char*)qglGetString(GL_EXTENSIONS), sizeof(glConfig.extensions_string));
 
 	GLW_InitExtensions();
-	WG_CheckHardwareGamma();
 }
 
 /*
@@ -759,9 +758,9 @@ void GLimp_Shutdown( void )
 		ShowWindow(g_wv.hWnd_opengl, SW_HIDE);
 		DestroyWindow(g_wv.hWnd_opengl);
 
-		if (g_wv.hWnd == g_wv.hWnd_opengl)
+		if (g_wv.hWnd == g_wv.hWnd_opengl) {
 			g_wv.hWnd = NULL;
-
+		}
 		g_wv.hWnd_opengl = NULL;
 	}
 
@@ -788,54 +787,63 @@ void GLimp_LogComment( char *comment )
 void vk_imp_init() {
 	ri.Printf(PRINT_ALL, "Initializing Vulkan subsystem\n");
 
+	// This will set qgl pointers to no-op placeholders.
 	if (!gl_enabled()) {
-		QGL_Init(nullptr); // this will set qgl pointers to no-op placeholders
+		QGL_Init(nullptr);
 		qglActiveTextureARB = [] (GLenum)  {};
 		qglClientActiveTextureARB = [](GLenum) {};
 	}
 
+	// Load Vulkan DLL.
+	const char* dll_name = "vulkan-1.dll";
+
+	ri.Printf(PRINT_ALL, "...calling LoadLibrary('%s'): ", dll_name);
+	vk_library_handle = LoadLibrary(dll_name);
+
+	if (vk_library_handle == NULL) {
+		ri.Printf(PRINT_ALL, "failed\n");
+		ri.Error(ERR_FATAL, "vk_imp_init - could not load %s\n", dll_name);
+	}
+	ri.Printf( PRINT_ALL, "succeeded\n" );
+
+	vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(vk_library_handle, "vkGetInstanceProcAddr");
+
+	// Create window.
 	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
 
 	if (r_renderAPI->integer != 0) {
 		g_wv.hWnd_vulkan = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_vulkan;
+		SetForegroundWindow(g_wv.hWnd);
+		SetFocus(g_wv.hWnd);
+		WG_CheckHardwareGamma();
 	} else {
 		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight);
 	}
-
-	// In order to create a surface we need to create VkInstance first.
-	vk_create_instance();
-
-	// Create VkSurfaceKHR for Win32 platform.
-	VkWin32SurfaceCreateInfoKHR desc;
-	desc.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-	desc.pNext = nullptr;
-	desc.flags = 0;
-	desc.hinstance = ::GetModuleHandle(nullptr);
-	desc.hwnd = g_wv.hWnd_vulkan;
-	VK_CHECK(vkCreateWin32SurfaceKHR(vk.instance, &desc, nullptr, &vk.surface));
-
-	SetForegroundWindow(g_wv.hWnd);
-	SetFocus(g_wv.hWnd);
-
-	WG_CheckHardwareGamma();
 }
 
 void vk_imp_shutdown() {
 	ri.Printf(PRINT_ALL, "Shutting down Vulkan subsystem\n");
 
 	if (g_wv.hWnd_vulkan) {
-		ri.Printf(PRINT_ALL, "...destroying vulkan window\n");
+		ri.Printf(PRINT_ALL, "...destroying Vulkan window\n");
 		DestroyWindow(g_wv.hWnd_vulkan);
 
-		if (g_wv.hWnd == g_wv.hWnd_vulkan)
+		if (g_wv.hWnd == g_wv.hWnd_vulkan) {
 			g_wv.hWnd = NULL;
-
+		}
 		g_wv.hWnd_vulkan = NULL;
 	}
 
+	if (vk_library_handle != NULL) {
+		ri.Printf(PRINT_ALL, "...unloading Vulkan DLL\n");
+		FreeLibrary(vk_library_handle);
+		vk_library_handle = NULL;
+	}
+	vkGetInstanceProcAddr = nullptr;
+
 	// For vulkan mode we still have qgl pointers initialized with placeholder values.
-	// Thus reset them the same way as we do in opengl mode.
+	// Reset them the same way as we do in opengl mode.
 	QGL_Shutdown();
 
 	WG_RestoreGamma();
@@ -847,6 +855,16 @@ void vk_imp_shutdown() {
 		fclose(log_fp);
 		log_fp = 0;
 	}
+}
+
+void vk_imp_create_surface() {
+	VkWin32SurfaceCreateInfoKHR desc;
+	desc.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+	desc.pNext = nullptr;
+	desc.flags = 0;
+	desc.hinstance = ::GetModuleHandle(nullptr);
+	desc.hwnd = g_wv.hWnd_vulkan;
+	VK_CHECK(vkCreateWin32SurfaceKHR(vk.instance, &desc, nullptr, &vk.surface));
 }
 
 /*

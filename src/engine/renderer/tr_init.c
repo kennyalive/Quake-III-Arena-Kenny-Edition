@@ -814,7 +814,7 @@ void GfxInfo_f( void )
 		ri.Printf(PRINT_ALL, "Vk vendor id: %d\n", props.vendorID);
 		ri.Printf(PRINT_ALL, "Vk device id: %d\n", props.deviceID);
 		ri.Printf(PRINT_ALL, "Vk device type: %s\n", device_type);
-		ri.Printf(PRINT_ALL, "Vk device name: %s\n\n", props.deviceName);
+		ri.Printf(PRINT_ALL, "Vk device name: %s\n", props.deviceName);
 	}
 }
 
@@ -1077,8 +1077,9 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	R_DoneFreeType();
 
 	// shut down platform specific OpenGL stuff
-	if ( destroyWindow ) {
-		GLimp_Shutdown();
+	if ( gl_enabled() ) {
+		if (destroyWindow)
+			GLimp_Shutdown();
 	}
 
 	// VULKAN

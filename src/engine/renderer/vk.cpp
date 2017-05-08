@@ -75,111 +75,6 @@ static VkFormat find_depth_format(VkPhysicalDevice physical_device) {
         VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
-static uint32_t select_queue_family(VkPhysicalDevice physical_device, VkSurfaceKHR surface) {
-    uint32_t queue_family_count;
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, nullptr);
-
-    std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.data());
-
-    // select queue family with presentation and graphics support
-    for (uint32_t i = 0; i < queue_family_count; i++) {
-        VkBool32 presentation_supported;
-        VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &presentation_supported));
-
-        if (presentation_supported && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
-            return i;
-    }
-
-    ri.Error(ERR_FATAL, "Vulkan error: failed to find queue family");
-    return -1;
-}
-
-static VkPhysicalDevice select_physical_device(VkInstance instance) {
-    uint32_t count;
-    VK_CHECK(vkEnumeratePhysicalDevices(instance, &count, nullptr));
-
-    if (count == 0)
-        ri.Error(ERR_FATAL, "Vulkan error: no physical device found");
-
-    std::vector<VkPhysicalDevice> physical_devices(count);
-    VK_CHECK(vkEnumeratePhysicalDevices(instance, &count, physical_devices.data()));
-    return physical_devices[0]; // just get the first one
-}
-
-static VkSurfaceKHR create_surface(VkInstance instance, HWND hwnd) {
-    VkWin32SurfaceCreateInfoKHR desc;
-    desc.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    desc.pNext = nullptr;
-    desc.flags = 0;
-    desc.hinstance = ::GetModuleHandle(nullptr);
-    desc.hwnd = hwnd;
-
-    VkSurfaceKHR surface;
-    VK_CHECK(vkCreateWin32SurfaceKHR(instance, &desc, nullptr, &surface));
-    return surface;
-}
-
-static VkDevice create_device(VkPhysicalDevice physical_device, uint32_t queue_family_index) {
-    uint32_t count = 0;
-    VK_CHECK(vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &count, nullptr));
-
-    std::vector<VkExtensionProperties> extension_properties(count);
-    VK_CHECK(vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &count, extension_properties.data()));
-
-    for (auto name : device_extensions) {
-        if (!is_extension_available(extension_properties, name))
-            ri.Error(ERR_FATAL, "Vulkan error: required device extension is not available: %s", name);
-    }
-
-    const float priority = 1.0;
-    VkDeviceQueueCreateInfo queue_desc;
-    queue_desc.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_desc.pNext = nullptr;
-    queue_desc.flags = 0;
-    queue_desc.queueFamilyIndex = queue_family_index;
-    queue_desc.queueCount = 1;
-    queue_desc.pQueuePriorities = &priority;
-
-    VkPhysicalDeviceFeatures features;
-    Com_Memset(&features, 0, sizeof(features));
-    features.shaderClipDistance = VK_TRUE;
-
-    VkDeviceCreateInfo device_desc;
-    device_desc.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    device_desc.pNext = nullptr;
-    device_desc.flags = 0;
-    device_desc.queueCreateInfoCount = 1;
-    device_desc.pQueueCreateInfos = &queue_desc;
-    device_desc.enabledLayerCount = 0;
-    device_desc.ppEnabledLayerNames = nullptr;
-    device_desc.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
-    device_desc.ppEnabledExtensionNames = device_extensions.data();
-    device_desc.pEnabledFeatures = &features;
-
-    VkDevice device;
-    VK_CHECK(vkCreateDevice(physical_device, &device_desc, nullptr, &device));
-    return device;
-}
-
-static VkSurfaceFormatKHR select_surface_format(VkPhysicalDevice physical_device, VkSurfaceKHR surface) {
-    uint32_t format_count;
-    VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, nullptr));
-    assert(format_count > 0);
-
-    std::vector<VkSurfaceFormatKHR> candidates(format_count);
-    VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, candidates.data()));
-
-    // special case that means we can choose any format
-    if (candidates.size() == 1 && candidates[0].format == VK_FORMAT_UNDEFINED) {
-        VkSurfaceFormatKHR surface_format;
-        surface_format.format = VK_FORMAT_R8G8B8A8_UNORM;
-        surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
-        return surface_format;
-    }
-    return candidates[0];
-}
-
 static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR surface_format) {
     VkSurfaceCapabilitiesKHR surface_caps;
     VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_caps));
@@ -490,7 +385,7 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 
 VkPipeline create_pipeline(const Vk_Pipeline_Def&);
 
-void vk_create_instance() {
+static void create_instance() {
 	uint32_t count = 0;
 	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
 
@@ -515,20 +410,315 @@ void vk_create_instance() {
 	VK_CHECK(vkCreateInstance(&desc, nullptr, &vk.instance));
 }
 
+static void create_device() {
+	// select physical device
+	{
+		uint32_t count;
+		VK_CHECK(vkEnumeratePhysicalDevices(vk.instance, &count, nullptr));
+
+		if (count == 0)
+			ri.Error(ERR_FATAL, "Vulkan error: no physical device found");
+
+		std::vector<VkPhysicalDevice> physical_devices(count);
+		VK_CHECK(vkEnumeratePhysicalDevices(vk.instance, &count, physical_devices.data()));
+		vk.physical_device = physical_devices[0];
+	}
+
+	vk_imp_create_surface();
+
+	// select surface format
+	{
+		uint32_t format_count;
+		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(vk.physical_device, vk.surface, &format_count, nullptr));
+		assert(format_count > 0);
+
+		std::vector<VkSurfaceFormatKHR> candidates(format_count);
+		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(vk.physical_device, vk.surface, &format_count, candidates.data()));
+
+		
+		if (candidates.size() == 1 && candidates[0].format == VK_FORMAT_UNDEFINED) { // special case that means we can choose any format
+			vk.surface_format.format = VK_FORMAT_R8G8B8A8_UNORM;
+			vk.surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+		} else {
+			vk.surface_format = candidates[0];
+		}
+	}
+
+	// select queue family
+	{
+		uint32_t queue_family_count;
+		vkGetPhysicalDeviceQueueFamilyProperties(vk.physical_device, &queue_family_count, nullptr);
+
+		std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+		vkGetPhysicalDeviceQueueFamilyProperties(vk.physical_device, &queue_family_count, queue_families.data());
+
+		// select queue family with presentation and graphics support
+		vk.queue_family_index = -1;
+		for (uint32_t i = 0; i < queue_family_count; i++) {
+			VkBool32 presentation_supported;
+			VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(vk.physical_device, i, vk.surface, &presentation_supported));
+
+			if (presentation_supported && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
+				vk.queue_family_index = i;
+				break;
+			}
+		}
+		if (vk.queue_family_index == -1)
+			ri.Error(ERR_FATAL, "Vulkan error: failed to find queue family");
+	}
+
+	// create VkDevice
+	{
+		uint32_t count = 0;
+		VK_CHECK(vkEnumerateDeviceExtensionProperties(vk.physical_device, nullptr, &count, nullptr));
+
+		std::vector<VkExtensionProperties> extension_properties(count);
+		VK_CHECK(vkEnumerateDeviceExtensionProperties(vk.physical_device, nullptr, &count, extension_properties.data()));
+
+		for (auto name : device_extensions) {
+			if (!is_extension_available(extension_properties, name))
+				ri.Error(ERR_FATAL, "Vulkan error: required device extension is not available: %s", name);
+		}
+
+		const float priority = 1.0;
+		VkDeviceQueueCreateInfo queue_desc;
+		queue_desc.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queue_desc.pNext = nullptr;
+		queue_desc.flags = 0;
+		queue_desc.queueFamilyIndex = vk.queue_family_index;
+		queue_desc.queueCount = 1;
+		queue_desc.pQueuePriorities = &priority;
+
+		VkPhysicalDeviceFeatures features;
+		Com_Memset(&features, 0, sizeof(features));
+		features.shaderClipDistance = VK_TRUE;
+
+		VkDeviceCreateInfo device_desc;
+		device_desc.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		device_desc.pNext = nullptr;
+		device_desc.flags = 0;
+		device_desc.queueCreateInfoCount = 1;
+		device_desc.pQueueCreateInfos = &queue_desc;
+		device_desc.enabledLayerCount = 0;
+		device_desc.ppEnabledLayerNames = nullptr;
+		device_desc.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
+		device_desc.ppEnabledExtensionNames = device_extensions.data();
+		device_desc.pEnabledFeatures = &features;
+		VK_CHECK(vkCreateDevice(vk.physical_device, &device_desc, nullptr, &vk.device));
+	}
+}
+
+#define INIT_INSTANCE_FUNCTION(func) func = (PFN_ ## func)vkGetInstanceProcAddr(vk.instance, #func);
+#define INIT_DEVICE_FUNCTION(func) func = (PFN_ ## func)vkGetDeviceProcAddr(vk.device, #func);
+
+static void init_vulkan_library() {
+	//
+	// Get functions that do not depend on VkInstance (vk.instance == nullptr at this point).
+	//
+	INIT_INSTANCE_FUNCTION(vkCreateInstance)
+	INIT_INSTANCE_FUNCTION(vkEnumerateInstanceExtensionProperties)
+
+	//
+	// Get instance level functions.
+	//
+	create_instance();
+	INIT_INSTANCE_FUNCTION(vkCreateDevice)
+	INIT_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties)
+	INIT_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices)
+	INIT_INSTANCE_FUNCTION(vkGetDeviceProcAddr)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceFormatProperties)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties)
+	INIT_INSTANCE_FUNCTION(vkCreateWin32SurfaceKHR)
+	INIT_INSTANCE_FUNCTION(vkDestroySurfaceKHR)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR)
+	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR)
+
+	//
+	// Get device level functions.
+	//
+	create_device();
+	INIT_DEVICE_FUNCTION(vkAllocateCommandBuffers)
+	INIT_DEVICE_FUNCTION(vkAllocateDescriptorSets)
+	INIT_DEVICE_FUNCTION(vkAllocateMemory)
+	INIT_DEVICE_FUNCTION(vkBeginCommandBuffer)
+	INIT_DEVICE_FUNCTION(vkBindBufferMemory)
+	INIT_DEVICE_FUNCTION(vkBindImageMemory)
+	INIT_DEVICE_FUNCTION(vkCmdBeginRenderPass)
+	INIT_DEVICE_FUNCTION(vkCmdBindDescriptorSets)
+	INIT_DEVICE_FUNCTION(vkCmdBindIndexBuffer)
+	INIT_DEVICE_FUNCTION(vkCmdBindPipeline)
+	INIT_DEVICE_FUNCTION(vkCmdBindVertexBuffers)
+	INIT_DEVICE_FUNCTION(vkCmdClearAttachments)
+	INIT_DEVICE_FUNCTION(vkCmdCopyBufferToImage)
+	INIT_DEVICE_FUNCTION(vkCmdDrawIndexed)
+	INIT_DEVICE_FUNCTION(vkCmdEndRenderPass)
+	INIT_DEVICE_FUNCTION(vkCmdPipelineBarrier)
+	INIT_DEVICE_FUNCTION(vkCmdPushConstants)
+	INIT_DEVICE_FUNCTION(vkCmdSetDepthBias)
+	INIT_DEVICE_FUNCTION(vkCmdSetScissor)
+	INIT_DEVICE_FUNCTION(vkCmdSetViewport)
+	INIT_DEVICE_FUNCTION(vkCreateBuffer)
+	INIT_DEVICE_FUNCTION(vkCreateCommandPool)
+	INIT_DEVICE_FUNCTION(vkCreateDescriptorPool)
+	INIT_DEVICE_FUNCTION(vkCreateDescriptorSetLayout)
+	INIT_DEVICE_FUNCTION(vkCreateFence)
+	INIT_DEVICE_FUNCTION(vkCreateFramebuffer)
+	INIT_DEVICE_FUNCTION(vkCreateGraphicsPipelines)
+	INIT_DEVICE_FUNCTION(vkCreateImage)
+	INIT_DEVICE_FUNCTION(vkCreateImageView)
+	INIT_DEVICE_FUNCTION(vkCreatePipelineLayout)
+	INIT_DEVICE_FUNCTION(vkCreateRenderPass)
+	INIT_DEVICE_FUNCTION(vkCreateSampler)
+	INIT_DEVICE_FUNCTION(vkCreateSemaphore)
+	INIT_DEVICE_FUNCTION(vkCreateShaderModule)
+	INIT_DEVICE_FUNCTION(vkDestroyBuffer)
+	INIT_DEVICE_FUNCTION(vkDestroyCommandPool)
+	INIT_DEVICE_FUNCTION(vkDestroyDescriptorPool)
+	INIT_DEVICE_FUNCTION(vkDestroyDescriptorSetLayout)
+	INIT_DEVICE_FUNCTION(vkDestroyDevice)
+	INIT_DEVICE_FUNCTION(vkDestroyFence)
+	INIT_DEVICE_FUNCTION(vkDestroyFramebuffer)
+	INIT_DEVICE_FUNCTION(vkDestroyImage)
+	INIT_DEVICE_FUNCTION(vkDestroyImageView)
+	INIT_DEVICE_FUNCTION(vkDestroyInstance)
+	INIT_DEVICE_FUNCTION(vkDestroyPipeline)
+	INIT_DEVICE_FUNCTION(vkDestroyPipelineLayout)
+	INIT_DEVICE_FUNCTION(vkDestroyRenderPass)
+	INIT_DEVICE_FUNCTION(vkDestroySampler)
+	INIT_DEVICE_FUNCTION(vkDestroySemaphore)
+	INIT_DEVICE_FUNCTION(vkDestroyShaderModule)
+	INIT_DEVICE_FUNCTION(vkDeviceWaitIdle)
+	INIT_DEVICE_FUNCTION(vkEndCommandBuffer)
+	INIT_DEVICE_FUNCTION(vkFreeCommandBuffers)
+	INIT_DEVICE_FUNCTION(vkFreeDescriptorSets)
+	INIT_DEVICE_FUNCTION(vkFreeMemory)
+	INIT_DEVICE_FUNCTION(vkGetBufferMemoryRequirements)
+	INIT_DEVICE_FUNCTION(vkGetDeviceQueue)
+	INIT_DEVICE_FUNCTION(vkGetImageMemoryRequirements)
+	INIT_DEVICE_FUNCTION(vkMapMemory)
+	INIT_DEVICE_FUNCTION(vkQueueSubmit)
+	INIT_DEVICE_FUNCTION(vkQueueWaitIdle)
+	INIT_DEVICE_FUNCTION(vkResetDescriptorPool)
+	INIT_DEVICE_FUNCTION(vkResetFences)
+	INIT_DEVICE_FUNCTION(vkUpdateDescriptorSets)
+	INIT_DEVICE_FUNCTION(vkWaitForFences)
+	INIT_DEVICE_FUNCTION(vkAcquireNextImageKHR)
+	INIT_DEVICE_FUNCTION(vkCreateSwapchainKHR)
+	INIT_DEVICE_FUNCTION(vkDestroySwapchainKHR)
+	INIT_DEVICE_FUNCTION(vkGetSwapchainImagesKHR)
+	INIT_DEVICE_FUNCTION(vkQueuePresentKHR)
+}
+
+#undef INIT_INSTANCE_FUNCTION
+#undef INIT_DEVICE_FUNCTION
+
+static void deinit_vulkan_library() {
+	vkCreateInstance                            = nullptr;
+	vkEnumerateInstanceExtensionProperties		= nullptr;
+
+	vkCreateDevice								= nullptr;
+	vkEnumerateDeviceExtensionProperties		= nullptr;
+	vkEnumeratePhysicalDevices					= nullptr;
+	vkGetDeviceProcAddr							= nullptr;
+	vkGetPhysicalDeviceFeatures					= nullptr;
+	vkGetPhysicalDeviceFormatProperties			= nullptr;
+	vkGetPhysicalDeviceMemoryProperties			= nullptr;
+	vkGetPhysicalDeviceProperties				= nullptr;
+	vkGetPhysicalDeviceQueueFamilyProperties	= nullptr;
+	vkCreateWin32SurfaceKHR						= nullptr;
+	vkDestroySurfaceKHR							= nullptr;
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR	= nullptr;
+	vkGetPhysicalDeviceSurfaceFormatsKHR		= nullptr;
+	vkGetPhysicalDeviceSurfacePresentModesKHR	= nullptr;
+	vkGetPhysicalDeviceSurfaceSupportKHR		= nullptr;
+
+	vkAllocateCommandBuffers					= nullptr;
+	vkAllocateDescriptorSets					= nullptr;
+	vkAllocateMemory							= nullptr;
+	vkBeginCommandBuffer						= nullptr;
+	vkBindBufferMemory							= nullptr;
+	vkBindImageMemory							= nullptr;
+	vkCmdBeginRenderPass						= nullptr;
+	vkCmdBindDescriptorSets						= nullptr;
+	vkCmdBindIndexBuffer						= nullptr;
+	vkCmdBindPipeline							= nullptr;
+	vkCmdBindVertexBuffers						= nullptr;
+	vkCmdClearAttachments						= nullptr;
+	vkCmdCopyBufferToImage						= nullptr;
+	vkCmdDrawIndexed							= nullptr;
+	vkCmdEndRenderPass							= nullptr;
+	vkCmdPipelineBarrier						= nullptr;
+	vkCmdPushConstants							= nullptr;
+	vkCmdSetDepthBias							= nullptr;
+	vkCmdSetScissor								= nullptr;
+	vkCmdSetViewport							= nullptr;
+	vkCreateBuffer								= nullptr;
+	vkCreateCommandPool							= nullptr;
+	vkCreateDescriptorPool						= nullptr;
+	vkCreateDescriptorSetLayout					= nullptr;
+	vkCreateFence								= nullptr;
+	vkCreateFramebuffer							= nullptr;
+	vkCreateGraphicsPipelines					= nullptr;
+	vkCreateImage								= nullptr;
+	vkCreateImageView							= nullptr;
+	vkCreatePipelineLayout						= nullptr;
+	vkCreateRenderPass							= nullptr;
+	vkCreateSampler								= nullptr;
+	vkCreateSemaphore							= nullptr;
+	vkCreateShaderModule						= nullptr;
+	vkDestroyBuffer								= nullptr;
+	vkDestroyCommandPool						= nullptr;
+	vkDestroyDescriptorPool						= nullptr;
+	vkDestroyDescriptorSetLayout				= nullptr;
+	vkDestroyDevice								= nullptr;
+	vkDestroyFence								= nullptr;
+	vkDestroyFramebuffer						= nullptr;
+	vkDestroyImage								= nullptr;
+	vkDestroyImageView							= nullptr;
+	vkDestroyInstance							= nullptr;
+	vkDestroyPipeline							= nullptr;
+	vkDestroyPipelineLayout						= nullptr;
+	vkDestroyRenderPass							= nullptr;
+	vkDestroySampler							= nullptr;
+	vkDestroySemaphore							= nullptr;
+	vkDestroyShaderModule						= nullptr;
+	vkDeviceWaitIdle							= nullptr;
+	vkEndCommandBuffer							= nullptr;
+	vkFreeCommandBuffers						= nullptr;
+	vkFreeDescriptorSets						= nullptr;
+	vkFreeMemory								= nullptr;
+	vkGetBufferMemoryRequirements				= nullptr;
+	vkGetDeviceQueue							= nullptr;
+	vkGetImageMemoryRequirements				= nullptr;
+	vkMapMemory									= nullptr;
+	vkQueueSubmit								= nullptr;
+	vkQueueWaitIdle								= nullptr;
+	vkResetDescriptorPool						= nullptr;
+	vkResetFences								= nullptr;
+	vkUpdateDescriptorSets						= nullptr;
+	vkWaitForFences								= nullptr;
+	vkAcquireNextImageKHR						= nullptr;
+	vkCreateSwapchainKHR						= nullptr;
+	vkDestroySwapchainKHR						= nullptr;
+	vkGetSwapchainImagesKHR						= nullptr;
+	vkQueuePresentKHR							= nullptr;
+}
+
 void vk_initialize() {
     vk_log_file = fopen("vk_dev.log", "w");
 
-	vk.physical_device = select_physical_device(vk.instance);
+	init_vulkan_library();
 
-    VkPhysicalDeviceFeatures features;
-    vkGetPhysicalDeviceFeatures(vk.physical_device, &features);
-    if (features.shaderClipDistance == VK_FALSE)
-        ri.Error(ERR_FATAL, "vk_create_instance: shaderClipDistance feature is not supported");
-    
-    vk.surface_format = select_surface_format(vk.physical_device, vk.surface);
+	VkPhysicalDeviceFeatures features;
+	vkGetPhysicalDeviceFeatures(vk.physical_device, &features);
+	if (features.shaderClipDistance == VK_FALSE)
+		ri.Error(ERR_FATAL, "vk_create_instance: shaderClipDistance feature is not supported");
 
-    vk.queue_family_index = select_queue_family(vk.physical_device, vk.surface);
-    vk.device = create_device(vk.physical_device, vk.queue_family_index);
     vkGetDeviceQueue(vk.device, vk.queue_family_index, 0, &vk.queue);
 
     vk.swapchain = create_swapchain(vk.physical_device, vk.device, vk.surface, vk.surface_format);
@@ -968,6 +1158,7 @@ void vk_shutdown() {
     vkDestroyInstance(vk.instance, nullptr);
 
     Com_Memset(&vk, 0, sizeof(vk));
+	deinit_vulkan_library();
 }
 
 static float pipeline_create_time;
@@ -1970,3 +2161,95 @@ void vk_end_frame() {
     present_info.pResults = nullptr;
     VK_CHECK(vkQueuePresentKHR(vk.queue, &present_info));
 }
+
+PFN_vkGetInstanceProcAddr						vkGetInstanceProcAddr;
+
+PFN_vkCreateInstance							vkCreateInstance;
+PFN_vkEnumerateInstanceExtensionProperties		vkEnumerateInstanceExtensionProperties;
+
+PFN_vkCreateDevice								vkCreateDevice;
+PFN_vkEnumerateDeviceExtensionProperties		vkEnumerateDeviceExtensionProperties;
+PFN_vkEnumeratePhysicalDevices					vkEnumeratePhysicalDevices;
+PFN_vkGetDeviceProcAddr							vkGetDeviceProcAddr;
+PFN_vkGetPhysicalDeviceFeatures					vkGetPhysicalDeviceFeatures;
+PFN_vkGetPhysicalDeviceFormatProperties			vkGetPhysicalDeviceFormatProperties;
+PFN_vkGetPhysicalDeviceMemoryProperties			vkGetPhysicalDeviceMemoryProperties;
+PFN_vkGetPhysicalDeviceProperties				vkGetPhysicalDeviceProperties;
+PFN_vkGetPhysicalDeviceQueueFamilyProperties	vkGetPhysicalDeviceQueueFamilyProperties;
+PFN_vkCreateWin32SurfaceKHR						vkCreateWin32SurfaceKHR;
+PFN_vkDestroySurfaceKHR							vkDestroySurfaceKHR;
+PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR	vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
+PFN_vkGetPhysicalDeviceSurfaceFormatsKHR		vkGetPhysicalDeviceSurfaceFormatsKHR;
+PFN_vkGetPhysicalDeviceSurfacePresentModesKHR	vkGetPhysicalDeviceSurfacePresentModesKHR;
+PFN_vkGetPhysicalDeviceSurfaceSupportKHR		vkGetPhysicalDeviceSurfaceSupportKHR;
+
+PFN_vkAllocateCommandBuffers					vkAllocateCommandBuffers;
+PFN_vkAllocateDescriptorSets					vkAllocateDescriptorSets;
+PFN_vkAllocateMemory							vkAllocateMemory;
+PFN_vkBeginCommandBuffer						vkBeginCommandBuffer;
+PFN_vkBindBufferMemory							vkBindBufferMemory;
+PFN_vkBindImageMemory							vkBindImageMemory;
+PFN_vkCmdBeginRenderPass						vkCmdBeginRenderPass;
+PFN_vkCmdBindDescriptorSets						vkCmdBindDescriptorSets;
+PFN_vkCmdBindIndexBuffer						vkCmdBindIndexBuffer;
+PFN_vkCmdBindPipeline							vkCmdBindPipeline;
+PFN_vkCmdBindVertexBuffers						vkCmdBindVertexBuffers;
+PFN_vkCmdClearAttachments						vkCmdClearAttachments;
+PFN_vkCmdCopyBufferToImage						vkCmdCopyBufferToImage;
+PFN_vkCmdDrawIndexed							vkCmdDrawIndexed;
+PFN_vkCmdEndRenderPass							vkCmdEndRenderPass;
+PFN_vkCmdPipelineBarrier						vkCmdPipelineBarrier;
+PFN_vkCmdPushConstants							vkCmdPushConstants;
+PFN_vkCmdSetDepthBias							vkCmdSetDepthBias;
+PFN_vkCmdSetScissor								vkCmdSetScissor;
+PFN_vkCmdSetViewport							vkCmdSetViewport;
+PFN_vkCreateBuffer								vkCreateBuffer;
+PFN_vkCreateCommandPool							vkCreateCommandPool;
+PFN_vkCreateDescriptorPool						vkCreateDescriptorPool;
+PFN_vkCreateDescriptorSetLayout					vkCreateDescriptorSetLayout;
+PFN_vkCreateFence								vkCreateFence;
+PFN_vkCreateFramebuffer							vkCreateFramebuffer;
+PFN_vkCreateGraphicsPipelines					vkCreateGraphicsPipelines;
+PFN_vkCreateImage								vkCreateImage;
+PFN_vkCreateImageView							vkCreateImageView;
+PFN_vkCreatePipelineLayout						vkCreatePipelineLayout;
+PFN_vkCreateRenderPass							vkCreateRenderPass;
+PFN_vkCreateSampler								vkCreateSampler;
+PFN_vkCreateSemaphore							vkCreateSemaphore;
+PFN_vkCreateShaderModule						vkCreateShaderModule;
+PFN_vkDestroyBuffer								vkDestroyBuffer;
+PFN_vkDestroyCommandPool						vkDestroyCommandPool;
+PFN_vkDestroyDescriptorPool						vkDestroyDescriptorPool;
+PFN_vkDestroyDescriptorSetLayout				vkDestroyDescriptorSetLayout;
+PFN_vkDestroyDevice								vkDestroyDevice;
+PFN_vkDestroyFence								vkDestroyFence;
+PFN_vkDestroyFramebuffer						vkDestroyFramebuffer;
+PFN_vkDestroyImage								vkDestroyImage;
+PFN_vkDestroyImageView							vkDestroyImageView;
+PFN_vkDestroyInstance							vkDestroyInstance;
+PFN_vkDestroyPipeline							vkDestroyPipeline;
+PFN_vkDestroyPipelineLayout						vkDestroyPipelineLayout;
+PFN_vkDestroyRenderPass							vkDestroyRenderPass;
+PFN_vkDestroySampler							vkDestroySampler;
+PFN_vkDestroySemaphore							vkDestroySemaphore;
+PFN_vkDestroyShaderModule						vkDestroyShaderModule;
+PFN_vkDeviceWaitIdle							vkDeviceWaitIdle;
+PFN_vkEndCommandBuffer							vkEndCommandBuffer;
+PFN_vkFreeCommandBuffers						vkFreeCommandBuffers;
+PFN_vkFreeDescriptorSets						vkFreeDescriptorSets;
+PFN_vkFreeMemory								vkFreeMemory;
+PFN_vkGetBufferMemoryRequirements				vkGetBufferMemoryRequirements;
+PFN_vkGetDeviceQueue							vkGetDeviceQueue;
+PFN_vkGetImageMemoryRequirements				vkGetImageMemoryRequirements;
+PFN_vkMapMemory									vkMapMemory;
+PFN_vkQueueSubmit								vkQueueSubmit;
+PFN_vkQueueWaitIdle								vkQueueWaitIdle;
+PFN_vkResetDescriptorPool						vkResetDescriptorPool;
+PFN_vkResetFences								vkResetFences;
+PFN_vkUpdateDescriptorSets						vkUpdateDescriptorSets;
+PFN_vkWaitForFences								vkWaitForFences;
+PFN_vkAcquireNextImageKHR						vkAcquireNextImageKHR;
+PFN_vkCreateSwapchainKHR						vkCreateSwapchainKHR;
+PFN_vkDestroySwapchainKHR						vkDestroySwapchainKHR;
+PFN_vkGetSwapchainImagesKHR						vkGetSwapchainImagesKHR;
+PFN_vkQueuePresentKHR							vkQueuePresentKHR;
