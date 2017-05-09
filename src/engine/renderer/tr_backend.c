@@ -718,7 +718,6 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
             vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
             image = vk_create_image(cols, rows, 1, false);
             vk_upload_image_data(image.handle, cols, rows, false, data);
-            vk_resources.current_descriptor_sets[glState.currenttmu] = image.descriptor_set;
         }
 	} else {
 		if (dirty) {

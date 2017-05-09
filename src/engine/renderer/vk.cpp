@@ -1292,6 +1292,7 @@ Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_text
         VK_CHECK(vkAllocateDescriptorSets(vk.device, &desc, &image.descriptor_set));
 
         vk_update_descriptor_set(image.descriptor_set, image.view, mip_levels > 1, repeat_texture);
+		vk_resources.current_descriptor_sets[glState.currenttmu] = image.descriptor_set;
     }
 
     return image;
