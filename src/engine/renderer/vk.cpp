@@ -87,9 +87,14 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
 
     // transfer destination usage is required by image clear operations
     if ((surface_caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) == 0)
-        ri.Error(ERR_FATAL, "Vulkan error: VK_IMAGE_USAGE_TRANSFER_DST_BIT is not supported by the swapchain");
+        ri.Error(ERR_FATAL, "create_swapchain: VK_IMAGE_USAGE_TRANSFER_DST_BIT is not supported by the swapchain");
+	if ((surface_caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) == 0)
+		ri.Error(ERR_FATAL, "create_swapchain: VK_IMAGE_USAGE_TRANSFER_SRC_BIT is not supported by the swapchain");
 
-    VkImageUsageFlags image_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    VkImageUsageFlags image_usage =
+		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | 
+		VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
     // determine present mode and swapchain image count
     uint32_t present_mode_count;
@@ -553,8 +558,10 @@ static void init_vulkan_library() {
 	INIT_DEVICE_FUNCTION(vkCmdBindIndexBuffer)
 	INIT_DEVICE_FUNCTION(vkCmdBindPipeline)
 	INIT_DEVICE_FUNCTION(vkCmdBindVertexBuffers)
+	INIT_DEVICE_FUNCTION(vkCmdBlitImage)
 	INIT_DEVICE_FUNCTION(vkCmdClearAttachments)
 	INIT_DEVICE_FUNCTION(vkCmdCopyBufferToImage)
+	INIT_DEVICE_FUNCTION(vkCmdCopyImage)
 	INIT_DEVICE_FUNCTION(vkCmdDrawIndexed)
 	INIT_DEVICE_FUNCTION(vkCmdEndRenderPass)
 	INIT_DEVICE_FUNCTION(vkCmdPipelineBarrier)
@@ -600,6 +607,7 @@ static void init_vulkan_library() {
 	INIT_DEVICE_FUNCTION(vkGetBufferMemoryRequirements)
 	INIT_DEVICE_FUNCTION(vkGetDeviceQueue)
 	INIT_DEVICE_FUNCTION(vkGetImageMemoryRequirements)
+	INIT_DEVICE_FUNCTION(vkGetImageSubresourceLayout)
 	INIT_DEVICE_FUNCTION(vkMapMemory)
 	INIT_DEVICE_FUNCTION(vkQueueSubmit)
 	INIT_DEVICE_FUNCTION(vkQueueWaitIdle)
@@ -648,8 +656,10 @@ static void deinit_vulkan_library() {
 	vkCmdBindIndexBuffer						= nullptr;
 	vkCmdBindPipeline							= nullptr;
 	vkCmdBindVertexBuffers						= nullptr;
+	vkCmdBlitImage								= nullptr;
 	vkCmdClearAttachments						= nullptr;
 	vkCmdCopyBufferToImage						= nullptr;
+	vkCmdCopyImage								= nullptr;
 	vkCmdDrawIndexed							= nullptr;
 	vkCmdEndRenderPass							= nullptr;
 	vkCmdPipelineBarrier						= nullptr;
@@ -695,6 +705,7 @@ static void deinit_vulkan_library() {
 	vkGetBufferMemoryRequirements				= nullptr;
 	vkGetDeviceQueue							= nullptr;
 	vkGetImageMemoryRequirements				= nullptr;
+	vkGetImageSubresourceLayout					= nullptr;
 	vkMapMemory									= nullptr;
 	vkQueueSubmit								= nullptr;
 	vkQueueWaitIdle								= nullptr;
@@ -2162,6 +2173,136 @@ void vk_end_frame() {
     VK_CHECK(vkQueuePresentKHR(vk.queue, &present_info));
 }
 
+void vk_read_pixels(byte* buffer) {
+	vkDeviceWaitIdle(vk.device);
+
+	// Create image in host visible memory to serve as a destination for framebuffer pixels.
+	VkImageCreateInfo desc;
+	desc.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	desc.pNext = nullptr;
+	desc.flags = 0;
+	desc.imageType = VK_IMAGE_TYPE_2D;
+	desc.format = VK_FORMAT_R8G8B8A8_UNORM;
+	desc.extent.width = glConfig.vidWidth;
+	desc.extent.height = glConfig.vidHeight;
+	desc.extent.depth = 1;
+	desc.mipLevels = 1;
+	desc.arrayLayers = 1;
+	desc.samples = VK_SAMPLE_COUNT_1_BIT;
+	desc.tiling = VK_IMAGE_TILING_LINEAR;
+	desc.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	desc.queueFamilyIndexCount = 0;
+	desc.pQueueFamilyIndices = nullptr;
+	desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VkImage image;
+	VK_CHECK(vkCreateImage(vk.device, &desc, nullptr, &image));
+
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements(vk.device, image, &memory_requirements);
+	VkMemoryAllocateInfo alloc_info;
+	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	alloc_info.pNext = nullptr;
+	alloc_info.allocationSize = memory_requirements.size;
+	alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	VkDeviceMemory memory;
+	VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &memory));
+	VK_CHECK(vkBindImageMemory(vk.device, image, memory, 0));
+
+	record_and_run_commands(vk.command_pool, vk.queue, [&image](VkCommandBuffer command_buffer) {
+		record_image_layout_transition(command_buffer, vk.swapchain_images[vk.swapchain_image_index], vk.surface_format.format,
+			VK_ACCESS_MEMORY_READ_BIT, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 
+			VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+		record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
+			0, VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL);
+	});
+
+	// Check if we can use vkCmdBlitImage for the given source and destination image formats.
+	bool blit_enabled = true;
+	{
+		VkFormatProperties formatProps;
+		vkGetPhysicalDeviceFormatProperties(vk.physical_device, vk.surface_format.format, &formatProps);
+		if ((formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) == 0)
+			blit_enabled = false;
+
+		vkGetPhysicalDeviceFormatProperties(vk.physical_device, VK_FORMAT_R8G8B8A8_UNORM, &formatProps);
+		if ((formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) == 0)
+			blit_enabled = false;
+	}
+
+	if (blit_enabled) {
+		record_and_run_commands(vk.command_pool, vk.queue, [&image](VkCommandBuffer command_buffer) {
+			VkImageBlit region;
+			region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			region.srcSubresource.mipLevel = 0;
+			region.srcSubresource.baseArrayLayer = 0;
+			region.srcSubresource.layerCount = 1;
+			region.srcOffsets[0] = {0, 0, 0};
+			region.srcOffsets[1] = {glConfig.vidWidth, glConfig.vidHeight, 1};
+			region.dstSubresource = region.srcSubresource;
+			region.dstOffsets[0] = region.srcOffsets[0];
+			region.dstOffsets[1] = region.srcOffsets[1];
+
+			vkCmdBlitImage(command_buffer, vk.swapchain_images[vk.swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				image, VK_IMAGE_LAYOUT_GENERAL, 1, &region, VK_FILTER_NEAREST);
+		});
+	} else {
+		record_and_run_commands(vk.command_pool, vk.queue, [&image](VkCommandBuffer command_buffer) {
+			VkImageCopy region;
+			region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			region.srcSubresource.mipLevel = 0;
+			region.srcSubresource.baseArrayLayer = 0;
+			region.srcSubresource.layerCount = 1;
+			region.srcOffset = {0, 0, 0};
+			region.dstSubresource = region.srcSubresource;
+			region.dstOffset = region.srcOffset;
+			region.extent = {(uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight, 1};
+
+			vkCmdCopyImage(command_buffer, vk.swapchain_images[vk.swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+		});
+	}
+
+	// Copy data from destination image to memory buffer.
+	VkImageSubresource subresource;
+	subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	subresource.mipLevel = 0;
+	subresource.arrayLayer = 0;
+	VkSubresourceLayout layout;
+	vkGetImageSubresourceLayout(vk.device, image, &subresource, &layout);
+
+	byte* data;
+	VK_CHECK(vkMapMemory(vk.device, memory, 0, VK_WHOLE_SIZE, 0, (void**)&data));
+	data += layout.offset;
+
+	byte* buffer_ptr = buffer + glConfig.vidWidth * (glConfig.vidHeight - 1) * 4;
+	for (int i = 0; i < glConfig.vidHeight; i++) {
+		Com_Memcpy(buffer_ptr, data, glConfig.vidWidth * 4);
+		buffer_ptr -= glConfig.vidWidth * 4;
+		data += layout.rowPitch;
+	}
+
+	if (!blit_enabled) {
+		auto fmt = vk.surface_format.format;
+		bool swizzle_components = (fmt == VK_FORMAT_B8G8R8A8_SRGB || fmt == VK_FORMAT_B8G8R8A8_UNORM || fmt == VK_FORMAT_B8G8R8A8_SNORM);
+		if (swizzle_components) {
+			buffer_ptr = buffer;
+			for (int i = 0; i < glConfig.vidWidth * glConfig.vidHeight; i++) {
+				byte tmp = buffer_ptr[0];
+				buffer_ptr[0] = buffer_ptr[2];
+				buffer_ptr[2] = tmp;
+				buffer_ptr += 4;
+			}
+		}
+	}
+
+	vkDestroyImage(vk.device, image, nullptr);
+	vkFreeMemory(vk.device, memory, nullptr);
+}
+
 PFN_vkGetInstanceProcAddr						vkGetInstanceProcAddr;
 
 PFN_vkCreateInstance							vkCreateInstance;
@@ -2194,8 +2335,10 @@ PFN_vkCmdBindDescriptorSets						vkCmdBindDescriptorSets;
 PFN_vkCmdBindIndexBuffer						vkCmdBindIndexBuffer;
 PFN_vkCmdBindPipeline							vkCmdBindPipeline;
 PFN_vkCmdBindVertexBuffers						vkCmdBindVertexBuffers;
+PFN_vkCmdBlitImage								vkCmdBlitImage;
 PFN_vkCmdClearAttachments						vkCmdClearAttachments;
 PFN_vkCmdCopyBufferToImage						vkCmdCopyBufferToImage;
+PFN_vkCmdCopyImage								vkCmdCopyImage;
 PFN_vkCmdDrawIndexed							vkCmdDrawIndexed;
 PFN_vkCmdEndRenderPass							vkCmdEndRenderPass;
 PFN_vkCmdPipelineBarrier						vkCmdPipelineBarrier;
@@ -2241,6 +2384,7 @@ PFN_vkFreeMemory								vkFreeMemory;
 PFN_vkGetBufferMemoryRequirements				vkGetBufferMemoryRequirements;
 PFN_vkGetDeviceQueue							vkGetDeviceQueue;
 PFN_vkGetImageMemoryRequirements				vkGetImageMemoryRequirements;
+PFN_vkGetImageSubresourceLayout					vkGetImageSubresourceLayout;
 PFN_vkMapMemory									vkMapMemory;
 PFN_vkQueueSubmit								vkQueueSubmit;
 PFN_vkQueueWaitIdle								vkQueueWaitIdle;

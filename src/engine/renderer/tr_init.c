@@ -369,7 +369,24 @@ void RB_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
 	buffer[15] = height >> 8;
 	buffer[16] = 24;	// pixel size
 
-	qglReadPixels( x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer+18 ); 
+	if (r_renderAPI->integer == 0) {
+		qglReadPixels( x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer+18 ); 
+	} else {
+		// VULKAN
+		byte* buffer2 = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);
+		vk_read_pixels(buffer2);
+
+		byte* buffer_ptr = buffer + 18;
+		byte* buffer2_ptr = buffer2;
+		for (int i = 0; i < glConfig.vidWidth * glConfig.vidHeight; i++) {
+			buffer_ptr[0] = buffer2_ptr[0];
+			buffer_ptr[1] = buffer2_ptr[1];
+			buffer_ptr[2] = buffer2_ptr[2];
+			buffer_ptr += 3;
+			buffer2_ptr += 4;
+		}
+		ri.Hunk_FreeTempMemory(buffer2);
+	}
 
 	// swap rgb to bgr
 	c = 18 + width * height * 3;
@@ -395,11 +412,14 @@ RB_TakeScreenshotJPEG
 ================== 
 */  
 void RB_TakeScreenshotJPEG( int x, int y, int width, int height, char *fileName ) {
-	byte		*buffer;
+	byte* buffer = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);;
 
-	buffer = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);
-
-	qglReadPixels( x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer ); 
+	if (r_renderAPI->integer == 0) {
+		qglReadPixels( x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer ); 
+	} else {
+		// VULKAN
+		vk_read_pixels(buffer);
+	}
 
 	// gamma correct
 	if ( ( tr.overbrightBits > 0 ) && glConfig.deviceSupportsGamma ) {

@@ -86,6 +86,8 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
 void vk_begin_frame();
 void vk_end_frame();
 
+void vk_read_pixels(byte* buffer);
+
 // Vulkan specific structures used by the engine.
 struct Vk_Instance {
     bool active = false;
@@ -233,8 +235,10 @@ extern PFN_vkCmdBindDescriptorSets						vkCmdBindDescriptorSets;
 extern PFN_vkCmdBindIndexBuffer							vkCmdBindIndexBuffer;
 extern PFN_vkCmdBindPipeline							vkCmdBindPipeline;
 extern PFN_vkCmdBindVertexBuffers						vkCmdBindVertexBuffers;
+extern PFN_vkCmdBlitImage								vkCmdBlitImage;
 extern PFN_vkCmdClearAttachments						vkCmdClearAttachments;
 extern PFN_vkCmdCopyBufferToImage						vkCmdCopyBufferToImage;
+extern PFN_vkCmdCopyImage								vkCmdCopyImage;
 extern PFN_vkCmdDrawIndexed								vkCmdDrawIndexed;
 extern PFN_vkCmdEndRenderPass							vkCmdEndRenderPass;
 extern PFN_vkCmdPipelineBarrier							vkCmdPipelineBarrier;
@@ -280,6 +284,7 @@ extern PFN_vkFreeMemory									vkFreeMemory;
 extern PFN_vkGetBufferMemoryRequirements				vkGetBufferMemoryRequirements;
 extern PFN_vkGetDeviceQueue								vkGetDeviceQueue;
 extern PFN_vkGetImageMemoryRequirements					vkGetImageMemoryRequirements;
+extern PFN_vkGetImageSubresourceLayout					vkGetImageSubresourceLayout;
 extern PFN_vkMapMemory									vkMapMemory;
 extern PFN_vkQueueSubmit								vkQueueSubmit;
 extern PFN_vkQueueWaitIdle								vkQueueWaitIdle;
