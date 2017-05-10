@@ -227,7 +227,7 @@ void CL_DemoFilename( int number, char *fileName ) {
 	int		a,b,c,d;
 
 	if ( number < 0 || number > 9999 ) {
-		Com_sprintf( fileName, MAX_OSPATH, "demo9999.tga" );
+		Com_sprintf( fileName, MAX_QPATH, "demo9999.tga" );
 		return;
 	}
 
@@ -239,7 +239,7 @@ void CL_DemoFilename( int number, char *fileName ) {
 	number -= c*10;
 	d = number;
 
-	Com_sprintf( fileName, MAX_OSPATH, "demo%i%i%i%i"
+	Com_sprintf( fileName, MAX_QPATH, "demo%i%i%i%i"
 		, a, b, c, d );
 }
 
