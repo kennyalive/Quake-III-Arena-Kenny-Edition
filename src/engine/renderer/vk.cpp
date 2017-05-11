@@ -2107,6 +2107,16 @@ void vk_begin_frame() {
 
     VK_CHECK(vkBeginCommandBuffer(vk.command_buffer, &begin_info));
 
+	// Ensure visibility of writes to geometry buffers.
+	record_buffer_memory_barrier(vk.command_buffer, vk.vertex_buffer,
+		VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+		VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
+
+	record_buffer_memory_barrier(vk.command_buffer, vk.index_buffer,
+		VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+		VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT);
+
+	// Begin render pass.
 	VkClearValue clear_values[2];
 	/// ignore clear_values[0] which corresponds to color attachment
 	clear_values[1].depthStencil.depth = 1.0;
@@ -2123,8 +2133,8 @@ void vk_begin_frame() {
 	render_pass_begin_info.pClearValues = clear_values;
 
 	vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    vk_resources.dirty_attachments = false;
 
+    vk_resources.dirty_attachments = false;
 	vk.xyz_elements = 0;
 	vk.color_st_elements = 0;
 	vk.index_buffer_offset = 0;
