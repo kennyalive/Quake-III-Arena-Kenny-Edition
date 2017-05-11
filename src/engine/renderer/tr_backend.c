@@ -1005,6 +1005,9 @@ void RB_ExecuteRenderCommands( const void *data ) {
 		backEnd.smpFrame = 1;
 	}
 
+	bool vk_begin_frame_called = false;
+	bool vk_end_frame_called = false;
+
 	while ( 1 ) {
 		switch ( *(const int *)data ) {
 		case RC_SET_COLOR:
@@ -1018,9 +1021,11 @@ void RB_ExecuteRenderCommands( const void *data ) {
 			break;
 		case RC_DRAW_BUFFER:
 			data = RB_DrawBuffer( data );
+			vk_begin_frame_called = true;
 			break;
 		case RC_SWAP_BUFFERS:
 			data = RB_SwapBuffers( data );
+			vk_end_frame_called = true;
 			break;
 		case RC_SCREENSHOT:
 			data = RB_TakeScreenshotCmd( data );
@@ -1031,6 +1036,11 @@ void RB_ExecuteRenderCommands( const void *data ) {
 			// stop rendering on this thread
 			t2 = ri.Milliseconds ();
 			backEnd.pc.msec = t2 - t1;
+
+			// VULKAN
+			if (com_errorEntered && (vk_begin_frame_called && !vk_end_frame_called))
+				vk_end_frame();
+
 			return;
 		}
 	}
