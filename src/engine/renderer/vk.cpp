@@ -55,24 +55,31 @@ static uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t memo
     return -1;
 }
 
-static VkFormat find_format_with_features(VkPhysicalDevice physical_device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
-    for (VkFormat format : candidates) {
-        VkFormatProperties properties;
-        vkGetPhysicalDeviceFormatProperties(physical_device, format, &properties);
-
-        if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features)
-            return format;
-        if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features)
-            return format;
-    }
-
-    ri.Error(ERR_FATAL, "Vulkan error: failed to find format with requested features");
-    return VK_FORMAT_UNDEFINED; // never get here
-}
-
 static VkFormat find_depth_format(VkPhysicalDevice physical_device) {
-    return find_format_with_features(physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-        VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	if (r_stencilbits->integer > 0) {
+		VkFormat depth_stencil_formats[2] = {VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT};
+		for (int i = 0; i < 2; i++) {
+			VkFormatProperties props;
+			vkGetPhysicalDeviceFormatProperties(physical_device, depth_stencil_formats[i], &props);
+			if ((props.optimalTilingFeatures  & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0) {
+				glConfig.stencilBits = 8;
+				return depth_stencil_formats[i];
+			}
+		}
+		ri.Error(ERR_FATAL, "find_depth_format: failed to find depth-stencil attachment format");
+	} else {
+		VkFormat depth_formats[2] = {VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D32_SFLOAT};
+		for (int i = 0; i < 2; i++) {
+			VkFormatProperties props;
+			vkGetPhysicalDeviceFormatProperties(physical_device, depth_formats[i], &props);
+			if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0) {
+				glConfig.stencilBits = 0;
+				return depth_formats[i];
+			}
+		}
+		ri.Error(ERR_FATAL, "find_depth_format: failed to find depth attachment format");
+	}
+	return VK_FORMAT_UNDEFINED; // neger get here
 }
 
 static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR surface_format) {
@@ -85,16 +92,13 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
         image_extent.height = std::min(surface_caps.maxImageExtent.height, std::max(surface_caps.minImageExtent.height, 480u));
     }
 
-    // transfer destination usage is required by image clear operations
+    // VK_IMAGE_USAGE_TRANSFER_DST_BIT is required by image clear operations.
     if ((surface_caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) == 0)
         ri.Error(ERR_FATAL, "create_swapchain: VK_IMAGE_USAGE_TRANSFER_DST_BIT is not supported by the swapchain");
+
+	// VK_IMAGE_USAGE_TRANSFER_SRC_BIT is required in order to take screenshots.
 	if ((surface_caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) == 0)
 		ri.Error(ERR_FATAL, "create_swapchain: VK_IMAGE_USAGE_TRANSFER_SRC_BIT is not supported by the swapchain");
-
-    VkImageUsageFlags image_usage =
-		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | 
-		VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
     // determine present mode and swapchain image count
     uint32_t present_mode_count;
@@ -129,7 +133,7 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
     desc.imageColorSpace = surface_format.colorSpace;
     desc.imageExtent = image_extent;
     desc.imageArrayLayers = 1;
-    desc.imageUsage = image_usage;
+    desc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     desc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     desc.queueFamilyIndexCount = 0;
     desc.pQueueFamilyIndices = nullptr;
@@ -156,12 +160,13 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
     attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+	bool clear_stencil = (r_shadows->integer == 2);
     attachments[1].flags = 0;
 	attachments[1].format = depth_format;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[1].stencilLoadOp = clear_stencil ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -2107,7 +2112,7 @@ void vk_begin_frame() {
 
     VK_CHECK(vkBeginCommandBuffer(vk.command_buffer, &begin_info));
 
-	// Ensure visibility of writes to geometry buffers.
+	// Ensure visibility of geometry buffers writes.
 	record_buffer_memory_barrier(vk.command_buffer, vk.vertex_buffer,
 		VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
 		VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);

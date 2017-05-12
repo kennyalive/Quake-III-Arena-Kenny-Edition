@@ -810,7 +810,6 @@ typedef struct {
 
 typedef struct {
 	int		c_surfaces, c_shaders, c_vertexes, c_indexes, c_totalIndexes;
-	float	c_overDraw;
 	
 	int		c_dlightVertexes;
 	int		c_dlightIndexes;
@@ -973,8 +972,6 @@ extern cvar_t	*r_texturebits;			// number of desired texture bits
 										// 16 = use 16-bit textures
 										// 32 = use 32-bit textures
 										// all else = error
-
-extern cvar_t	*r_measureOverdraw;		// enables stencil buffer overdraw measurement
 
 extern cvar_t	*r_lodbias;				// push/pull LOD transitions
 extern cvar_t	*r_lodscale;

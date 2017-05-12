@@ -7,4 +7,5 @@ Removed cvars:
 * r_finish
 * r_ignoreFastPath
 * r_maskMinidriver
+* r_measureOverdraw
 * r_primitives (always use qglDrawElements)
