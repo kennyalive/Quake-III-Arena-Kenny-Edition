@@ -106,21 +106,30 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
     std::vector<VkPresentModeKHR> present_modes(present_mode_count);
     VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, present_modes.data()));
 
-    VkPresentModeKHR present_mode;
-    uint32_t image_count;
+	bool mailbox_supported = false;
+	bool immediate_supported = false;
+	for (auto pm : present_modes) {
+		if (pm == VK_PRESENT_MODE_MAILBOX_KHR)
+			mailbox_supported = true;
+		else if (pm == VK_PRESENT_MODE_IMMEDIATE_KHR)
+			immediate_supported = true;
+	}
 
-    auto it = std::find(present_modes.cbegin(), present_modes.cend(), VK_PRESENT_MODE_MAILBOX_KHR);
-    if (it != present_modes.cend()) {
-        present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
-        image_count = std::max(3u, surface_caps.minImageCount);
-        if (surface_caps.maxImageCount > 0) {
-            image_count = std::min(image_count, surface_caps.maxImageCount);
-        }
-    }
-    else {
-        present_mode = VK_PRESENT_MODE_FIFO_KHR;
-        image_count = surface_caps.minImageCount;
-    }
+	VkPresentModeKHR present_mode;
+	uint32_t image_count;
+	if (mailbox_supported) {
+		present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+		image_count = std::max(3u, surface_caps.minImageCount);
+		if (surface_caps.maxImageCount > 0) {
+			image_count = std::min(image_count, surface_caps.maxImageCount);
+		}
+	} else if (immediate_supported) {
+		present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+		image_count = surface_caps.minImageCount;
+	} else {
+		present_mode = VK_PRESENT_MODE_FIFO_KHR;
+		image_count = surface_caps.minImageCount;
+	}
 
     // create swap chain
     VkSwapchainCreateInfoKHR desc;
@@ -533,6 +542,7 @@ static void init_vulkan_library() {
 	//
 	create_instance();
 	INIT_INSTANCE_FUNCTION(vkCreateDevice)
+	INIT_INSTANCE_FUNCTION(vkDestroyInstance)
 	INIT_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties)
 	INIT_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices)
 	INIT_INSTANCE_FUNCTION(vkGetDeviceProcAddr)
@@ -597,7 +607,6 @@ static void init_vulkan_library() {
 	INIT_DEVICE_FUNCTION(vkDestroyFramebuffer)
 	INIT_DEVICE_FUNCTION(vkDestroyImage)
 	INIT_DEVICE_FUNCTION(vkDestroyImageView)
-	INIT_DEVICE_FUNCTION(vkDestroyInstance)
 	INIT_DEVICE_FUNCTION(vkDestroyPipeline)
 	INIT_DEVICE_FUNCTION(vkDestroyPipelineLayout)
 	INIT_DEVICE_FUNCTION(vkDestroyRenderPass)
@@ -635,6 +644,7 @@ static void deinit_vulkan_library() {
 	vkEnumerateInstanceExtensionProperties		= nullptr;
 
 	vkCreateDevice								= nullptr;
+	vkDestroyInstance							= nullptr;
 	vkEnumerateDeviceExtensionProperties		= nullptr;
 	vkEnumeratePhysicalDevices					= nullptr;
 	vkGetDeviceProcAddr							= nullptr;
@@ -695,7 +705,6 @@ static void deinit_vulkan_library() {
 	vkDestroyFramebuffer						= nullptr;
 	vkDestroyImage								= nullptr;
 	vkDestroyImageView							= nullptr;
-	vkDestroyInstance							= nullptr;
 	vkDestroyPipeline							= nullptr;
 	vkDestroyPipelineLayout						= nullptr;
 	vkDestroyRenderPass							= nullptr;
@@ -2325,6 +2334,7 @@ PFN_vkCreateInstance							vkCreateInstance;
 PFN_vkEnumerateInstanceExtensionProperties		vkEnumerateInstanceExtensionProperties;
 
 PFN_vkCreateDevice								vkCreateDevice;
+PFN_vkDestroyInstance							vkDestroyInstance;
 PFN_vkEnumerateDeviceExtensionProperties		vkEnumerateDeviceExtensionProperties;
 PFN_vkEnumeratePhysicalDevices					vkEnumeratePhysicalDevices;
 PFN_vkGetDeviceProcAddr							vkGetDeviceProcAddr;
@@ -2385,7 +2395,6 @@ PFN_vkDestroyFence								vkDestroyFence;
 PFN_vkDestroyFramebuffer						vkDestroyFramebuffer;
 PFN_vkDestroyImage								vkDestroyImage;
 PFN_vkDestroyImageView							vkDestroyImageView;
-PFN_vkDestroyInstance							vkDestroyInstance;
 PFN_vkDestroyPipeline							vkDestroyPipeline;
 PFN_vkDestroyPipelineLayout						vkDestroyPipelineLayout;
 PFN_vkDestroyRenderPass							vkDestroyRenderPass;
