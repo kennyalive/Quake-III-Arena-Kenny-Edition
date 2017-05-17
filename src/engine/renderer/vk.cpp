@@ -1089,9 +1089,43 @@ void vk_initialize() {
             def.polygon_offset = false;
             def.clipping_plane = false;
             def.mirror = false;
-
             vk.skybox_pipeline = create_pipeline(def);
         }
+
+		// Q3 stencil shadows
+		{
+			{
+				Vk_Pipeline_Def def;
+				def.polygon_offset = false;
+				def.state_bits = 0;
+				def.shader_type = Vk_Shader_Type::single_texture;
+				def.clipping_plane = false;
+				def.shadow_phase = Vk_Shadow_Phase::shadow_edges_rendering;
+
+				cullType_t cull_types[2] = {CT_FRONT_SIDED, CT_BACK_SIDED};
+				bool mirror_flags[2] = {false, true};
+
+				for (int i = 0; i < 2; i++) {
+					def.face_culling = cull_types[i];
+					for (int j = 0; j < 2; j++) {
+						def.mirror = mirror_flags[j];
+						vk.shadow_volume_pipelines[i][j] = create_pipeline(def);
+					}
+				}
+			}
+
+			{
+				Vk_Pipeline_Def def;
+				def.face_culling = CT_FRONT_SIDED;
+				def.polygon_offset = false;
+				def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
+				def.shader_type = Vk_Shader_Type::single_texture;
+				def.clipping_plane = false;
+				def.mirror = false;
+				def.shadow_phase = Vk_Shadow_Phase::fullscreen_quad_rendering;
+				vk.shadow_finish_pipeline = create_pipeline(def);
+			}
+		}
 
         // fog and dlights
         {
@@ -1170,6 +1204,13 @@ void vk_shutdown() {
     vkDestroyShaderModule(vk.device, vk.multi_texture_add_fs, nullptr);
 
     vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
+
+	for (int i = 0; i < 2; i++)
+		for (int j = 0; j < 2; j++) {
+			vkDestroyPipeline(vk.device, vk.shadow_volume_pipelines[i][j], nullptr);
+		}
+	vkDestroyPipeline(vk.device, vk.shadow_finish_pipeline, nullptr);
+
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 3; j++)
             for (int k = 0; k < 2; k++) {
@@ -1581,15 +1622,45 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
     depth_stencil_state.depthWriteEnable = (def.state_bits & GLS_DEPTHMASK_TRUE) ? VK_TRUE : VK_FALSE;
     depth_stencil_state.depthCompareOp = (def.state_bits & GLS_DEPTHFUNC_EQUAL) ? VK_COMPARE_OP_EQUAL : VK_COMPARE_OP_LESS_OR_EQUAL;
     depth_stencil_state.depthBoundsTestEnable = VK_FALSE;
-    depth_stencil_state.stencilTestEnable = VK_FALSE;
-    depth_stencil_state.front = {};
-    depth_stencil_state.back = {};
+    depth_stencil_state.stencilTestEnable = (def.shadow_phase != Vk_Shadow_Phase::disabled) ? VK_TRUE : VK_FALSE;
+
+	if (def.shadow_phase == Vk_Shadow_Phase::shadow_edges_rendering) {
+		depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+		depth_stencil_state.front.passOp = (def.face_culling == CT_FRONT_SIDED) ? VK_STENCIL_OP_INCREMENT_AND_CLAMP : VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+		depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+		depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
+		depth_stencil_state.front.compareMask = 255;
+		depth_stencil_state.front.writeMask = 255;
+		depth_stencil_state.front.reference = 0;
+
+		depth_stencil_state.back = depth_stencil_state.front;
+
+	}  else if (def.shadow_phase == Vk_Shadow_Phase::fullscreen_quad_rendering) {
+		depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+		depth_stencil_state.front.passOp = VK_STENCIL_OP_KEEP;
+		depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+		depth_stencil_state.front.compareOp = VK_COMPARE_OP_NOT_EQUAL;
+		depth_stencil_state.front.compareMask = 255;
+		depth_stencil_state.front.writeMask = 255;
+		depth_stencil_state.front.reference = 0;
+
+		depth_stencil_state.back = depth_stencil_state.front;
+
+	} else {
+		depth_stencil_state.front = {};
+		depth_stencil_state.back = {};
+	}
+
     depth_stencil_state.minDepthBounds = 0.0;
     depth_stencil_state.maxDepthBounds = 0.0;
 
     VkPipelineColorBlendAttachmentState attachment_blend_state = {};
     attachment_blend_state.blendEnable = (def.state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? VK_TRUE : VK_FALSE;
-    attachment_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	if (def.shadow_phase == Vk_Shadow_Phase::shadow_edges_rendering)
+		attachment_blend_state.colorWriteMask = 0;
+	else
+		attachment_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     
     if (attachment_blend_state.blendEnable) {
         switch (def.state_bits & GLS_SRCBLEND_BITS) {
@@ -1813,7 +1884,8 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
             cur_def.face_culling == def.face_culling &&
             cur_def.polygon_offset == def.polygon_offset &&
             cur_def.clipping_plane == def.clipping_plane &&
-            cur_def.mirror == def.mirror)
+            cur_def.mirror == def.mirror &&
+			cur_def.shadow_phase == def.shadow_phase)
         {
             return vk_resources.pipelines[i];
         }

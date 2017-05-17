@@ -28,6 +28,13 @@ enum class Vk_Shader_Type {
     multi_texture_add
 };
 
+// used with cg_shadows == 2
+enum class Vk_Shadow_Phase {
+	disabled,
+	shadow_edges_rendering,
+	fullscreen_quad_rendering
+};
+
 struct Vk_Sampler_Def {
     bool repeat_texture = false; // clamp/repeat texture addressing mode
     int gl_mag_filter = 0; // GL_XXX mag filter
@@ -41,6 +48,7 @@ struct Vk_Pipeline_Def {
     bool polygon_offset = false;
     bool clipping_plane = false;
     bool mirror = false;
+	Vk_Shadow_Phase shadow_phase = Vk_Shadow_Phase::disabled;
 };
 
 struct Vk_Image {
@@ -146,6 +154,11 @@ struct Vk_Instance {
     VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
 
     VkPipeline skybox_pipeline = VK_NULL_HANDLE;
+
+	// dim 0: 0 - front side, 1 - back size
+	// dim 1: 0 - normal view, 1 - mirror view
+	VkPipeline shadow_volume_pipelines[2][2];
+	VkPipeline shadow_finish_pipeline;
 
     // dim 0 is based on fogPass_t: 0 - corresponds to FP_EQUAL, 1 - corresponds to FP_LE.
     // dim 1 is directly a cullType_t enum value.

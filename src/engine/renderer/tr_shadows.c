@@ -44,8 +44,10 @@ typedef struct {
 static	edgeDef_t	edgeDefs[SHADER_MAX_VERTEXES][MAX_EDGE_DEFS];
 static	int			numEdgeDefs[SHADER_MAX_VERTEXES];
 static	int			facing[SHADER_MAX_INDEXES/3];
+static vec4_t		extrudedEdges[SHADER_MAX_VERTEXES * 4];
+static int			numExtrudedEdges;
 
-void R_AddEdgeDef( int i1, int i2, int facing ) {
+static void R_AddEdgeDef( int i1, int i2, int facing ) {
 	int		c;
 
 	c = numEdgeDefs[ i1 ];
@@ -58,51 +60,18 @@ void R_AddEdgeDef( int i1, int i2, int facing ) {
 	numEdgeDefs[ i1 ]++;
 }
 
-void R_RenderShadowEdges( void ) {
+static void R_ExtrudeShadowEdges( void ) {
 	int		i;
-
-#if 0
-	int		numTris;
-
-	// dumb way -- render every triangle's edges
-	numTris = tess.numIndexes / 3;
-
-	for ( i = 0 ; i < numTris ; i++ ) {
-		int		i1, i2, i3;
-
-		if ( !facing[i] ) {
-			continue;
-		}
-
-		i1 = tess.indexes[ i*3 + 0 ];
-		i2 = tess.indexes[ i*3 + 1 ];
-		i3 = tess.indexes[ i*3 + 2 ];
-
-		qglBegin( GL_TRIANGLE_STRIP );
-		qglVertex3fv( tess.xyz[ i1 ] );
-		qglVertex3fv( tess.xyz[ i1 + tess.numVertexes ] );
-		qglVertex3fv( tess.xyz[ i2 ] );
-		qglVertex3fv( tess.xyz[ i2 + tess.numVertexes ] );
-		qglVertex3fv( tess.xyz[ i3 ] );
-		qglVertex3fv( tess.xyz[ i3 + tess.numVertexes ] );
-		qglVertex3fv( tess.xyz[ i1 ] );
-		qglVertex3fv( tess.xyz[ i1 + tess.numVertexes ] );
-		qglEnd();
-	}
-#else
 	int		c, c2;
 	int		j, k;
 	int		i2;
-	int		c_edges, c_rejected;
-	int		hit[2];
+
+	numExtrudedEdges = 0;
 
 	// an edge is NOT a silhouette edge if its face doesn't face the light,
 	// or if it has a reverse paired edge that also faces the light.
 	// A well behaved polyhedron would have exactly two faces for each edge,
 	// but lots of models have dangling edges or overfanned edges
-	c_edges = 0;
-	c_rejected = 0;
-
 	for ( i = 0 ; i < tess.numVertexes ; i++ ) {
 		c = numEdgeDefs[ i ];
 		for ( j = 0 ; j < c ; j++ ) {
@@ -110,33 +79,78 @@ void R_RenderShadowEdges( void ) {
 				continue;
 			}
 
-			hit[0] = 0;
-			hit[1] = 0;
-
+			bool sil_edge = true;
 			i2 = edgeDefs[ i ][ j ].i2;
 			c2 = numEdgeDefs[ i2 ];
 			for ( k = 0 ; k < c2 ; k++ ) {
-				if ( edgeDefs[ i2 ][ k ].i2 == i ) {
-					hit[ edgeDefs[ i2 ][ k ].facing ]++;
+				if ( edgeDefs[ i2 ][ k ].i2 == i && edgeDefs[ i2 ][ k ].facing) {
+					sil_edge = false;
+					break;
 				}
 			}
 
 			// if it doesn't share the edge with another front facing
 			// triangle, it is a sil edge
-			if ( hit[ 1 ] == 0 ) {
-				qglBegin( GL_TRIANGLE_STRIP );
-				qglVertex3fv( tess.xyz[ i ] );
-				qglVertex3fv( tess.xyz[ i + tess.numVertexes ] );
-				qglVertex3fv( tess.xyz[ i2 ] );
-				qglVertex3fv( tess.xyz[ i2 + tess.numVertexes ] );
-				qglEnd();
-				c_edges++;
-			} else {
-				c_rejected++;
+			if ( sil_edge ) {
+				VectorCopy(tess.xyz[ i ],						extrudedEdges[numExtrudedEdges * 4 + 0]);
+				VectorCopy(tess.xyz[ i + tess.numVertexes ],	extrudedEdges[numExtrudedEdges * 4 + 1]);
+				VectorCopy(tess.xyz[ i2 ],						extrudedEdges[numExtrudedEdges * 4 + 2]);
+				VectorCopy(tess.xyz[ i2 + tess.numVertexes ],	extrudedEdges[numExtrudedEdges * 4 + 3]);
+				numExtrudedEdges++;
 			}
 		}
 	}
-#endif
+}
+
+static void R_GL_RenderShadowEdges() {
+	qglBegin( GL_QUADS);
+	for (int i = 0; i < numExtrudedEdges; i++) {
+		qglVertex3fv(extrudedEdges[i*4 + 0]);
+		qglVertex3fv(extrudedEdges[i*4 + 1]);
+		qglVertex3fv(extrudedEdges[i*4 + 3]);
+		qglVertex3fv(extrudedEdges[i*4 + 2]);
+	}
+	qglEnd();
+}
+
+// VULKAN
+static void R_Vk_RenderShadowEdges(VkPipeline pipeline) {
+	if (!vk.active)
+		return;
+
+	int i = 0;
+	while (i < numExtrudedEdges) {
+		int count = numExtrudedEdges - i;
+		if (count > (SHADER_MAX_VERTEXES - 1) / 4)
+			count = (SHADER_MAX_VERTEXES - 1) / 4;
+
+		Com_Memcpy(tess.xyz, extrudedEdges[i*4], 4 * count * sizeof(vec4_t));
+		tess.numVertexes = count * 4;
+
+		for (int k = 0; k < count; k++) {
+			tess.indexes[k * 6 + 0] = k * 4 + 0;
+			tess.indexes[k * 6 + 1] = k * 4 + 2;
+			tess.indexes[k * 6 + 2] = k * 4 + 1;
+
+			tess.indexes[k * 6 + 3] = k * 4 + 2;
+			tess.indexes[k * 6 + 4] = k * 4 + 3;
+			tess.indexes[k * 6 + 5] = k * 4 + 1;
+		}
+		tess.numIndexes = count * 6;
+
+		for (int k = 0; k < tess.numVertexes; k++) {
+			VectorSet(tess.svars.colors[k], 50, 50, 50);
+			tess.svars.colors[k][3] = 255;
+		}
+
+		vk_bind_resources_shared_between_stages();
+		vk_bind_stage_specific_resources(pipeline, false, false);
+		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+		vk_resources.dirty_attachments = true;
+		vk.xyz_elements += tess.numVertexes;
+
+		i += count;
+	}
 }
 
 /*
@@ -220,27 +234,33 @@ void RB_ShadowTessEnd( void ) {
 	qglEnable( GL_STENCIL_TEST );
 	qglStencilFunc( GL_ALWAYS, 1, 255 );
 
+	R_ExtrudeShadowEdges();
+
 	// mirrors have the culling order reversed
 	if ( backEnd.viewParms.isMirror ) {
 		qglCullFace( GL_FRONT );
 		qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
-
-		R_RenderShadowEdges();
+		R_GL_RenderShadowEdges();
 
 		qglCullFace( GL_BACK );
 		qglStencilOp( GL_KEEP, GL_KEEP, GL_DECR );
+		R_GL_RenderShadowEdges();
 
-		R_RenderShadowEdges();
+		// VULKAN
+		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[0][1]);
+		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[1][1]);
 	} else {
 		qglCullFace( GL_BACK );
 		qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
-
-		R_RenderShadowEdges();
+		R_GL_RenderShadowEdges();
 
 		qglCullFace( GL_FRONT );
 		qglStencilOp( GL_KEEP, GL_KEEP, GL_DECR );
+		R_GL_RenderShadowEdges();
 
-		R_RenderShadowEdges();
+		// VULKAN
+		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[0][0]);
+		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[1][0]);
 	}
 
 
@@ -288,6 +308,48 @@ void RB_ShadowFinish( void ) {
 
 	qglColor3f(1,1,1);
 	qglDisable( GL_STENCIL_TEST );
+
+	// VULKAN
+	if (vk.active) {
+		tess.indexes[0] = 0;
+		tess.indexes[1] = 1;
+		tess.indexes[2] = 2;
+		tess.indexes[3] = 0;
+		tess.indexes[4] = 2;
+		tess.indexes[5] = 3;
+		tess.numIndexes = 6;
+
+		VectorSet(tess.xyz[0], -100,  100, -10);
+		VectorSet(tess.xyz[1],  100,  100, -10);
+		VectorSet(tess.xyz[2],  100, -100, -10);
+		VectorSet(tess.xyz[3], -100, -100, -10);
+		for (int i = 0; i < 4; i++) {
+			VectorSet(tess.svars.colors[i], 153, 153, 153);
+			tess.svars.colors[i][3] = 255;
+		}
+		tess.numVertexes = 4;
+
+		// set backEnd.or.modelMatrix to identity matrix
+		float tmp[16];
+		Com_Memcpy(tmp, backEnd.or.modelMatrix, 64);
+		Com_Memset(backEnd.or.modelMatrix, 0, 64);
+		backEnd.or.modelMatrix[0] = 1.0f;
+		backEnd.or.modelMatrix[5] = 1.0f;
+		backEnd.or.modelMatrix[10] = 1.0f;
+		backEnd.or.modelMatrix[15] = 1.0f;
+
+		vk_bind_resources_shared_between_stages();
+
+		Com_Memcpy(backEnd.or.modelMatrix, tmp, 64);
+
+		vk_bind_stage_specific_resources(vk.shadow_finish_pipeline, false, false);
+		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+		vk_resources.dirty_attachments = true;
+		vk.xyz_elements += tess.numVertexes;
+
+		tess.numIndexes = 0;
+		tess.numVertexes = 0;
+	}
 }
 
 
