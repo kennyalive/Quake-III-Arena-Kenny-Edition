@@ -64,11 +64,6 @@ void R_PerformanceCounters( void ) {
 	{
 		ri.Printf( PRINT_ALL, "zFar: %.0f\n", tr.viewParms.zFar );
 	}
-	else if (r_speeds->integer == 6 )
-	{
-		ri.Printf( PRINT_ALL, "flare adds:%i tests:%i renders:%i\n", 
-			backEnd.pc.c_flareAdds, backEnd.pc.c_flareTests, backEnd.pc.c_flareRenders );
-	}
 
 	Com_Memset( &tr.pc, 0, sizeof( tr.pc ) );
 	Com_Memset( &backEnd.pc, 0, sizeof( backEnd.pc ) );
@@ -310,7 +305,6 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 	}
 
 	tr.frameCount++;
-	tr.frameSceneNum = 0;
 
 	//
 	// texturemode stuff

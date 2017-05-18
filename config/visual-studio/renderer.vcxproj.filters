@@ -29,9 +29,6 @@
     <ClCompile Include="..\..\src\engine\renderer\tr_curve.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\engine\renderer\tr_flares.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\engine\renderer\tr_font.c">
       <Filter>Source Files</Filter>
     </ClCompile>

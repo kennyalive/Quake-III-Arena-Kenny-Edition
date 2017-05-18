@@ -107,7 +107,6 @@
     <ClCompile Include="..\..\src\engine\renderer\tr_bsp.c" />
     <ClCompile Include="..\..\src\engine\renderer\tr_cmds.c" />
     <ClCompile Include="..\..\src\engine\renderer\tr_curve.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_flares.c" />
     <ClCompile Include="..\..\src\engine\renderer\tr_font.c" />
     <ClCompile Include="..\..\src\engine\renderer\tr_image.c" />
     <ClCompile Include="..\..\src\engine\renderer\tr_init.c" />

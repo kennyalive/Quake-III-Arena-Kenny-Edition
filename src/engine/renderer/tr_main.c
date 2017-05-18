@@ -220,26 +220,6 @@ void R_TransformModelToClip( const vec3_t src, const float *modelMatrix, const f
 
 /*
 ==========================
-R_TransformClipToWindow
-
-==========================
-*/
-void R_TransformClipToWindow( const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window ) {
-	normalized[0] = clip[0] / clip[3];
-	normalized[1] = clip[1] / clip[3];
-	normalized[2] = ( clip[2] + clip[3] ) / ( 2 * clip[3] );
-
-	window[0] = 0.5f * ( 1.0f + normalized[0] ) * view->viewportWidth;
-	window[1] = 0.5f * ( 1.0f + normalized[1] ) * view->viewportHeight;
-	window[2] = normalized[2];
-
-	window[0] = (int) ( window[0] + 0.5 );
-	window[1] = (int) ( window[1] + 0.5 );
-}
-
-
-/*
-==========================
 myGlMultMatrix
 
 ==========================
@@ -1467,7 +1447,6 @@ void R_RenderView (viewParms_t *parms) {
 	tr.viewCount++;
 
 	tr.viewParms = *parms;
-	tr.viewParms.frameSceneNum = tr.frameSceneNum;
 	tr.viewParms.frameCount = tr.frameCount;
 
 	firstDrawSurf = tr.refdef.numDrawSurfs;

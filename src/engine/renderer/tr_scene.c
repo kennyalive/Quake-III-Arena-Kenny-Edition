@@ -354,14 +354,6 @@ void RE_RenderScene( const refdef_t *fd ) {
 		tr.refdef.num_dlights = 0;
 	}
 
-	// a single frame may have multiple scenes draw inside it --
-	// a 3D game view, 3D status bar renderings, 3D menus, etc.
-	// They need to be distinguished by the light flare code, because
-	// the visibility state for a given surface may be different in
-	// each scene / view.
-	tr.frameSceneNum++;
-	tr.sceneCount++;
-
 	// setup view parms for the initial view
 	//
 	// set up viewport

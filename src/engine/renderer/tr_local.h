@@ -480,7 +480,6 @@ typedef struct {
 	vec3_t		pvsOrigin;			// may be different than or.origin for portals
 	qboolean	isPortal;			// true if this view is through a portal
 	qboolean	isMirror;			// the portal is a mirror, invert the face culling
-	int			frameSceneNum;		// copied from tr.frameSceneNum
 	int			frameCount;			// copied from tr.frameCount
 	cplane_t	portalPlane;		// clip anything behind this if mirroring
 	int			viewportX, viewportY, viewportWidth, viewportHeight;
@@ -814,10 +813,6 @@ typedef struct {
 	int		c_dlightVertexes;
 	int		c_dlightIndexes;
 
-	int		c_flareAdds;
-	int		c_flareTests;
-	int		c_flareRenders;
-
 	int		msec;			// total msec for backend run
 } backEndCounters_t;
 
@@ -850,13 +845,10 @@ typedef struct {
 
 	int						visCount;		// incremented every time a new vis cluster is entered
 	int						frameCount;		// incremented every frame
-	int						sceneCount;		// incremented every scene
 	int						viewCount;		// incremented every view (twice a scene if portaled)
 											// and every R_MarkFragments call
 
 	int						smpFrame;		// toggles from 0 to 1 every endFrame
-
-	int						frameSceneNum;	// zeroed at RE_BeginFrame
 
 	qboolean				worldMapLoaded;
 	world_t					*world;
@@ -867,7 +859,6 @@ typedef struct {
 	image_t					*scratchImage[32];
 	image_t					*fogImage;
 	image_t					*dlightImage;	// inverse-quare highlight for projective adding
-	image_t					*flareImage;
 	image_t					*whiteImage;			// full of 0xff
 	image_t					*identityLightImage;	// full of tr.identityLightByte
 
@@ -875,8 +866,6 @@ typedef struct {
     shader_t                *cinematicShader;
 	shader_t				*shadowShader;
 	shader_t				*projectionShadowShader;
-
-	shader_t				*flareShader;
 
 	int						numLightmaps;
 	image_t					*lightmaps[MAX_LIGHTMAPS];
@@ -952,9 +941,6 @@ extern cvar_t   *r_twinMode;			// If enabled, renderer creates two separate wind
 										// The first window uses rendering API specified by r_renderAPI,
 										// the second window uses rendering API corresponding to (1 - r_renderAPI).
 
-extern cvar_t	*r_flareSize;
-extern cvar_t	*r_flareFade;
-
 extern cvar_t	*r_railWidth;
 extern cvar_t	*r_railCoreWidth;
 extern cvar_t	*r_railSegmentLength;
@@ -1027,7 +1013,6 @@ extern	cvar_t	*r_showsky;						// forces sky in front of all surfaces
 extern	cvar_t	*r_shownormals;					// draws wireframe normals
 
 extern	cvar_t	*r_shadows;						// controls shadows: 0 = none, 1 = blur, 2 = stencil, 3 = black planar projection
-extern	cvar_t	*r_flares;						// light flares
 
 extern	cvar_t	*r_intensity;
 
@@ -1284,21 +1269,6 @@ void R_AddBrushModelSurfaces( trRefEntity_t *e );
 void R_AddWorldSurfaces( void );
 qboolean R_inPVS( const vec3_t p1, const vec3_t p2 );
 
-
-/*
-============================================================
-
-FLARES
-
-============================================================
-*/
-
-void R_ClearFlares( void );
-
-void RB_AddFlare( void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t normal );
-void RB_AddDlightFlares( void );
-void RB_RenderFlares (void);
-
 /*
 ============================================================
 
@@ -1397,7 +1367,6 @@ void RB_SurfaceAnim( md4Surface_t *surfType );
 */
 void	R_TransformModelToClip( const vec3_t src, const float *modelMatrix, const float *projectionMatrix,
 							vec4_t eye, vec4_t dst );
-void	R_TransformClipToWindow( const vec4_t clip, const viewParms_t *view, vec4_t normalized, vec4_t window );
 
 void	RB_DeformTessGeometry( void );
 
