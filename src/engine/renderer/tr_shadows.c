@@ -263,6 +263,7 @@ void RB_ShadowTessEnd( void ) {
 		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[1][0]);
 	}
 
+	qglDisable(GL_STENCIL_TEST);
 
 	// reenable writing to the color buffer
 	qglColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );

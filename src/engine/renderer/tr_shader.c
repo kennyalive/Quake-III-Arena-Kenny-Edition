@@ -2892,6 +2892,12 @@ static void CreateInternalShaders( void ) {
 
 	tr.defaultShader = FinishShader();
 
+	// shadow shader is just a marker
+	Q_strncpyz( shader.name, "<stencil shadow>", sizeof( shader.name ) );
+	shader.sort = SS_STENCIL_SHADOW;
+
+	tr.shadowShader = FinishShader();
+
     // cinematic shader
     Com_Memset( &shader, 0, sizeof( shader ) );
     Com_Memset( &stages, 0, sizeof( stages ) );
@@ -2905,15 +2911,6 @@ static void CreateInternalShaders( void ) {
     stages[0].stateBits = GLS_DEPTHTEST_DISABLE;
 
     tr.cinematicShader = FinishShader();
-
-	// shadow shader is just a marker
-    Com_Memset( &shader, 0, sizeof( shader ) );
-    Com_Memset( &stages, 0, sizeof( stages ) );
-
-	Q_strncpyz( shader.name, "<stencil shadow>", sizeof( shader.name ) );
-	shader.sort = SS_STENCIL_SHADOW;
-
-	tr.shadowShader = FinishShader();
 }
 
 static void CreateExternalShaders( void ) {
