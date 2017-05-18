@@ -35,6 +35,12 @@ enum class Vk_Shadow_Phase {
 	fullscreen_quad_rendering
 };
 
+enum class Vk_Depth_Range {
+	normal, // [0..1]
+	force_zero, // [0..0]
+	force_one // [1..1]
+};
+
 struct Vk_Sampler_Def {
     bool repeat_texture = false; // clamp/repeat texture addressing mode
     int gl_mag_filter = 0; // GL_XXX mag filter
@@ -90,7 +96,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);
 VkRect2D vk_get_scissor_rect();
 void vk_clear_attachments(bool clear_stencil, bool fast_sky);
 void vk_bind_resources_shared_between_stages();
-void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky);
+void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range);
 void vk_begin_frame();
 void vk_end_frame();
 
@@ -169,6 +175,8 @@ struct Vk_Instance {
     // dim 1 is directly a cullType_t enum value.
     // dim 2 is a polygon offset value (0 - off, 1 - on).
     VkPipeline dlight_pipelines[2][3][2];
+
+	VkPipeline tris_debug_pipeline;
 };
 
 struct Vk_Resources {
