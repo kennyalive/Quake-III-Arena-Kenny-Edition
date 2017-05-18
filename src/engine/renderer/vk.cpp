@@ -511,6 +511,7 @@ static void create_device() {
 		VkPhysicalDeviceFeatures features;
 		Com_Memset(&features, 0, sizeof(features));
 		features.shaderClipDistance = VK_TRUE;
+		features.fillModeNonSolid = VK_TRUE;
 
 		VkDeviceCreateInfo device_desc;
 		device_desc.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -745,6 +746,8 @@ void vk_initialize() {
 	vkGetPhysicalDeviceFeatures(vk.physical_device, &features);
 	if (features.shaderClipDistance == VK_FALSE)
 		ri.Error(ERR_FATAL, "vk_create_instance: shaderClipDistance feature is not supported");
+	if (features.fillModeNonSolid == VK_FALSE)
+		ri.Error(ERR_FATAL, "vk_create_instance: fillModeNonSolid feature is not supported");
 
     vkGetDeviceQueue(vk.device, vk.queue_family_index, 0, &vk.queue);
 
