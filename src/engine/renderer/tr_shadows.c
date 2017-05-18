@@ -144,7 +144,7 @@ static void R_Vk_RenderShadowEdges(VkPipeline pipeline) {
 		}
 
 		vk_bind_resources_shared_between_stages();
-		vk_bind_stage_specific_resources(pipeline, false, false);
+		vk_bind_stage_specific_resources(pipeline, false, Vk_Depth_Range::normal);
 		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
 		vk_resources.dirty_attachments = true;
 		vk.xyz_elements += tess.numVertexes;
@@ -342,7 +342,7 @@ void RB_ShadowFinish( void ) {
 
 		Com_Memcpy(backEnd.or.modelMatrix, tmp, 64);
 
-		vk_bind_stage_specific_resources(vk.shadow_finish_pipeline, false, false);
+		vk_bind_stage_specific_resources(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
 		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
 		vk_resources.dirty_attachments = true;
 		vk.xyz_elements += tess.numVertexes;

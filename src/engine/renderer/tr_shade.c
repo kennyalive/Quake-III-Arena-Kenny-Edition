@@ -114,6 +114,16 @@ static void DrawTris (shaderCommands_t *input) {
 		GLimp_LogComment( "glUnlockArraysEXT\n" );
 	}
 	qglDepthRange( 0, 1 );
+
+	// VULKAN
+	if (vk.active) {
+		Com_Memset(tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+		vk_bind_resources_shared_between_stages();
+		vk_bind_stage_specific_resources(vk.tris_debug_pipeline, false, Vk_Depth_Range::force_zero);
+		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+		vk_resources.dirty_attachments = true;
+		vk.xyz_elements += tess.numVertexes;
+	}
 }
 
 
@@ -164,8 +174,6 @@ void RB_BeginSurface( shader_t *shader, int fogNum ) {
 	tess.dlightBits = 0;		// will be OR'd in by surface functions
 	tess.xstages = state->stages;
 	tess.numPasses = state->numUnfoggedPasses;
-
-    tess.currentStageIteratorFunc = state->isSky ? RB_StageIteratorSky : RB_StageIteratorGeneric;
 
 	tess.shaderTime = backEnd.refdef.floatTime - tess.shader->timeOffset;
 	if (tess.shader->clampTime && tess.shaderTime >= tess.shader->clampTime) {
@@ -364,7 +372,7 @@ static void ProjectDlightTexture( void ) {
         // VULKAN
         if (vk.active) {
             VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
-            vk_bind_stage_specific_resources(pipeline, false, false);
+            vk_bind_stage_specific_resources(pipeline, false, Vk_Depth_Range::normal);
             vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
             vk_resources.dirty_attachments = true;
         }
@@ -411,7 +419,7 @@ static void RB_FogPass( void ) {
     if (vk.active) {
         assert(tess.shader->fogPass > 0);
         VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
-        vk_bind_stage_specific_resources(pipeline, false, false);
+        vk_bind_stage_specific_resources(pipeline, false, Vk_Depth_Range::normal);
         vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
         vk_resources.dirty_attachments = true;
     }
@@ -774,7 +782,11 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
             else if (backEnd.viewParms.isPortal)
                 pipeline = pStage->vk_portal_pipeline;
 
-            vk_bind_stage_specific_resources(pipeline, multitexture, input->shader->isSky == qtrue);
+			auto depth_range = Vk_Depth_Range::normal;
+			if (input->shader->isSky)
+				depth_range = r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one;
+
+            vk_bind_stage_specific_resources(pipeline, multitexture, depth_range);
             vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
             vk_resources.dirty_attachments = true;
         }
@@ -944,7 +956,10 @@ void RB_EndSurface( void ) {
 	//
 	// call off to shader specific tess end function
 	//
-	tess.currentStageIteratorFunc();
+	if (tess.shader->isSky)
+		RB_StageIteratorSky();
+	else
+		RB_StageIteratorGeneric();
 
 	//
 	// draw debugging stuff

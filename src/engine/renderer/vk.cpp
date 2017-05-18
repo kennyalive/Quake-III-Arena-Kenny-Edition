@@ -1163,6 +1163,18 @@ void vk_initialize() {
                 }
             }
         }
+
+		// debug pipelines
+		{
+			Vk_Pipeline_Def def;
+			def.face_culling = CT_FRONT_SIDED;
+			def.polygon_offset = false;
+			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
+			def.shader_type = Vk_Shader_Type::single_texture;
+			def.clipping_plane = false;
+			def.mirror = false;
+			vk.tris_debug_pipeline = create_pipeline(def);
+		}
     }
 	vk.active = true;
 }
@@ -1204,19 +1216,18 @@ void vk_shutdown() {
     vkDestroyShaderModule(vk.device, vk.multi_texture_add_fs, nullptr);
 
     vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
-
 	for (int i = 0; i < 2; i++)
 		for (int j = 0; j < 2; j++) {
 			vkDestroyPipeline(vk.device, vk.shadow_volume_pipelines[i][j], nullptr);
 		}
 	vkDestroyPipeline(vk.device, vk.shadow_finish_pipeline, nullptr);
-
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 3; j++)
             for (int k = 0; k < 2; k++) {
                 vkDestroyPipeline(vk.device, vk.fog_pipelines[i][j][k], nullptr);
                 vkDestroyPipeline(vk.device, vk.dlight_pipelines[i][j][k], nullptr);
             }
+	vkDestroyPipeline(vk.device, vk.tris_debug_pipeline, nullptr);
 
     vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
     vkDestroyDevice(vk.device, nullptr);
@@ -1966,7 +1977,7 @@ static VkRect2D get_viewport_rect() {
     return r;
 }
 
-static VkViewport get_viewport(bool sky_depth_range) {
+static VkViewport get_viewport(Vk_Depth_Range depth_range) {
     VkRect2D r = get_viewport_rect();
 
     VkViewport viewport;
@@ -1974,22 +1985,22 @@ static VkViewport get_viewport(bool sky_depth_range) {
     viewport.y = (float)r.offset.y;
     viewport.width = (float)r.extent.width;
     viewport.height = (float)r.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
 
-    if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
-        viewport.maxDepth = 0.3f;
-    }
+	if (depth_range == Vk_Depth_Range::force_zero) {
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 0.0f;
+	} else if (depth_range == Vk_Depth_Range::force_one) {
+		viewport.minDepth = 1.0f;
+		viewport.maxDepth = 1.0f;
+	} else {
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
 
-    if (sky_depth_range) {
-        if (r_showsky->integer) {
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 0.0f;
-        } else {
-            viewport.minDepth = 1.0f;
-            viewport.maxDepth = 1.0f;
-        }
-    }
+		if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
+			viewport.maxDepth = 0.3f;
+		}
+	}
+
     return viewport;
 }
 
@@ -2109,7 +2120,7 @@ void vk_bind_resources_shared_between_stages() {
     vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, push_constants_size, push_constants);
 }
 
-void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bool sky_depth_range) {
+void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range) {
     //
     // Specify color/st for each draw call since they are regenerated for each Q3 shader's stage.
     // xyz are specified only once for all stages.
@@ -2165,7 +2176,7 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, bo
     VkRect2D scissor_rect = vk_get_scissor_rect();
     vkCmdSetScissor(vk.command_buffer, 0, 1, &scissor_rect);
 
-    VkViewport viewport = get_viewport(sky_depth_range);
+    VkViewport viewport = get_viewport(depth_range);
     vkCmdSetViewport(vk.command_buffer, 0, 1, &viewport);
 
     if (tess.shader->polygonOffset) {
