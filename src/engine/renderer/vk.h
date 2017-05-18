@@ -54,6 +54,7 @@ struct Vk_Pipeline_Def {
     bool polygon_offset = false;
     bool clipping_plane = false;
     bool mirror = false;
+	bool line_primitives = false;
 	Vk_Shadow_Phase shadow_phase = Vk_Shadow_Phase::disabled;
 };
 
@@ -177,6 +178,7 @@ struct Vk_Instance {
     VkPipeline dlight_pipelines[2][3][2];
 
 	VkPipeline tris_debug_pipeline;
+	VkPipeline normals_debug_pipeline;
 };
 
 struct Vk_Resources {
@@ -260,6 +262,7 @@ extern PFN_vkCmdBlitImage								vkCmdBlitImage;
 extern PFN_vkCmdClearAttachments						vkCmdClearAttachments;
 extern PFN_vkCmdCopyBufferToImage						vkCmdCopyBufferToImage;
 extern PFN_vkCmdCopyImage								vkCmdCopyImage;
+extern PFN_vkCmdDraw									vkCmdDraw;
 extern PFN_vkCmdDrawIndexed								vkCmdDrawIndexed;
 extern PFN_vkCmdEndRenderPass							vkCmdEndRenderPass;
 extern PFN_vkCmdPipelineBarrier							vkCmdPipelineBarrier;

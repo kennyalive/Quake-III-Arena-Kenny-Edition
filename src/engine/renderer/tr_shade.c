@@ -152,6 +152,36 @@ static void DrawNormals (shaderCommands_t *input) {
 	qglEnd ();
 
 	qglDepthRange( 0, 1 );
+
+	// VULKAN
+	if (vk.active) {
+		vec4_t xyz[SHADER_MAX_VERTEXES];
+		Com_Memcpy(xyz, tess.xyz, tess.numVertexes * sizeof(vec4_t));
+		Com_Memset(tess.svars.colors, tr.identityLightByte, SHADER_MAX_VERTEXES * sizeof(color4ub_t));
+
+		int numVertexes = tess.numVertexes;
+		i = 0;
+		while (i < numVertexes) {
+			int count = numVertexes - i;
+			if (count >= SHADER_MAX_VERTEXES/2 - 1)
+				count = SHADER_MAX_VERTEXES/2 - 1;
+
+			for (int k = 0; k < count; k++) {
+				VectorCopy(xyz[i + k], tess.xyz[2*k]);
+				VectorMA(xyz[i + k], 2, input->normal[i + k], tess.xyz[2*k + 1]);
+			}
+			tess.numVertexes = 2 * count;
+			tess.numIndexes = 0;
+
+			vk_bind_resources_shared_between_stages();
+			vk_bind_stage_specific_resources(vk.normals_debug_pipeline, false, Vk_Depth_Range::force_zero);
+			vkCmdDraw(vk.command_buffer, tess.numVertexes, 1, 0, 0);
+			vk_resources.dirty_attachments = true;
+			vk.xyz_elements += tess.numVertexes;
+
+			i += count;
+		}
+	}
 }
 
 /*

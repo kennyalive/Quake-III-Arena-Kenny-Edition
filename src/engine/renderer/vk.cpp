@@ -577,6 +577,7 @@ static void init_vulkan_library() {
 	INIT_DEVICE_FUNCTION(vkCmdClearAttachments)
 	INIT_DEVICE_FUNCTION(vkCmdCopyBufferToImage)
 	INIT_DEVICE_FUNCTION(vkCmdCopyImage)
+	INIT_DEVICE_FUNCTION(vkCmdDraw)
 	INIT_DEVICE_FUNCTION(vkCmdDrawIndexed)
 	INIT_DEVICE_FUNCTION(vkCmdEndRenderPass)
 	INIT_DEVICE_FUNCTION(vkCmdPipelineBarrier)
@@ -675,6 +676,7 @@ static void deinit_vulkan_library() {
 	vkCmdClearAttachments						= nullptr;
 	vkCmdCopyBufferToImage						= nullptr;
 	vkCmdCopyImage								= nullptr;
+	vkCmdDraw									= nullptr;
 	vkCmdDrawIndexed							= nullptr;
 	vkCmdEndRenderPass							= nullptr;
 	vkCmdPipelineBarrier						= nullptr;
@@ -1167,13 +1169,14 @@ void vk_initialize() {
 		// debug pipelines
 		{
 			Vk_Pipeline_Def def;
-			def.face_culling = CT_FRONT_SIDED;
-			def.polygon_offset = false;
 			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
-			def.shader_type = Vk_Shader_Type::single_texture;
-			def.clipping_plane = false;
-			def.mirror = false;
 			vk.tris_debug_pipeline = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_DEPTHMASK_TRUE;
+			def.line_primitives = true;
+			vk.normals_debug_pipeline = create_pipeline(def);
 		}
     }
 	vk.active = true;
@@ -1228,6 +1231,7 @@ void vk_shutdown() {
                 vkDestroyPipeline(vk.device, vk.dlight_pipelines[i][j][k], nullptr);
             }
 	vkDestroyPipeline(vk.device, vk.tris_debug_pipeline, nullptr);
+	vkDestroyPipeline(vk.device, vk.normals_debug_pipeline, nullptr);
 
     vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
     vkDestroyDevice(vk.device, nullptr);
@@ -1571,7 +1575,7 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
     input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     input_assembly_state.pNext = nullptr;
     input_assembly_state.flags = 0;
-    input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly_state.topology = def.line_primitives ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     input_assembly_state.primitiveRestartEnable = VK_FALSE;
 
     //
@@ -1896,6 +1900,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
             cur_def.polygon_offset == def.polygon_offset &&
             cur_def.clipping_plane == def.clipping_plane &&
             cur_def.mirror == def.mirror &&
+			cur_def.line_primitives == def.line_primitives &&
 			cur_def.shadow_phase == def.shadow_phase)
         {
             return vk_resources.pipelines[i];
@@ -2448,6 +2453,7 @@ PFN_vkCmdBlitImage								vkCmdBlitImage;
 PFN_vkCmdClearAttachments						vkCmdClearAttachments;
 PFN_vkCmdCopyBufferToImage						vkCmdCopyBufferToImage;
 PFN_vkCmdCopyImage								vkCmdCopyImage;
+PFN_vkCmdDraw									vkCmdDraw;
 PFN_vkCmdDrawIndexed							vkCmdDrawIndexed;
 PFN_vkCmdEndRenderPass							vkCmdEndRenderPass;
 PFN_vkCmdPipelineBarrier						vkCmdPipelineBarrier;
