@@ -192,6 +192,7 @@ struct Vk_Resources {
     int num_pipelines = 0;
     Vk_Pipeline_Def pipeline_defs[MAX_VK_PIPELINES];
     VkPipeline pipelines[MAX_VK_PIPELINES];
+	float pipeline_create_time;
 
     Vk_Image images[MAX_VK_IMAGES];
 

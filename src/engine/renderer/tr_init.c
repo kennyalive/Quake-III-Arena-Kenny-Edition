@@ -1117,6 +1117,9 @@ void RE_EndRegistration( void ) {
 	if (!Sys_LowPhysicalMemory()) {
 		RB_ShowImages();
 	}
+
+	// VULKAN
+	ri.Printf(PRINT_ALL, "Vulkan: pipelines create time %d msec\n", (int)(vk_resources.pipeline_create_time * 1000));
 }
 
 

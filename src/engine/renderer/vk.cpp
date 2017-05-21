@@ -1245,8 +1245,6 @@ void vk_shutdown() {
 	deinit_vulkan_library();
 }
 
-static float pipeline_create_time;
-
 void vk_release_resources() {
     vkDeviceWaitIdle(vk.device);
     auto& res = vk_resources;
@@ -1266,7 +1264,7 @@ void vk_release_resources() {
     for (int i = 0; i < res.num_pipelines; i++)
         vkDestroyPipeline(vk.device, res.pipelines[i], nullptr);
 
-    pipeline_create_time = 0.0f;
+	vk_resources.pipeline_create_time = 0.0f;
 
     for (int i = 0; i < MAX_VK_IMAGES; i++) {
         Vk_Image& image = res.images[i];
@@ -1916,7 +1914,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
 
     Timer t;
     VkPipeline pipeline = create_pipeline(def);
-    pipeline_create_time += t.Elapsed_Seconds();
+    vk_resources.pipeline_create_time += t.Elapsed_Seconds();
 
     vk_resources.pipeline_defs[vk_resources.num_pipelines] = def;
     vk_resources.pipelines[vk_resources.num_pipelines] = pipeline;
