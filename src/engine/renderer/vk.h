@@ -95,7 +95,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);
 // Rendering setup.
 //
 VkRect2D vk_get_scissor_rect();
-void vk_clear_attachments(bool clear_stencil, bool fast_sky);
+void vk_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color);
 void vk_bind_resources_shared_between_stages();
 void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range);
 void vk_begin_frame();

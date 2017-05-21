@@ -1922,28 +1922,33 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
     return pipeline;
 }
 
-void vk_clear_attachments(bool clear_stencil, bool fast_sky) {
+void vk_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color) {
     if (!vk.active)
         return;
 
-    if (!vk_resources.dirty_attachments && !fast_sky)
-        return;
+	if (!clear_depth_stencil && !clear_color)
+		return;
 
     VkClearAttachment attachments[2];
-    uint32_t attachment_count = fast_sky ? 2 : 1;
+	uint32_t attachment_count = 0;
 
-    attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    attachments[0].clearValue.depthStencil.depth = 1.0f;
+	if (clear_depth_stencil) {
+		attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		attachments[0].clearValue.depthStencil.depth = 1.0f;
 
-    if (clear_stencil) {
-        attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-        attachments[0].clearValue.depthStencil.stencil = 0;
-    }
-    if (fast_sky) {
-        attachments[1].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        attachments[1].colorAttachment = 0;
-        attachments[1].clearValue.color = { fast_sky_color[0], fast_sky_color[1], fast_sky_color[2], fast_sky_color[3] };
-    }
+		if (r_shadows->integer == 2) {
+			attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+			attachments[0].clearValue.depthStencil.stencil = 0;
+		}
+		attachment_count = 1;
+	}
+
+	if (clear_color) {
+		attachments[attachment_count].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		attachments[attachment_count].colorAttachment = 0;
+		attachments[attachment_count].clearValue.color = { color[0], color[1], color[2], color[3] };
+		attachment_count++;
+	}
 
     VkClearRect clear_rect[2];
     clear_rect[0].rect = vk_get_scissor_rect();
@@ -1955,8 +1960,10 @@ void vk_clear_attachments(bool clear_stencil, bool fast_sky) {
     // It's a HACK to prevent Vulkan validation layer's performance warning:
     //		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
     //		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
-    //
-    if (fast_sky) {
+    // 
+	// NOTE: we don't use LOAD_OP_CLEAR for color attachment when we begin renderpass
+	// since at that point we don't know whether we need collor buffer clear (usually we don't).
+    if (clear_color) {
         uint32_t h = clear_rect[0].rect.extent.height / 2;
         clear_rect[0].rect.extent.height = h;
         clear_rect[1] = clear_rect[0];

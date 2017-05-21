@@ -375,15 +375,13 @@ A player has predicted a teleport, but hasn't arrived yet
 ================
 */
 static void RB_Hyperspace( void ) {
-	float		c;
-
-	if ( !backEnd.isHyperspace ) {
-		// do initialization shit
-	}
-
-	c = ( backEnd.refdef.time & 255 ) / 255.0f;
+	float c = ( backEnd.refdef.time & 255 ) / 255.0f;
 	qglClearColor( c, c, c, 1 );
 	qglClear( GL_COLOR_BUFFER_BIT );
+
+	// VULKAN
+	float color[4] = { c, c, c, 1 };
+	vk_clear_attachments(false, true, color);
 
 	backEnd.isHyperspace = qtrue;
 }
@@ -410,8 +408,6 @@ to actually render the visible surfaces for this view
 =================
 */
 void RB_BeginDrawingView (void) {
-	int clearBits = 0;
-
 	// we will need to change the projection matrix before drawing
 	// 2D images again
 	backEnd.projection2D = qfalse;
@@ -424,7 +420,7 @@ void RB_BeginDrawingView (void) {
 	// ensures that depth writes are enabled for the depth clear
 	GL_State( GLS_DEFAULT );
 	// clear relevant buffers
-	clearBits = GL_DEPTH_BUFFER_BIT;
+	int clearBits = GL_DEPTH_BUFFER_BIT;
 
     bool clear_stencil = (r_shadows->integer == 2);
 	if ( clear_stencil )
@@ -441,8 +437,8 @@ void RB_BeginDrawingView (void) {
 
 	qglClear( clearBits );
 
-    // VULKAN
-    vk_clear_attachments(clear_stencil, fast_sky);
+	// VULKAN
+	vk_clear_attachments(vk_resources.dirty_attachments, fast_sky, fast_sky_color);
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{
