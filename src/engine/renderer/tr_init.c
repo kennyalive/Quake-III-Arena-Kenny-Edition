@@ -824,10 +824,19 @@ void GfxInfo_f( void )
 		else
 			device_type = "Unknown";
 
+		const char* vendor_name = "unknown";
+		if (props.vendorID == 0x1002) {
+			vendor_name = "Advanced Micro Devices, Inc.";
+		} else if (props.vendorID == 0x10DE) {
+			vendor_name = "NVIDIA";
+		} else if (props.vendorID == 0x8086) {
+			vendor_name = "Intel Corporation";
+		}
+
 		ri.Printf(PRINT_ALL, "\nVk api version: %d.%d.%d\n", major, minor, patch);
 		ri.Printf(PRINT_ALL, "Vk driver version: %d\n", props.driverVersion);
-		ri.Printf(PRINT_ALL, "Vk vendor id: %d\n", props.vendorID);
-		ri.Printf(PRINT_ALL, "Vk device id: %d\n", props.deviceID);
+		ri.Printf(PRINT_ALL, "Vk vendor id: 0x%X (%s)\n", props.vendorID, vendor_name);
+		ri.Printf(PRINT_ALL, "Vk device id: 0x%X\n", props.deviceID);
 		ri.Printf(PRINT_ALL, "Vk device type: %s\n", device_type);
 		ri.Printf(PRINT_ALL, "Vk device name: %s\n", props.deviceName);
 	}
