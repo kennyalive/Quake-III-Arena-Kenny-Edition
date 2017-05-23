@@ -291,10 +291,11 @@ void RB_ShadowFinish( void ) {
 	qglStencilFunc( GL_NOTEQUAL, 0, 255 );
 
 	qglDisable (GL_CLIP_PLANE0);
-	qglDisable (GL_CULL_FACE);
+	GL_Cull(CT_TWO_SIDED);
 
 	GL_Bind( tr.whiteImage );
 
+	qglPushMatrix();
     qglLoadIdentity ();
 
 	qglColor3f( 0.6f, 0.6f, 0.6f );
@@ -309,6 +310,7 @@ void RB_ShadowFinish( void ) {
 
 	qglColor3f(1,1,1);
 	qglDisable( GL_STENCIL_TEST );
+	qglPopMatrix();
 
 	// VULKAN
 	if (vk.active) {
