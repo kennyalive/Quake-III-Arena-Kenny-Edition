@@ -38,7 +38,8 @@ enum class Vk_Shadow_Phase {
 enum class Vk_Depth_Range {
 	normal, // [0..1]
 	force_zero, // [0..0]
-	force_one // [1..1]
+	force_one, // [1..1]
+	weapon // [0..0.3]
 };
 
 struct Vk_Sampler_Def {
@@ -179,6 +180,8 @@ struct Vk_Instance {
 
 	VkPipeline tris_debug_pipeline;
 	VkPipeline normals_debug_pipeline;
+	VkPipeline surface_debug_pipeline_solid;
+	VkPipeline surface_debug_pipeline_outline;
 };
 
 struct Vk_Resources {
@@ -224,6 +227,8 @@ struct Vk_Resources {
     // with vmCmdClearAttachment (dirty_attachments == true), or they have just been
     // cleared by render pass instance clear op (dirty_attachments == false).
     bool dirty_attachments;
+
+	float modelview_transform[16];
 };
 
 // Vulkan API function pointers.

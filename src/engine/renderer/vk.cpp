@@ -1181,6 +1181,17 @@ void vk_initialize() {
 			def.line_primitives = true;
 			vk.normals_debug_pipeline = create_pipeline(def);
 		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
+			vk.surface_debug_pipeline_solid = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
+			def.line_primitives = true;
+			vk.surface_debug_pipeline_outline = create_pipeline(def);
+		}
     }
 	vk.active = true;
 }
@@ -1235,6 +1246,8 @@ void vk_shutdown() {
             }
 	vkDestroyPipeline(vk.device, vk.tris_debug_pipeline, nullptr);
 	vkDestroyPipeline(vk.device, vk.normals_debug_pipeline, nullptr);
+	vkDestroyPipeline(vk.device, vk.surface_debug_pipeline_solid, nullptr);
+	vkDestroyPipeline(vk.device, vk.surface_debug_pipeline_outline, nullptr);
 
     vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
     vkDestroyDevice(vk.device, nullptr);
@@ -2005,15 +2018,13 @@ static VkViewport get_viewport(Vk_Depth_Range depth_range) {
 	} else if (depth_range == Vk_Depth_Range::force_one) {
 		viewport.minDepth = 1.0f;
 		viewport.maxDepth = 1.0f;
+	} else if (depth_range == Vk_Depth_Range::weapon) {
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 0.3f;
 	} else {
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
-
-		if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
-			viewport.maxDepth = 0.3f;
-		}
 	}
-
     return viewport;
 }
 
@@ -2060,7 +2071,7 @@ static void get_mvp_transform(float* mvp) {
             p[12], p[13], P14,  p[15]
         };
 
-        myGlMultMatrix(backEnd.or.modelMatrix, proj, mvp);
+		myGlMultMatrix(vk_resources.modelview_transform, proj, mvp);
     }
 }
 

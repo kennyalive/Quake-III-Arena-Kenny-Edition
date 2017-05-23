@@ -332,16 +332,16 @@ void RB_ShadowFinish( void ) {
 
 		// set backEnd.or.modelMatrix to identity matrix
 		float tmp[16];
-		Com_Memcpy(tmp, backEnd.or.modelMatrix, 64);
-		Com_Memset(backEnd.or.modelMatrix, 0, 64);
-		backEnd.or.modelMatrix[0] = 1.0f;
-		backEnd.or.modelMatrix[5] = 1.0f;
-		backEnd.or.modelMatrix[10] = 1.0f;
-		backEnd.or.modelMatrix[15] = 1.0f;
+		Com_Memcpy(tmp, vk_resources.modelview_transform, 64);
+		Com_Memset(vk_resources.modelview_transform, 0, 64);
+		vk_resources.modelview_transform[0] = 1.0f;
+		vk_resources.modelview_transform[5] = 1.0f;
+		vk_resources.modelview_transform[10] = 1.0f;
+		vk_resources.modelview_transform[15] = 1.0f;
 
 		vk_bind_resources_shared_between_stages();
 
-		Com_Memcpy(backEnd.or.modelMatrix, tmp, 64);
+		Com_Memcpy(vk_resources.modelview_transform, tmp, 64);
 
 		vk_bind_stage_specific_resources(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
 		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);

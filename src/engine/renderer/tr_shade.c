@@ -812,9 +812,16 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
             else if (backEnd.viewParms.isPortal)
                 pipeline = pStage->vk_portal_pipeline;
 
-			auto depth_range = Vk_Depth_Range::normal;
-			if (input->shader->isSky)
-				depth_range = r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one;
+			Vk_Depth_Range depth_range;
+			if (input->shader->isSky) {
+				depth_range = Vk_Depth_Range::force_one;
+				if (r_showsky->integer)
+					depth_range = Vk_Depth_Range::force_zero;
+			} else if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
+				depth_range = Vk_Depth_Range::weapon;
+			} else {
+				depth_range = Vk_Depth_Range::normal;
+			}
 
             vk_bind_stage_specific_resources(pipeline, multitexture, depth_range);
             vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
