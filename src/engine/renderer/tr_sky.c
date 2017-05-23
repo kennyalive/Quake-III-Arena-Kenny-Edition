@@ -452,8 +452,7 @@ static void DrawSkyBox( shader_t *shader )
 
         // VULKAN: draw skybox side
         if (vk.active) {
-            VkDescriptorSet set = vk_resources.images[shader->sky.outerbox[sky_texorder[i]]->index].descriptor_set;
-            vk_resources.current_descriptor_sets[0] = set;
+			GL_Bind(shader->sky.outerbox[sky_texorder[i]]);
 
             tess.numVertexes = 0;
             tess.numIndexes = 0;
