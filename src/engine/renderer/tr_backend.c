@@ -868,8 +868,19 @@ const void	*RB_DrawBuffer( const void *data ) {
 
 	qglDrawBuffer( cmd->buffer );
 
-    // VULKAN
-    vk_begin_frame();
+	// VULKAN
+	vk_begin_frame();
+
+	// clear screen for debugging
+	if ( r_clear->integer ) {
+		qglClearColor( 1, 0, 0.5, 1 );
+		qglClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+		// VULKAN
+		RB_SetGL2D(); // to ensure we have viewport that occupies entire window
+		float color[4] = {1, 0, 0.5, 1};
+		vk_clear_attachments(false, true, color);
+	}
 
 	return (const void *)(cmd + 1);
 }
