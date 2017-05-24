@@ -890,10 +890,14 @@ void RB_ShowImages( void ) {
 	float	x, y, w, h;
 	int		start, end;
 
+	if (!gl_enabled())
+		return;
+
 	if ( !backEnd.projection2D ) {
 		RB_SetGL2D();
 	}
 
+	qglClearColor(0, 0, 0, 1);
 	qglClear( GL_COLOR_BUFFER_BIT );
 
 	qglFinish();
@@ -931,7 +935,76 @@ void RB_ShowImages( void ) {
 
 	end = ri.Milliseconds();
 	ri.Printf( PRINT_ALL, "%i msec to draw all images\n", end - start );
+}
 
+// VULKAN
+void RB_ShowVkImages() {
+	if (!vk.active) {
+		return;
+	}
+
+	if ( !backEnd.projection2D ) {
+		RB_SetGL2D();
+	}
+
+	float black[4] = {0, 0, 0, 1};
+	vk_clear_attachments(false, true, black);
+
+	for (int i = 0 ; i < tr.numImages ; i++) {
+		auto image = tr.images[i];
+
+		float w = glConfig.vidWidth / 20;
+		float h = glConfig.vidHeight / 15;
+		float x = i % 20 * w;
+		float y = i / 20 * h;
+
+		// show in proportional size in mode 2
+		if ( r_showImages->integer == 2 ) {
+			w *= image->uploadWidth / 512.0f;
+			h *= image->uploadHeight / 512.0f;
+		}
+
+		GL_Bind( image );
+
+		tess.numIndexes = 6;
+		tess.numVertexes = 4;
+
+		tess.indexes[0] = 0;
+		tess.indexes[1] = 1;
+		tess.indexes[2] = 2;
+		tess.indexes[3] = 0;
+		tess.indexes[4] = 2;
+		tess.indexes[5] = 3;
+
+		tess.xyz[0][0] = x;
+		tess.xyz[0][1] = y;
+		tess.svars.texcoords[0][0][0] = 0;
+		tess.svars.texcoords[0][0][1] = 0;
+
+		tess.xyz[1][0] = x + w;
+		tess.xyz[1][1] = y;
+		tess.svars.texcoords[0][1][0] = 1;
+		tess.svars.texcoords[0][1][1] = 0;
+
+		tess.xyz[2][0] = x + w;
+		tess.xyz[2][1] = y + h;
+		tess.svars.texcoords[0][2][0] = 1;
+		tess.svars.texcoords[0][2][1] = 1;
+
+		tess.xyz[3][0] = x;
+		tess.xyz[3][1] = y + h;
+		tess.svars.texcoords[0][3][0] = 0;
+		tess.svars.texcoords[0][3][1] = 1;
+
+		Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+		vk_bind_resources_shared_between_stages();
+		vk_bind_stage_specific_resources(vk.images_debug_pipeline, false, Vk_Depth_Range::normal);
+		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+		vk_resources.dirty_attachments = true;
+		vk.xyz_elements += tess.numVertexes;
+	}
+	tess.numIndexes = 0;
+	tess.numVertexes = 0;
 }
 
 
@@ -952,6 +1025,7 @@ const void	*RB_SwapBuffers( const void *data ) {
 	// texture swapping test
 	if ( r_showImages->integer ) {
 		RB_ShowImages();
+		RB_ShowVkImages();
 	}
 
 	cmd = (const swapBuffersCommand_t *)data;

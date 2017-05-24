@@ -182,6 +182,7 @@ struct Vk_Instance {
 	VkPipeline normals_debug_pipeline;
 	VkPipeline surface_debug_pipeline_solid;
 	VkPipeline surface_debug_pipeline_outline;
+	VkPipeline images_debug_pipeline;
 };
 
 struct Vk_Resources {

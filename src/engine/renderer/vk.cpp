@@ -1192,6 +1192,11 @@ void vk_initialize() {
 			def.line_primitives = true;
 			vk.surface_debug_pipeline_outline = create_pipeline(def);
 		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
+			vk.images_debug_pipeline = create_pipeline(def);
+		}
     }
 	vk.active = true;
 }
@@ -1248,6 +1253,7 @@ void vk_shutdown() {
 	vkDestroyPipeline(vk.device, vk.normals_debug_pipeline, nullptr);
 	vkDestroyPipeline(vk.device, vk.surface_debug_pipeline_solid, nullptr);
 	vkDestroyPipeline(vk.device, vk.surface_debug_pipeline_outline, nullptr);
+	vkDestroyPipeline(vk.device, vk.images_debug_pipeline, nullptr);
 
     vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
     vkDestroyDevice(vk.device, nullptr);
@@ -1837,7 +1843,7 @@ VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
         ri.Error(ERR_DROP, "vk_find_sampler: MAX_VK_SAMPLERS hit\n");
     }
 
-    VkSamplerAddressMode address_mode = def.repeat_texture ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    VkSamplerAddressMode address_mode = def.repeat_texture ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 
     VkFilter mag_filter;
     if (def.gl_mag_filter == GL_NEAREST) {
