@@ -5,8 +5,6 @@
 #include <functional>
 #include <vector>
 
-FILE* vk_log_file;
-
 extern float fast_sky_color[4];
 
 const int VERTEX_CHUNK_SIZE = 512 * 1024;
@@ -737,8 +735,6 @@ static void deinit_vulkan_library() {
 }
 
 void vk_initialize() {
-    vk_log_file = fopen("vk_dev.log", "w");
-
 	init_vulkan_library();
 
 	VkPhysicalDeviceFeatures features;
@@ -1201,9 +1197,6 @@ void vk_initialize() {
 }
 
 void vk_shutdown() {
-    fclose(vk_log_file);
-    vk_log_file = nullptr;
-
     vkDestroyImage(vk.device, vk.depth_image, nullptr);
     vkFreeMemory(vk.device, vk.depth_image_memory, nullptr);
     vkDestroyImageView(vk.device, vk.depth_image_view, nullptr);
@@ -2217,9 +2210,6 @@ void vk_begin_frame() {
     if (!vk.active)
         return;
 
-	if (r_logFile->integer)
-		fprintf(vk_log_file, "vk_begin_frame\n");
-
     VK_CHECK(vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vk.image_acquired, VK_NULL_HANDLE, &vk.swapchain_image_index));
 
     VK_CHECK(vkWaitForFences(vk.device, 1, &vk.rendering_finished_fence, VK_FALSE, 1e9));
@@ -2270,19 +2260,8 @@ void vk_end_frame() {
     if (!vk.active)
         return;
 
-    if (r_logFile->integer)
-        fprintf(vk_log_file, "end_frame (vb_size %d, ib_size %d)\n", 
-            vk.xyz_elements * 16 + vk.color_st_elements * 20,
-            (int)vk.index_buffer_offset);
-
     vkCmdEndRenderPass(vk.command_buffer);
-
     VK_CHECK(vkEndCommandBuffer(vk.command_buffer));
-
-    if (r_logFile->integer) {
-        fprintf(vk_log_file, "present\n");
-        fflush(vk_log_file);
-    }
 
     VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info;
