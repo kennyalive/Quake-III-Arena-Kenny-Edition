@@ -1842,7 +1842,7 @@ VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
         ri.Error(ERR_DROP, "vk_find_sampler: MAX_VK_SAMPLERS hit\n");
     }
 
-    VkSamplerAddressMode address_mode = def.repeat_texture ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    VkSamplerAddressMode address_mode = def.repeat_texture ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
     VkFilter mag_filter;
     if (def.gl_mag_filter == GL_NEAREST) {
