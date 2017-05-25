@@ -179,6 +179,7 @@ struct Vk_Instance {
     VkPipeline dlight_pipelines[2][3][2];
 
 	VkPipeline tris_debug_pipeline;
+	VkPipeline tris_mirror_debug_pipeline;
 	VkPipeline normals_debug_pipeline;
 	VkPipeline surface_debug_pipeline_solid;
 	VkPipeline surface_debug_pipeline_outline;

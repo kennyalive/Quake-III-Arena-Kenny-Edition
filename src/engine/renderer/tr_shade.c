@@ -118,7 +118,8 @@ static void DrawTris (shaderCommands_t *input) {
 	// VULKAN
 	if (vk.active) {
 		Com_Memset(tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
-		vk_shade_geometry(vk.tris_debug_pipeline, false, Vk_Depth_Range::force_zero);
+		auto pipeline = backEnd.viewParms.isMirror ? vk.tris_mirror_debug_pipeline : vk.tris_debug_pipeline;
+		vk_shade_geometry(pipeline, false, Vk_Depth_Range::force_zero);
 	}
 }
 

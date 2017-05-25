@@ -1172,6 +1172,12 @@ void vk_initialize() {
 		}
 		{
 			Vk_Pipeline_Def def;
+			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
+			def.face_culling = CT_BACK_SIDED;
+			vk.tris_mirror_debug_pipeline = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
 			def.state_bits = GLS_DEPTHMASK_TRUE;
 			def.line_primitives = true;
 			vk.normals_debug_pipeline = create_pipeline(def);
@@ -1242,6 +1248,7 @@ void vk_shutdown() {
                 vkDestroyPipeline(vk.device, vk.dlight_pipelines[i][j][k], nullptr);
             }
 	vkDestroyPipeline(vk.device, vk.tris_debug_pipeline, nullptr);
+	vkDestroyPipeline(vk.device, vk.tris_mirror_debug_pipeline, nullptr);
 	vkDestroyPipeline(vk.device, vk.normals_debug_pipeline, nullptr);
 	vkDestroyPipeline(vk.device, vk.surface_debug_pipeline_solid, nullptr);
 	vkDestroyPipeline(vk.device, vk.surface_debug_pipeline_outline, nullptr);
