@@ -2073,32 +2073,36 @@ static void get_mvp_transform(float* mvp) {
     }
 }
 
-void vk_bind_resources_shared_between_stages() {
-    if (!vk.active) return;
+void vk_bind_geometry() {
+	if (!vk.active) 
+		return;
 
-    // xyz
+    // xyz stream
     {
         if ((vk.xyz_elements + tess.numVertexes) * sizeof(vec4_t) > XYZ_SIZE)
-            ri.Error(ERR_DROP, "vulkan: vertex buffer overflow (xyz)\n");
+            ri.Error(ERR_DROP, "vk_bind_geometry: vertex buffer overflow (xyz)\n");
 
         byte* dst = vk.vertex_buffer_ptr + XYZ_OFFSET + vk.xyz_elements * sizeof(vec4_t);
         Com_Memcpy(dst, tess.xyz, tess.numVertexes * sizeof(vec4_t));
+
+		VkDeviceSize xyz_offset = XYZ_OFFSET + vk.xyz_elements * sizeof(vec4_t);
+		vkCmdBindVertexBuffers(vk.command_buffer, 0, 1, &vk.vertex_buffer, &xyz_offset);
+		vk.xyz_elements += tess.numVertexes;
     }
 
-    std::size_t indexes_size = tess.numIndexes * sizeof(uint32_t);        
-
-    // update index buffer
+    // indexes stream
     {
+		std::size_t indexes_size = tess.numIndexes * sizeof(uint32_t);        
+
         if (vk.index_buffer_offset + indexes_size > INDEX_BUFFER_SIZE)
-            ri.Error(ERR_DROP, "vk_draw: index buffer overflow\n");
+            ri.Error(ERR_DROP, "vk_bind_geometry: index buffer overflow\n");
 
         byte* dst = vk.index_buffer_ptr + vk.index_buffer_offset;
         Com_Memcpy(dst, tess.indexes, indexes_size);
-    }
 
-    // configure indexes stream
-    vkCmdBindIndexBuffer(vk.command_buffer, vk.index_buffer, vk.index_buffer_offset, VK_INDEX_TYPE_UINT32);
-    vk.index_buffer_offset += indexes_size;
+		vkCmdBindIndexBuffer(vk.command_buffer, vk.index_buffer, vk.index_buffer_offset, VK_INDEX_TYPE_UINT32);
+		vk.index_buffer_offset += indexes_size;
+    }
 
     //
     // Specify push constants.
@@ -2138,16 +2142,10 @@ void vk_bind_resources_shared_between_stages() {
 
         push_constants_size += 64;
     }
-
     vkCmdPushConstants(vk.command_buffer, vk.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, push_constants_size, push_constants);
 }
 
-void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range) {
-    //
-    // Specify color/st for each draw call since they are regenerated for each Q3 shader's stage.
-    // xyz are specified only once for all stages.
-    //
-
+void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed) {
     // color
     {
         if ((vk.color_st_elements + tess.numVertexes) * sizeof(color4ub_t) > COLOR_SIZE)
@@ -2156,7 +2154,6 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk
         byte* dst = vk.vertex_buffer_ptr + COLOR_OFFSET + vk.color_st_elements * sizeof(color4ub_t);
         Com_Memcpy(dst, tess.svars.colors, tess.numVertexes * sizeof(color4ub_t));
     }
-
     // st0
     {
         if ((vk.color_st_elements + tess.numVertexes) * sizeof(vec2_t) > ST0_SIZE)
@@ -2165,7 +2162,6 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk
         byte* dst = vk.vertex_buffer_ptr + ST0_OFFSET + vk.color_st_elements * sizeof(vec2_t);
         Com_Memcpy(dst, tess.svars.texcoords[0], tess.numVertexes * sizeof(vec2_t));
     }
-
     // st1
     if (multitexture) {
         if ((vk.color_st_elements + tess.numVertexes) * sizeof(vec2_t) > ST1_SIZE)
@@ -2176,15 +2172,13 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk
     }
 
     // configure vertex data stream
-    VkBuffer bufs[4] = { vk.vertex_buffer, vk.vertex_buffer, vk.vertex_buffer, vk.vertex_buffer }; // turtles all the way down
-    VkDeviceSize offs[4] = {
-        XYZ_OFFSET   + vk.xyz_elements * sizeof(vec4_t),
+    VkBuffer bufs[3] = { vk.vertex_buffer, vk.vertex_buffer, vk.vertex_buffer };
+    VkDeviceSize offs[3] = {
         COLOR_OFFSET + vk.color_st_elements * sizeof(color4ub_t),
         ST0_OFFSET   + vk.color_st_elements * sizeof(vec2_t),
         ST1_OFFSET   + vk.color_st_elements * sizeof(vec2_t)
     };
-
-    vkCmdBindVertexBuffers(vk.command_buffer, 0, multitexture ? 4 : 3, bufs, offs);
+    vkCmdBindVertexBuffers(vk.command_buffer, 1, multitexture ? 3 : 2, bufs, offs);
     vk.color_st_elements += tess.numVertexes;
 
     // bind descriptor sets
@@ -2204,6 +2198,14 @@ void vk_bind_stage_specific_resources(VkPipeline pipeline, bool multitexture, Vk
     if (tess.shader->polygonOffset) {
         vkCmdSetDepthBias(vk.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
     }
+
+	// issue draw call
+	if (indexed)
+		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
+	else
+		vkCmdDraw(vk.command_buffer, tess.numVertexes, 1, 0, 0);
+
+	vk_resources.dirty_attachments = true;
 }
 
 void vk_begin_frame() {

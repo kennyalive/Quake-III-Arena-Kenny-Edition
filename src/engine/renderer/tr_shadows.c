@@ -143,11 +143,8 @@ static void R_Vk_RenderShadowEdges(VkPipeline pipeline) {
 			tess.svars.colors[k][3] = 255;
 		}
 
-		vk_bind_resources_shared_between_stages();
-		vk_bind_stage_specific_resources(pipeline, false, Vk_Depth_Range::normal);
-		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-		vk_resources.dirty_attachments = true;
-		vk.xyz_elements += tess.numVertexes;
+		vk_bind_geometry();
+		vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
 
 		i += count;
 	}
@@ -341,15 +338,10 @@ void RB_ShadowFinish( void ) {
 		vk_resources.modelview_transform[10] = 1.0f;
 		vk_resources.modelview_transform[15] = 1.0f;
 
-		vk_bind_resources_shared_between_stages();
+		vk_bind_geometry();
+		vk_shade_geometry(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
 
 		Com_Memcpy(vk_resources.modelview_transform, tmp, 64);
-
-		vk_bind_stage_specific_resources(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
-		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-		vk_resources.dirty_attachments = true;
-		vk.xyz_elements += tess.numVertexes;
-
 		tess.numIndexes = 0;
 		tess.numVertexes = 0;
 	}

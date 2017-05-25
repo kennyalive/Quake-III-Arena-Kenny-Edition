@@ -1458,13 +1458,8 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 		tess.numIndexes += 3;
 	}
 
-	vk_bind_resources_shared_between_stages();
-	vk_bind_stage_specific_resources(vk.surface_debug_pipeline_solid, false, Vk_Depth_Range::normal);
-	vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-	vk_resources.dirty_attachments = true;
-	vk.xyz_elements += tess.numVertexes;
-	tess.numVertexes = 0;
-	tess.numIndexes = 0;
+	vk_bind_geometry();
+	vk_shade_geometry(vk.surface_debug_pipeline_solid, false, Vk_Depth_Range::normal);
 
 	// Outline.
 	Com_Memset(tess.svars.colors, tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
@@ -1476,11 +1471,9 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	tess.numVertexes = numPoints * 2;
 	tess.numIndexes = 0;
 
-	vk_bind_resources_shared_between_stages();
-	vk_bind_stage_specific_resources(vk.surface_debug_pipeline_outline, false, Vk_Depth_Range::force_zero);
-	vkCmdDraw(vk.command_buffer, tess.numVertexes, 1, 0, 0);
-	vk_resources.dirty_attachments = true;
-	vk.xyz_elements += tess.numVertexes;
+	vk_bind_geometry();
+	vk_shade_geometry(vk.surface_debug_pipeline_outline, false, Vk_Depth_Range::force_zero, false);
+
 	tess.numVertexes = 0;
 }
 

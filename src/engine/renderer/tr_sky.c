@@ -454,6 +454,8 @@ static void DrawSkyBox( shader_t *shader )
         if (vk.active) {
 			GL_Bind(shader->sky.outerbox[sky_texorder[i]]);
 
+			Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+
             tess.numVertexes = 0;
             tess.numIndexes = 0;
 
@@ -492,12 +494,8 @@ static void DrawSkyBox( shader_t *shader )
                 }
             }
 
-            Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
-            vk_bind_resources_shared_between_stages();
-            vk_bind_stage_specific_resources(vk.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
-            vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-            vk_resources.dirty_attachments = true;
-            vk.xyz_elements += tess.numVertexes;
+            vk_bind_geometry();
+            vk_shade_geometry(vk.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
         }
 	}
 
@@ -709,10 +707,6 @@ Other things could be stuck in here, like birds in the sky, etc
 ================
 */
 void RB_StageIteratorSky( void ) {
-	if ( r_fastsky->integer ) {
-		return;
-	}
-
 	// go through all the polygons and project them onto
 	// the sky box to see which blocks on each side need
 	// to be drawn

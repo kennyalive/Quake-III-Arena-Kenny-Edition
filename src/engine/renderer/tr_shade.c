@@ -118,11 +118,7 @@ static void DrawTris (shaderCommands_t *input) {
 	// VULKAN
 	if (vk.active) {
 		Com_Memset(tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
-		vk_bind_resources_shared_between_stages();
-		vk_bind_stage_specific_resources(vk.tris_debug_pipeline, false, Vk_Depth_Range::force_zero);
-		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-		vk_resources.dirty_attachments = true;
-		vk.xyz_elements += tess.numVertexes;
+		vk_shade_geometry(vk.tris_debug_pipeline, false, Vk_Depth_Range::force_zero);
 	}
 }
 
@@ -173,11 +169,8 @@ static void DrawNormals (shaderCommands_t *input) {
 			tess.numVertexes = 2 * count;
 			tess.numIndexes = 0;
 
-			vk_bind_resources_shared_between_stages();
-			vk_bind_stage_specific_resources(vk.normals_debug_pipeline, false, Vk_Depth_Range::force_zero);
-			vkCmdDraw(vk.command_buffer, tess.numVertexes, 1, 0, 0);
-			vk_resources.dirty_attachments = true;
-			vk.xyz_elements += tess.numVertexes;
+			vk_bind_geometry();
+			vk_shade_geometry(vk.normals_debug_pipeline, false, Vk_Depth_Range::force_zero, false);
 
 			i += count;
 		}
@@ -402,9 +395,7 @@ static void ProjectDlightTexture( void ) {
         // VULKAN
         if (vk.active) {
             VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
-            vk_bind_stage_specific_resources(pipeline, false, Vk_Depth_Range::normal);
-            vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-            vk_resources.dirty_attachments = true;
+            vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
         }
 	}
 }
@@ -449,9 +440,7 @@ static void RB_FogPass( void ) {
     if (vk.active) {
         assert(tess.shader->fogPass > 0);
         VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
-        vk_bind_stage_specific_resources(pipeline, false, Vk_Depth_Range::normal);
-        vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-        vk_resources.dirty_attachments = true;
+        vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
     }
 }
 
@@ -756,7 +745,7 @@ static void ComputeTexCoords( shaderStage_t *pStage ) {
 static void RB_IterateStagesGeneric( shaderCommands_t *input )
 {
     // VULKAN
-    vk_bind_resources_shared_between_stages();
+    vk_bind_geometry();
 
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
@@ -823,9 +812,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 				depth_range = Vk_Depth_Range::normal;
 			}
 
-            vk_bind_stage_specific_resources(pipeline, multitexture, depth_range);
-            vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-            vk_resources.dirty_attachments = true;
+            vk_shade_geometry(pipeline, multitexture, depth_range);
         }
 
 		// allow skipping out to show just lightmaps during development
@@ -932,9 +919,6 @@ void RB_StageIteratorGeneric( void )
 		RB_FogPass();
 	}
 
-    // VULKAN
-    vk.xyz_elements += tess.numVertexes;
-
 	// 
 	// unlock arrays
 	//
@@ -962,6 +946,9 @@ void RB_EndSurface( void ) {
 	input = &tess;
 
 	if (input->numIndexes == 0) {
+		return;
+	}
+	if (tess.shader->isSky && r_fastsky->integer) {
 		return;
 	}
 

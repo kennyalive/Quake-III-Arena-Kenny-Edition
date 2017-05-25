@@ -977,6 +977,8 @@ void RB_ShowVkImages() {
 
 		GL_Bind( image );
 
+		Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+
 		tess.numIndexes = 6;
 		tess.numVertexes = 4;
 
@@ -1007,12 +1009,8 @@ void RB_ShowVkImages() {
 		tess.svars.texcoords[0][3][0] = 0;
 		tess.svars.texcoords[0][3][1] = 1;
 
-		Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
-		vk_bind_resources_shared_between_stages();
-		vk_bind_stage_specific_resources(vk.images_debug_pipeline, false, Vk_Depth_Range::normal);
-		vkCmdDrawIndexed(vk.command_buffer, tess.numIndexes, 1, 0, 0, 0);
-		vk_resources.dirty_attachments = true;
-		vk.xyz_elements += tess.numVertexes;
+		vk_bind_geometry();
+		vk_shade_geometry(vk.images_debug_pipeline, false, Vk_Depth_Range::normal);
 	}
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
