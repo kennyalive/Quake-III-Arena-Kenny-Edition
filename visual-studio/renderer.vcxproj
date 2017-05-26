@@ -64,7 +64,6 @@
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <CompileAs>CompileAsCpp</CompileAs>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\third_party\include</AdditionalIncludeDirectories>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -84,7 +83,6 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAs>CompileAsCpp</CompileAs>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\third_party\include</AdditionalIncludeDirectories>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -95,52 +93,52 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_add_frag.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_clipping_plane_vert.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_mul_frag.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\multi_texture_vert.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_clipping_plane_vert.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_frag.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\shaders\spirv\single_texture_vert.cpp" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_animation.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_backend.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_bsp.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_cmds.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_curve.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_font.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_image.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_init.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_light.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_main.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_marks.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_mesh.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_model.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_noise.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_scene.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_shade.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_shade_calc.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_shader.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_shadows.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_sky.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_surface.c" />
-    <ClCompile Include="..\..\src\engine\renderer\tr_world.c" />
-    <ClCompile Include="..\..\src\engine\platform\win_gamma.c" />
-    <ClCompile Include="..\..\src\engine\platform\win_glimp.c" />
-    <ClCompile Include="..\..\src\engine\platform\win_qgl.c" />
-    <ClCompile Include="..\..\src\engine\renderer\vk.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_add_frag.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_clipping_plane_vert.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_mul_frag.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_vert.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\single_texture_clipping_plane_vert.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\single_texture_frag.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\single_texture_vert.cpp" />
+    <ClCompile Include="..\src\engine\renderer\tr_animation.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_backend.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_bsp.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_cmds.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_curve.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_font.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_image.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_init.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_light.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_main.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_marks.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_mesh.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_model.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_noise.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_scene.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_shade.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_shade_calc.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_shader.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_shadows.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_sky.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_surface.c" />
+    <ClCompile Include="..\src\engine\renderer\tr_world.c" />
+    <ClCompile Include="..\src\engine\platform\win_gamma.c" />
+    <ClCompile Include="..\src\engine\platform\win_glimp.c" />
+    <ClCompile Include="..\src\engine\platform\win_qgl.c" />
+    <ClCompile Include="..\src\engine\renderer\vk.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\engine\qcommon\cm_public.h" />
-    <ClInclude Include="..\..\src\engine\renderer\vk.h" />
-    <ClInclude Include="..\..\src\game\q_shared.h" />
-    <ClInclude Include="..\..\src\engine\qcommon\qcommon.h" />
-    <ClInclude Include="..\..\src\engine\qcommon\qfiles.h" />
-    <ClInclude Include="..\..\src\engine\renderer\qgl.h" />
-    <ClInclude Include="..\..\src\game\surfaceflags.h" />
-    <ClInclude Include="..\..\src\engine\renderer\tr_local.h" />
-    <ClInclude Include="..\..\src\engine\renderer\tr_public.h" />
-    <ClInclude Include="..\..\src\cgame\tr_types.h" />
-    <ClInclude Include="..\..\src\engine\platform\win_local.h" />
+    <ClInclude Include="..\src\engine\qcommon\cm_public.h" />
+    <ClInclude Include="..\src\engine\renderer\vk.h" />
+    <ClInclude Include="..\src\game\q_shared.h" />
+    <ClInclude Include="..\src\engine\qcommon\qcommon.h" />
+    <ClInclude Include="..\src\engine\qcommon\qfiles.h" />
+    <ClInclude Include="..\src\engine\renderer\qgl.h" />
+    <ClInclude Include="..\src\game\surfaceflags.h" />
+    <ClInclude Include="..\src\engine\renderer\tr_local.h" />
+    <ClInclude Include="..\src\engine\renderer\tr_public.h" />
+    <ClInclude Include="..\src\cgame\tr_types.h" />
+    <ClInclude Include="..\src\engine\platform\win_local.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

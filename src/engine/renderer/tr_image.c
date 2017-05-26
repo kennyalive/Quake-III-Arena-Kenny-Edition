@@ -46,10 +46,10 @@ static void* q3_stbi_realloc(void* p, size_t old_size, size_t new_size) {
 #define STBI_FREE q3_stbi_free
 #define STBI_REALLOC_SIZED q3_stbi_realloc
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "jpeg/stb_image.h"
 
 #define TJE_IMPLEMENTATION
-#include "tiny_jpeg.h"
+#include "jpeg/tiny_jpeg.h"
 
 static void LoadBMP( const char *name, byte **pic, int *width, int *height );
 static void LoadTGA( const char *name, byte **pic, int *width, int *height );
