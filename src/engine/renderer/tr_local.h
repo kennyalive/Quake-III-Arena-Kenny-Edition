@@ -924,6 +924,7 @@ typedef struct {
 
 extern backEndState_t	backEnd;
 extern trGlobals_t	tr;
+extern bool			glActive;		// set to true if OpenGL is used for rendering
 extern glconfig_t	glConfig;		// outside of TR since it shouldn't be cleared during ref re-init
 extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during ref re-init
 
@@ -1389,9 +1390,6 @@ void	RB_CalcSpecularAlpha( unsigned char *alphas );
 void	RB_CalcDiffuseColor( unsigned char *colors );
 
 void myGlMultMatrix( const float *a, const float *b, float *out );
-
-inline bool gl_enabled() { return r_renderAPI->integer == 0 || r_twinMode->integer; }
-inline bool vk_enabled() { return r_renderAPI->integer != 0 || r_twinMode->integer; }
 
 /*
 =============================================================

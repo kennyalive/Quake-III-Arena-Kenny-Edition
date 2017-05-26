@@ -582,8 +582,9 @@ static void Upload32( unsigned *data,
 	// scale both axis down equally so we don't have to
 	// deal with a half mip resampling
 	//
-	while ( scaled_width > glConfig.maxTextureSize
-		|| scaled_height > glConfig.maxTextureSize ) {
+	int max_texture_size = glActive ? glConfig.maxTextureSize : 2048;
+	while ( scaled_width > max_texture_size
+		|| scaled_height > max_texture_size ) {
 		scaled_width >>= 1;
 		scaled_height >>= 1;
 	}

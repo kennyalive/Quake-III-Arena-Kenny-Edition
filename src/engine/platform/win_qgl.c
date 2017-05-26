@@ -188,13 +188,7 @@ static void noglEnableClientState(GLenum array) {}
 static void noglEnd(void) {}
 static void noglFinish(void) {}
 static GLenum noglGetError(void) { return GL_NO_ERROR; }
-
-static void noglGetIntegerv(GLenum pname, GLint *params) {
-    if (pname == GL_MAX_TEXTURE_SIZE) {
-        *params = 2048;
-    }
-}
-
+static void noglGetIntegerv(GLenum pname, GLint *params) {}
 static const GLubyte* noglGetString(GLenum name) { static char* s = ""; return (GLubyte*)s;}
 static void noglLineWidth(GLfloat width) {}
 static void noglLoadIdentity(void) {}
@@ -667,17 +661,13 @@ static void APIENTRY logViewport(GLint x, GLint y, GLsizei width, GLsizei height
 */
 void QGL_Shutdown( void )
 {
-	if (gl_enabled()) {
+	if ( hinstOpenGL )
+	{
 		ri.Printf( PRINT_ALL, "...shutting down QGL\n" );
-
-		if ( hinstOpenGL )
-		{
-			ri.Printf( PRINT_ALL, "...unloading OpenGL DLL\n" );
-			FreeLibrary( hinstOpenGL );
-		}
+		ri.Printf( PRINT_ALL, "...unloading OpenGL DLL\n" );
+		FreeLibrary( hinstOpenGL );
+		hinstOpenGL = NULL;
 	}
-
-	hinstOpenGL = NULL;
 
 	qglAlphaFunc                 = NULL;
 	qglBegin                     = NULL;
@@ -739,7 +729,7 @@ void QGL_Shutdown( void )
 }
 
 #	pragma warning (disable : 4113 4133 4047 )
-#	define GPA( a ) (gl_enabled() ? (void*)GetProcAddress(hinstOpenGL, #a) : (void*)(&no ## a))
+#	define GPA( a ) (dllname ? (void*)GetProcAddress(hinstOpenGL, #a) : (void*)(&no ## a))
 
 /*
 ** QGL_Init
@@ -752,7 +742,7 @@ void QGL_Shutdown( void )
 */
 qboolean QGL_Init( const char *dllname )
 {
-	if (gl_enabled()) {
+	if (dllname != nullptr) {
 		assert( hinstOpenGL == 0 );
 
 		ri.Printf( PRINT_ALL, "...initializing QGL\n" );
@@ -830,7 +820,7 @@ qboolean QGL_Init( const char *dllname )
 	qglLockArraysEXT = 0;
 	qglUnlockArraysEXT = 0;
 
-	if (gl_enabled()) {
+	if (dllname != nullptr) {
 		// check logging
 		QGL_EnableLogging( (qboolean) r_logFile->integer );
 	}

@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 
+bool		glActive;
 glconfig_t	glConfig;
 glstate_t	glState;
 
@@ -185,19 +186,22 @@ static void InitRenderAPI( void )
 	//
 	if ( glConfig.vidWidth == 0 )
 	{
-		if (gl_enabled())
+		// OpenGL
+		if (r_renderAPI->integer == 0 || r_twinMode->integer) {
 			GLimp_Init();
 
+			GLint temp;
+			qglGetIntegerv( GL_MAX_TEXTURE_SIZE, &temp );
+			glConfig.maxTextureSize = temp;
+
+			glActive = true;
+		}
+
 		// VULKAN
-		if (vk_enabled()) {
+		if (r_renderAPI->integer != 0 || r_twinMode->integer) {
 			vk_imp_init();
 			vk_initialize();
 		}
-
-		// OpenGL driver constants
-		GLint temp;
-		qglGetIntegerv( GL_MAX_TEXTURE_SIZE, &temp );
-		glConfig.maxTextureSize = temp;
 	}
 
 	// init command buffers and SMP
@@ -760,7 +764,7 @@ void GfxInfo_f( void )
 		"fullscreen"
 	};
 
-	if (gl_enabled()) {
+	if (glActive) {
 		ri.Printf( PRINT_ALL, "\nGL_VENDOR: %s\n", glConfig.vendor_string );
 		ri.Printf( PRINT_ALL, "GL_RENDERER: %s\n", glConfig.renderer_string );
 		ri.Printf( PRINT_ALL, "GL_VERSION: %s\n", glConfig.version_string );
@@ -786,7 +790,7 @@ void GfxInfo_f( void )
 	ri.Printf( PRINT_ALL, "picmip: %d\n", r_picmip->integer );
 	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer );
 
-	if (gl_enabled()) {
+	if (glActive) {
 		ri.Printf( PRINT_ALL, "compiled vertex arrays: %s\n", enablestrings[qglLockArraysEXT != 0 ] );
 		ri.Printf( PRINT_ALL, "texenv add: %s\n", enablestrings[glConfig.textureEnvAddAvailable != 0] );
 		ri.Printf( PRINT_ALL, "compressed textures: %s\n", enablestrings[glConfig.textureCompression!=TC_NONE] );
@@ -796,12 +800,12 @@ void GfxInfo_f( void )
 	{
 		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
 	}
-	if ( gl_enabled() && glConfig.smpActive ) {
+	if ( glActive && glConfig.smpActive ) {
 		ri.Printf( PRINT_ALL, "Using dual processor acceleration\n" );
 	}
 
 	// VULKAN
-	if (vk_enabled()) {
+	if (vk.active) {
 		VkPhysicalDeviceProperties props;
 		vkGetPhysicalDeviceProperties(vk.physical_device, &props);
 
@@ -1090,7 +1094,7 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	R_DoneFreeType();
 
 	// shut down platform specific OpenGL stuff
-	if ( gl_enabled() ) {
+	if ( glActive ) {
 		if (destroyWindow)
 			GLimp_Shutdown();
 	}

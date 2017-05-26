@@ -901,7 +901,7 @@ void RB_ShowImages( void ) {
 	float	x, y, w, h;
 	int		start, end;
 
-	if (!gl_enabled())
+	if (!glActive)
 		return;
 
 	if ( !backEnd.projection2D ) {
@@ -1041,8 +1041,7 @@ const void	*RB_SwapBuffers( const void *data ) {
 
 	GLimp_LogComment( "***************** RB_SwapBuffers *****************\n\n\n" );
 
-	if (gl_enabled())
-		GLimp_EndFrame();
+	GLimp_EndFrame();
 
 	backEnd.projection2D = qfalse;
 

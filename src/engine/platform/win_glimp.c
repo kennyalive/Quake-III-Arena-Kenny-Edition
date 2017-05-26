@@ -651,6 +651,9 @@ static void GLW_InitExtensions( void )
 */
 void GLimp_EndFrame (void)
 {
+	if (!glActive)
+		return;
+
 	//
 	// swapinterval stuff
 	//
@@ -768,6 +771,7 @@ void GLimp_Shutdown( void )
 
 	WG_RestoreGamma();
 
+	glActive = false;
 	memset(&glConfig, 0, sizeof(glConfig));
 	memset(&glState, 0, sizeof(glState));
 
@@ -788,7 +792,7 @@ void vk_imp_init() {
 	ri.Printf(PRINT_ALL, "Initializing Vulkan subsystem\n");
 
 	// This will set qgl pointers to no-op placeholders.
-	if (!gl_enabled()) {
+	if (!glActive) {
 		QGL_Init(nullptr);
 		qglActiveTextureARB = [] (GLenum)  {};
 		qglClientActiveTextureARB = [](GLenum) {};
