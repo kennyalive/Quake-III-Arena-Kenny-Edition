@@ -813,6 +813,9 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 				depth_range = Vk_Depth_Range::normal;
 			}
 
+			if (r_lightmap->integer && multitexture)
+				GL_Bind(tr.whiteImage); // replace diffuse texture with a white one thus effectively render only lightmap
+
             vk_shade_geometry(pipeline, multitexture, depth_range);
         }
 
