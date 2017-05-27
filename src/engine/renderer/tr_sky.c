@@ -454,8 +454,6 @@ static void DrawSkyBox( shader_t *shader )
 		if (vk.active) {
 			GL_Bind(shader->sky.outerbox[sky_texorder[i]]);
 
-			Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
-
 			tess.numVertexes = 0;
 			tess.numIndexes = 0;
 
@@ -493,6 +491,8 @@ static void DrawSkyBox( shader_t *shader )
 					tess.numVertexes += 4;
 				}
 			}
+
+			Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
 
 			vk_bind_geometry();
 			vk_shade_geometry(vk.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
