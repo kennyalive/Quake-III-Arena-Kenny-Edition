@@ -393,11 +393,11 @@ static void ProjectDlightTexture( void ) {
 		backEnd.pc.c_totalIndexes += numIndexes;
 		backEnd.pc.c_dlightIndexes += numIndexes;
 
-        // VULKAN
-        if (vk.active) {
-            VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
-            vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
-        }
+		// VULKAN
+		if (vk.active) {
+			VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+			vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
+		}
 	}
 }
 
@@ -437,12 +437,12 @@ static void RB_FogPass( void ) {
 
 	R_DrawElements( tess.numIndexes, tess.indexes );
 
-    // VULKAN
-    if (vk.active) {
-        assert(tess.shader->fogPass > 0);
-        VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
-        vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
-    }
+	// VULKAN
+	if (vk.active) {
+		assert(tess.shader->fogPass > 0);
+		VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+		vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
+	}
 }
 
 /*
@@ -745,8 +745,8 @@ static void ComputeTexCoords( shaderStage_t *pStage ) {
 */
 static void RB_IterateStagesGeneric( shaderCommands_t *input )
 {
-    // VULKAN
-    vk_bind_geometry();
+	// VULKAN
+	vk_bind_geometry();
 
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
@@ -794,23 +794,21 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			R_DrawElements( input->numIndexes, input->indexes );
 		}
 
-        // VULKAN
-        if (vk.active) {
-            VkPipeline pipeline = pStage->vk_pipeline;
-            if (backEnd.viewParms.isMirror)
-                pipeline = pStage->vk_mirror_pipeline;
-            else if (backEnd.viewParms.isPortal)
-                pipeline = pStage->vk_portal_pipeline;
+		// VULKAN
+		if (vk.active) {
+			VkPipeline pipeline = pStage->vk_pipeline;
+			if (backEnd.viewParms.isMirror)
+				pipeline = pStage->vk_mirror_pipeline;
+			else if (backEnd.viewParms.isPortal)
+				pipeline = pStage->vk_portal_pipeline;
 
-			Vk_Depth_Range depth_range;
+			Vk_Depth_Range depth_range = Vk_Depth_Range::normal;
 			if (input->shader->isSky) {
 				depth_range = Vk_Depth_Range::force_one;
 				if (r_showsky->integer)
 					depth_range = Vk_Depth_Range::force_zero;
 			} else if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
 				depth_range = Vk_Depth_Range::weapon;
-			} else {
-				depth_range = Vk_Depth_Range::normal;
 			}
 
 			if (r_lightmap->integer && multitexture)

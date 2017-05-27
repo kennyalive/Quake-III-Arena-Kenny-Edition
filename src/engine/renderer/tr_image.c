@@ -144,17 +144,17 @@ void GL_TextureMode( const char *string ) {
 		}
 	}
 
-    // VULKAN
-    if (vk.active) {
-        VK_CHECK(vkDeviceWaitIdle(vk.device));
-        for ( i = 0 ; i < tr.numImages ; i++ ) {
-            image_t* glt = tr.images[i];
-            if (glt->mipmap) {
-                Vk_Image& image = vk_resources.images[i];
-                vk_update_descriptor_set(image.descriptor_set, image.view, true, glt->wrapClampMode == GL_REPEAT);
-            }
-        }
-    }
+	// VULKAN
+	if (vk.active) {
+		VK_CHECK(vkDeviceWaitIdle(vk.device));
+		for ( i = 0 ; i < tr.numImages ; i++ ) {
+			image_t* glt = tr.images[i];
+			if (glt->mipmap) {
+				Vk_Image& image = vk_resources.images[i];
+				vk_update_descriptor_set(image.descriptor_set, image.view, true, glt->wrapClampMode == GL_REPEAT);
+			}
+		}
+	}
 }
 
 /*

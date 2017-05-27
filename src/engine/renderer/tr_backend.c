@@ -63,11 +63,11 @@ void GL_Bind( image_t *image ) {
 		glState.currenttextures[glState.currenttmu] = texnum;
 		qglBindTexture (GL_TEXTURE_2D, texnum);
 
-        // VULKAN
-        if (vk.active) {
-            VkDescriptorSet set = vk_resources.images[final_image->index].descriptor_set;
-            vk_resources.current_descriptor_sets[glState.currenttmu] = set;
-        }
+		// VULKAN
+		if (vk.active) {
+			VkDescriptorSet set = vk_resources.images[final_image->index].descriptor_set;
+			vk_resources.current_descriptor_sets[glState.currenttmu] = set;
+		}
 	}
 }
 
@@ -710,26 +710,26 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
 		qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
 
-        // VULKAN
-        if (vk.active) {
-            Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
-            vkDestroyImage(vk.device, image.handle, nullptr);
-            vkDestroyImageView(vk.device, image.view, nullptr);
-            vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
-            image = vk_create_image(cols, rows, VK_FORMAT_R8G8B8A8_UNORM, 1, false);
-            vk_upload_image_data(image.handle, cols, rows, false, data, 4);
-        }
+		// VULKAN
+		if (vk.active) {
+			Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+			vkDestroyImage(vk.device, image.handle, nullptr);
+			vkDestroyImageView(vk.device, image.view, nullptr);
+			vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
+			image = vk_create_image(cols, rows, VK_FORMAT_R8G8B8A8_UNORM, 1, false);
+			vk_upload_image_data(image.handle, cols, rows, false, data, 4);
+		}
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
 			// it and don't try and do a texture compression
 			qglTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, cols, rows, GL_RGBA, GL_UNSIGNED_BYTE, data );
 
-            // VULKAN
-            if (vk.active) {
-                const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
-                vk_upload_image_data(image.handle, cols, rows, false, data, 4);
-            }
+			// VULKAN
+			if (vk.active) {
+				const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+				vk_upload_image_data(image.handle, cols, rows, false, data, 4);
+			}
 		}
 	}
 }
@@ -1045,8 +1045,8 @@ const void	*RB_SwapBuffers( const void *data ) {
 
 	backEnd.projection2D = qfalse;
 
-    // VULKAN
-    vk_end_frame();
+	// VULKAN
+	vk_end_frame();
 
 	return (const void *)(cmd + 1);
 }

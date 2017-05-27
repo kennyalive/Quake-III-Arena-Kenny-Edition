@@ -17,15 +17,15 @@ const int IMAGE_CHUNK_SIZE = 32 * 1024 * 1024;
 const int MAX_IMAGE_CHUNKS = 16;
 
 #define VK_CHECK(function_call) { \
-    VkResult result = function_call; \
-    if (result < 0) \
-        ri.Error(ERR_FATAL, "Vulkan error: function %s, error code %d", #function_call, result); \
+	VkResult result = function_call; \
+	if (result < 0) \
+		ri.Error(ERR_FATAL, "Vulkan error: function %s, error code %d", #function_call, result); \
 }
 
 enum class Vk_Shader_Type {
-    single_texture,
-    multi_texture_mul,
-    multi_texture_add
+	single_texture,
+	multi_texture_mul,
+	multi_texture_add
 };
 
 // used with cg_shadows == 2
@@ -43,29 +43,29 @@ enum class Vk_Depth_Range {
 };
 
 struct Vk_Sampler_Def {
-    bool repeat_texture = false; // clamp/repeat texture addressing mode
-    int gl_mag_filter = 0; // GL_XXX mag filter
-    int gl_min_filter = 0; // GL_XXX min filter
+	bool repeat_texture = false; // clamp/repeat texture addressing mode
+	int gl_mag_filter = 0; // GL_XXX mag filter
+	int gl_min_filter = 0; // GL_XXX min filter
 };
 
 struct Vk_Pipeline_Def {
-    Vk_Shader_Type shader_type = Vk_Shader_Type::single_texture;
-    unsigned int state_bits = 0; // GLS_XXX flags
-    int face_culling = 0;// cullType_t
-    bool polygon_offset = false;
-    bool clipping_plane = false;
-    bool mirror = false;
+	Vk_Shader_Type shader_type = Vk_Shader_Type::single_texture;
+	unsigned int state_bits = 0; // GLS_XXX flags
+	int face_culling = 0;// cullType_t
+	bool polygon_offset = false;
+	bool clipping_plane = false;
+	bool mirror = false;
 	bool line_primitives = false;
 	Vk_Shadow_Phase shadow_phase = Vk_Shadow_Phase::disabled;
 };
 
 struct Vk_Image {
-    VkImage handle = VK_NULL_HANDLE;
-    VkImageView view = VK_NULL_HANDLE;
+	VkImage handle = VK_NULL_HANDLE;
+	VkImageView view = VK_NULL_HANDLE;
 
-    // Descriptor set that contains single descriptor used to access the given image.
-    // It is updated only once during image initialization.
-    VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+	// Descriptor set that contains single descriptor used to access the given image.
+	// It is updated only once during image initialization.
+	VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
 };
 
 //
@@ -106,77 +106,77 @@ void vk_read_pixels(byte* buffer);
 
 // Vulkan specific structures used by the engine.
 struct Vk_Instance {
-    bool active = false;
-    VkInstance instance = VK_NULL_HANDLE;
-    VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    VkSurfaceFormatKHR surface_format = {};
+	bool active = false;
+	VkInstance instance = VK_NULL_HANDLE;
+	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+	VkSurfaceKHR surface = VK_NULL_HANDLE;
+	VkSurfaceFormatKHR surface_format = {};
 
-    uint32_t queue_family_index = 0;
-    VkDevice device = VK_NULL_HANDLE;
-    VkQueue queue = VK_NULL_HANDLE;
+	uint32_t queue_family_index = 0;
+	VkDevice device = VK_NULL_HANDLE;
+	VkQueue queue = VK_NULL_HANDLE;
 
-    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-    uint32_t swapchain_image_count = 0;
-    VkImage swapchain_images[MAX_SWAPCHAIN_IMAGES];
-    VkImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
+	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+	uint32_t swapchain_image_count = 0;
+	VkImage swapchain_images[MAX_SWAPCHAIN_IMAGES];
+	VkImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
 
-    VkCommandPool command_pool = VK_NULL_HANDLE;
-    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+	VkCommandPool command_pool = VK_NULL_HANDLE;
+	VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 
-    VkImage depth_image = VK_NULL_HANDLE;
-    VkDeviceMemory depth_image_memory = VK_NULL_HANDLE;
-    VkImageView depth_image_view = VK_NULL_HANDLE;
+	VkImage depth_image = VK_NULL_HANDLE;
+	VkDeviceMemory depth_image_memory = VK_NULL_HANDLE;
+	VkImageView depth_image_view = VK_NULL_HANDLE;
 
-    VkRenderPass render_pass = VK_NULL_HANDLE;
-    VkFramebuffer framebuffers[MAX_SWAPCHAIN_IMAGES];
+	VkRenderPass render_pass = VK_NULL_HANDLE;
+	VkFramebuffer framebuffers[MAX_SWAPCHAIN_IMAGES];
 
-    VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-    VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
-    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+	VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+	VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+	VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 
-    VkBuffer vertex_buffer = VK_NULL_HANDLE;
-    byte* vertex_buffer_ptr = nullptr; // pointer to mapped vertex buffer
-    int xyz_elements = 0;
-    int color_st_elements = 0;
+	VkBuffer vertex_buffer = VK_NULL_HANDLE;
+	byte* vertex_buffer_ptr = nullptr; // pointer to mapped vertex buffer
+	int xyz_elements = 0;
+	int color_st_elements = 0;
 
-    VkBuffer index_buffer = VK_NULL_HANDLE;
-    byte* index_buffer_ptr = nullptr; // pointer to mapped index buffer
-    VkDeviceSize index_buffer_offset = 0;
+	VkBuffer index_buffer = VK_NULL_HANDLE;
+	byte* index_buffer_ptr = nullptr; // pointer to mapped index buffer
+	VkDeviceSize index_buffer_offset = 0;
 
-    // host visible memory that holds both vertex and index data
-    VkDeviceMemory geometry_buffer_memory = VK_NULL_HANDLE;
+	// host visible memory that holds both vertex and index data
+	VkDeviceMemory geometry_buffer_memory = VK_NULL_HANDLE;
 
-    VkSemaphore image_acquired = VK_NULL_HANDLE;
-    uint32_t swapchain_image_index = -1;
+	VkSemaphore image_acquired = VK_NULL_HANDLE;
+	uint32_t swapchain_image_index = -1;
 
-    VkSemaphore rendering_finished = VK_NULL_HANDLE;
-    VkFence rendering_finished_fence = VK_NULL_HANDLE;
+	VkSemaphore rendering_finished = VK_NULL_HANDLE;
+	VkFence rendering_finished_fence = VK_NULL_HANDLE;
 
-    VkShaderModule single_texture_vs = VK_NULL_HANDLE;
-    VkShaderModule single_texture_clipping_plane_vs = VK_NULL_HANDLE;
-    VkShaderModule single_texture_fs = VK_NULL_HANDLE;
-    VkShaderModule multi_texture_vs = VK_NULL_HANDLE;
-    VkShaderModule multi_texture_clipping_plane_vs = VK_NULL_HANDLE;
-    VkShaderModule multi_texture_mul_fs = VK_NULL_HANDLE;
-    VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
+	VkShaderModule single_texture_vs = VK_NULL_HANDLE;
+	VkShaderModule single_texture_clipping_plane_vs = VK_NULL_HANDLE;
+	VkShaderModule single_texture_fs = VK_NULL_HANDLE;
+	VkShaderModule multi_texture_vs = VK_NULL_HANDLE;
+	VkShaderModule multi_texture_clipping_plane_vs = VK_NULL_HANDLE;
+	VkShaderModule multi_texture_mul_fs = VK_NULL_HANDLE;
+	VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
 
-    VkPipeline skybox_pipeline = VK_NULL_HANDLE;
+	VkPipeline skybox_pipeline = VK_NULL_HANDLE;
 
 	// dim 0: 0 - front side, 1 - back size
 	// dim 1: 0 - normal view, 1 - mirror view
 	VkPipeline shadow_volume_pipelines[2][2];
 	VkPipeline shadow_finish_pipeline;
 
-    // dim 0 is based on fogPass_t: 0 - corresponds to FP_EQUAL, 1 - corresponds to FP_LE.
-    // dim 1 is directly a cullType_t enum value.
-    // dim 2 is a polygon offset value (0 - off, 1 - on).
-    VkPipeline fog_pipelines[2][3][2];
+	// dim 0 is based on fogPass_t: 0 - corresponds to FP_EQUAL, 1 - corresponds to FP_LE.
+	// dim 1 is directly a cullType_t enum value.
+	// dim 2 is a polygon offset value (0 - off, 1 - on).
+	VkPipeline fog_pipelines[2][3][2];
 
-    // dim 0 is based on dlight additive flag: 0 - not additive, 1 - additive
-    // dim 1 is directly a cullType_t enum value.
-    // dim 2 is a polygon offset value (0 - off, 1 - on).
-    VkPipeline dlight_pipelines[2][3][2];
+	// dim 0 is based on dlight additive flag: 0 - not additive, 1 - additive
+	// dim 1 is directly a cullType_t enum value.
+	// dim 2 is a polygon offset value (0 - off, 1 - on).
+	VkPipeline dlight_pipelines[2][3][2];
 
 	VkPipeline tris_debug_pipeline;
 	VkPipeline tris_mirror_debug_pipeline;
@@ -187,48 +187,48 @@ struct Vk_Instance {
 };
 
 struct Vk_Resources {
-    //
-    // Resources.
-    //
-    int num_samplers = 0;
-    Vk_Sampler_Def sampler_defs[MAX_VK_SAMPLERS];
-    VkSampler samplers[MAX_VK_SAMPLERS];
+	//
+	// Resources.
+	//
+	int num_samplers = 0;
+	Vk_Sampler_Def sampler_defs[MAX_VK_SAMPLERS];
+	VkSampler samplers[MAX_VK_SAMPLERS];
 
-    int num_pipelines = 0;
-    Vk_Pipeline_Def pipeline_defs[MAX_VK_PIPELINES];
-    VkPipeline pipelines[MAX_VK_PIPELINES];
+	int num_pipelines = 0;
+	Vk_Pipeline_Def pipeline_defs[MAX_VK_PIPELINES];
+	VkPipeline pipelines[MAX_VK_PIPELINES];
 	float pipeline_create_time;
 
-    Vk_Image images[MAX_VK_IMAGES];
+	Vk_Image images[MAX_VK_IMAGES];
 
-    //
-    // Memory allocations.
-    //
-    struct Chunk {
-        VkDeviceMemory memory = VK_NULL_HANDLE;
-        VkDeviceSize used = 0;
-    };
+	//
+	// Memory allocations.
+	//
+	struct Chunk {
+		VkDeviceMemory memory = VK_NULL_HANDLE;
+		VkDeviceSize used = 0;
+	};
 
-    int num_image_chunks = 0;
-    Chunk image_chunks[MAX_IMAGE_CHUNKS];
+	int num_image_chunks = 0;
+	Chunk image_chunks[MAX_IMAGE_CHUNKS];
 
-    // Host visible memory used to copy image data to device local memory.
-    VkBuffer staging_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory staging_buffer_memory = VK_NULL_HANDLE;
-    VkDeviceSize staging_buffer_size = 0;
-    byte* staging_buffer_ptr = nullptr; // pointer to mapped staging buffer
+	// Host visible memory used to copy image data to device local memory.
+	VkBuffer staging_buffer = VK_NULL_HANDLE;
+	VkDeviceMemory staging_buffer_memory = VK_NULL_HANDLE;
+	VkDeviceSize staging_buffer_size = 0;
+	byte* staging_buffer_ptr = nullptr; // pointer to mapped staging buffer
 
-    //
-    // State.
-    //
+	//
+	// State.
+	//
 
-    // Descriptor sets corresponding to bound texture images.
-    VkDescriptorSet current_descriptor_sets[2];
+	// Descriptor sets corresponding to bound texture images.
+	VkDescriptorSet current_descriptor_sets[2];
 
-    // This flag is used to decide whether framebuffer's attachments should be cleared
-    // with vmCmdClearAttachment (dirty_attachments == true), or they have just been
-    // cleared by render pass instance clear op (dirty_attachments == false).
-    bool dirty_attachments;
+	// This flag is used to decide whether framebuffer's attachments should be cleared
+	// with vmCmdClearAttachment (dirty_attachments == true), or they have just been
+	// cleared by render pass instance clear op (dirty_attachments == false).
+	bool dirty_attachments;
 
 	float modelview_transform[16];
 };

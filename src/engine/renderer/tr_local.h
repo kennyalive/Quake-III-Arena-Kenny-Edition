@@ -318,10 +318,10 @@ typedef struct {
 
 	qboolean		isDetail;
 
-    // VULKAN
-    VkPipeline      vk_pipeline = VK_NULL_HANDLE;
-    VkPipeline      vk_portal_pipeline = VK_NULL_HANDLE;
-    VkPipeline      vk_mirror_pipeline = VK_NULL_HANDLE;
+	// VULKAN
+	VkPipeline		vk_pipeline = VK_NULL_HANDLE;
+	VkPipeline		vk_portal_pipeline = VK_NULL_HANDLE;
+	VkPipeline		vk_mirror_pipeline = VK_NULL_HANDLE;
 } shaderStage_t;
 
 struct shaderCommands_s;
@@ -929,16 +929,16 @@ extern glconfig_t	glConfig;		// outside of TR since it shouldn't be cleared duri
 extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during ref re-init
 
 // VULKAN
-extern Vk_Instance  vk;             // shouldn't be cleared during ref re-init
-extern Vk_Resources vk_resources;   // this data is cleared during ref re-init
+extern Vk_Instance	vk;				// shouldn't be cleared during ref re-init
+extern Vk_Resources	vk_resources;	// this data is cleared during ref re-init
 
 
 //
 // cvars
 //
-extern cvar_t   *r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan.
+extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan.
 
-extern cvar_t   *r_twinMode;			// If enabled, renderer creates two separate windows.
+extern cvar_t	*r_twinMode;			// If enabled, renderer creates two separate windows.
 										// The first window uses rendering API specified by r_renderAPI,
 										// the second window uses rendering API corresponding to (1 - r_renderAPI).
 
