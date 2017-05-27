@@ -86,8 +86,8 @@ void vk_release_resources();
 //
 // Resources allocation.
 //
-Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_texture);
-void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* rgba_pixels);
+Vk_Image vk_create_image(int width, int height, VkFormat format, int mip_levels, bool repeat_texture);
+void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* pixels, int bytes_per_pixel);
 void vk_update_descriptor_set(VkDescriptorSet set, VkImageView image_view, bool mipmap, bool repeat_texture);
 VkSampler vk_find_sampler(const Vk_Sampler_Def& def);
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);

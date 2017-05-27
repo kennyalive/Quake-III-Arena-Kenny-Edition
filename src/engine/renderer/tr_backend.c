@@ -716,8 +716,8 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
             vkDestroyImage(vk.device, image.handle, nullptr);
             vkDestroyImageView(vk.device, image.view, nullptr);
             vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
-            image = vk_create_image(cols, rows, 1, false);
-            vk_upload_image_data(image.handle, cols, rows, false, data);
+            image = vk_create_image(cols, rows, VK_FORMAT_R8G8B8A8_UNORM, 1, false);
+            vk_upload_image_data(image.handle, cols, rows, false, data, 4);
         }
 	} else {
 		if (dirty) {
@@ -728,7 +728,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
             // VULKAN
             if (vk.active) {
                 const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
-                vk_upload_image_data(image.handle, cols, rows, false, data);
+                vk_upload_image_data(image.handle, cols, rows, false, data, 4);
             }
 		}
 	}

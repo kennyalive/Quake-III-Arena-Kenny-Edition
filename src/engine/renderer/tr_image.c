@@ -511,37 +511,23 @@ byte	mipBlendColors[16][4] = {
 	{0,0,255,128},
 };
 
+struct Image_Upload_Data {
+	byte* buffer;
+	int buffer_size;
+	int mip_levels;
+	int base_level_width;
+	int base_level_height;
+};
 
-/*
-===============
-Upload32
-
-===============
-*/
-static void Upload32( unsigned *data, 
-					    int width, int height, 
-					    qboolean mipmap, 
-					    qboolean picmip, 
-					    qboolean lightMap,
-					    int *format, 
-					    int *pUploadWidth, int *pUploadHeight,
-                        // VULKAN
-                        Vk_Image& image,
-                        bool repeat_texture
-                        )
-{
-	int			samples;
-	unsigned	*scaledBuffer = NULL;
-	unsigned	*resampledBuffer = NULL;
-	int			scaled_width, scaled_height;
-	int			i, c;
-	byte		*scan;
-	GLenum		internalFormat = GL_RGB;
-    int		    miplevel = 0;
+static Image_Upload_Data generate_image_upload_data(const byte* data,  int width, int height, qboolean mipmap, qboolean picmip) {
+	Image_Upload_Data upload_data;
+	upload_data.buffer = (byte*) ri.Hunk_AllocateTempMemory(2 * 4 * width * height);
 
 	//
 	// convert to exact power of 2 sizes
 	//
+	int scaled_width, scaled_height;
+
 	for (scaled_width = 1 ; scaled_width < width ; scaled_width<<=1)
 		;
 	for (scaled_height = 1 ; scaled_height < height ; scaled_height<<=1)
@@ -551,10 +537,11 @@ static void Upload32( unsigned *data,
 	if ( r_roundImagesDown->integer && scaled_height > height )
 		scaled_height >>= 1;
 
+	byte* resampled_buffer = nullptr;
 	if ( scaled_width != width || scaled_height != height ) {
-		resampledBuffer = (unsigned int*) ri.Hunk_AllocateTempMemory( scaled_width * scaled_height * 4 );
-		ResampleTexture (data, width, height, resampledBuffer, scaled_width, scaled_height);
-		data = resampledBuffer;
+		resampled_buffer = (byte*) ri.Hunk_AllocateTempMemory( scaled_width * scaled_height * 4 );
+		ResampleTexture ((unsigned*)data, width, height, (unsigned*)resampled_buffer, scaled_width, scaled_height);
+		data = resampled_buffer;
 		width = scaled_width;
 		height = scaled_height;
 	}
@@ -589,166 +576,168 @@ static void Upload32( unsigned *data,
 		scaled_height >>= 1;
 	}
 
-	scaledBuffer = (unsigned int*) ri.Hunk_AllocateTempMemory( sizeof( unsigned ) * scaled_width * scaled_height );
+	upload_data.base_level_width = scaled_width;
+	upload_data.base_level_height = scaled_height;
 
-	//
-	// scan the texture for each channel's max values
-	// and verify if the alpha channel is being used or not
-	//
-	c = width*height;
-	scan = ((byte *)data);
-	samples = 3;
-	if (!lightMap) {
-		for ( i = 0; i < c; i++ )
-		{
-			if ( scan[i*4 + 3] != 255 ) 
-			{
-				samples = 4;
-				break;
-			}
-		}
-		// select proper internal format
-		if ( samples == 3 )
-		{
-			if ( glConfig.textureCompression == TC_S3TC )
-			{
-				internalFormat = GL_RGB4_S3TC;
-			}
-			else if ( r_texturebits->integer == 16 )
-			{
-				internalFormat = GL_RGB5;
-			}
-			else if ( r_texturebits->integer == 32 )
-			{
-				internalFormat = GL_RGB8;
-			}
-			else
-			{
-				internalFormat = 3;
-			}
-		}
-		else if ( samples == 4 )
-		{
-			if ( r_texturebits->integer == 16 )
-			{
-				internalFormat = GL_RGBA4;
-			}
-			else if ( r_texturebits->integer == 32 )
-			{
-				internalFormat = GL_RGBA8;
-			}
-			else
-			{
-				internalFormat = 4;
-			}
-		}
-	} else {
-		internalFormat = 3;
+	if (scaled_width == width && scaled_height == height && !mipmap) {
+		upload_data.mip_levels = 1;
+		upload_data.buffer_size = scaled_width * scaled_height * 4;
+		Com_Memcpy(upload_data.buffer, data, upload_data.buffer_size);
+		if (resampled_buffer != nullptr)
+			ri.Hunk_FreeTempMemory(resampled_buffer);
+		return upload_data;
 	}
 
-    // VULKAN
-    auto mipmap_buffer = (byte*) ri.Hunk_AllocateTempMemory(int(2.0 * 4 * scaled_width * scaled_height));
+	// Use the normal mip-mapping to go down from [width, height] to [scaled_width, scaled_height] dimensions.
+	while (width > scaled_width || height > scaled_height) {
+		R_MipMap((byte *)data, width, height);
 
-	// copy or resample data as appropriate for first MIP level
-	if ( ( scaled_width == width ) && 
-		( scaled_height == height ) ) {
-		if (!mipmap)
-		{
-			qglTexImage2D (GL_TEXTURE_2D, 0, internalFormat, scaled_width, scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-			*pUploadWidth = scaled_width;
-			*pUploadHeight = scaled_height;
-			*format = internalFormat;
+		width >>= 1;
+		if (width < 1) width = 1;
 
-            // VULKAN
-            Com_Memcpy(mipmap_buffer, data, width * height * 4);
-
-			goto done;
-		}
-		Com_Memcpy (scaledBuffer, data, width*height*4);
-	}
-	else
-	{
-		// use the normal mip-mapping function to go down from here
-		while ( width > scaled_width || height > scaled_height ) {
-			R_MipMap( (byte *)data, width, height );
-			width >>= 1;
-			height >>= 1;
-			if ( width < 1 ) {
-				width = 1;
-			}
-			if ( height < 1 ) {
-				height = 1;
-			}
-		}
-		Com_Memcpy( scaledBuffer, data, width * height * 4 );
+		height >>= 1;
+		if (height < 1) height = 1; 
 	}
 
-	R_LightScaleTexture (scaledBuffer, scaled_width, scaled_height, (qboolean) !mipmap );
+	// At this point width == scaled_width and height == scaled_height.
 
-	*pUploadWidth = scaled_width;
-	*pUploadHeight = scaled_height;
-	*format = internalFormat;
+	unsigned* scaled_buffer = (unsigned int*) ri.Hunk_AllocateTempMemory( sizeof( unsigned ) * scaled_width * scaled_height );
+	Com_Memcpy(scaled_buffer, data, scaled_width * scaled_height * 4);
+	R_LightScaleTexture(scaled_buffer, scaled_width, scaled_height, (qboolean) !mipmap);
 
-	qglTexImage2D (GL_TEXTURE_2D, 0, internalFormat, scaled_width, scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, scaledBuffer );
+	int miplevel = 0;
+	int mip_level_size = scaled_width * scaled_height * 4;
 
-    // VULKAN
-    Com_Memcpy(mipmap_buffer, scaledBuffer, scaled_width * scaled_height * 4);
-    int mipmap_buffer_size = scaled_width * scaled_height * 4;
+	Com_Memcpy(upload_data.buffer, scaled_buffer, mip_level_size);
+	upload_data.buffer_size = mip_level_size;
+	
+	if (mipmap) {
+		while (scaled_width > 1 || scaled_height > 1) {
+			R_MipMap((byte *)scaled_buffer, scaled_width, scaled_height);
 
-	if (mipmap)
-	{
-		while (scaled_width > 1 || scaled_height > 1)
-		{
-			R_MipMap( (byte *)scaledBuffer, scaled_width, scaled_height );
 			scaled_width >>= 1;
+			if (scaled_width < 1) scaled_width = 1;
+
 			scaled_height >>= 1;
-			if (scaled_width < 1)
-				scaled_width = 1;
-			if (scaled_height < 1)
-				scaled_height = 1;
+			if (scaled_height < 1) scaled_height = 1;
+
 			miplevel++;
+			mip_level_size = scaled_width * scaled_height * 4;
 
 			if ( r_colorMipLevels->integer ) {
-				R_BlendOverTexture( (byte *)scaledBuffer, scaled_width * scaled_height, mipBlendColors[miplevel] );
+				R_BlendOverTexture( (byte *)scaled_buffer, scaled_width * scaled_height, mipBlendColors[miplevel] );
 			}
 
-			qglTexImage2D (GL_TEXTURE_2D, miplevel, internalFormat, scaled_width, scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, scaledBuffer );
-
-            // VULKAN
-            Com_Memcpy(&mipmap_buffer[mipmap_buffer_size], scaledBuffer, scaled_width * scaled_height * 4);
-            mipmap_buffer_size += scaled_width * scaled_height * 4;
+			Com_Memcpy(&upload_data.buffer[upload_data.buffer_size], scaled_buffer, mip_level_size);
+			upload_data.buffer_size += mip_level_size;
 		}
 	}
+	upload_data.mip_levels = miplevel + 1;
 
-done:
+	ri.Hunk_FreeTempMemory(scaled_buffer);
+	if (resampled_buffer != nullptr)
+		ri.Hunk_FreeTempMemory(resampled_buffer);
 
-    // VULKAN
-    if (vk.active) {
-        image = vk_create_image(*pUploadWidth, *pUploadHeight, miplevel + 1, repeat_texture);
-        vk_upload_image_data(image.handle, *pUploadWidth, *pUploadHeight, mipmap == qtrue, mipmap_buffer);
-    }
-    if (mipmap_buffer != nullptr)
-        ri.Hunk_FreeTempMemory(mipmap_buffer);
+	return upload_data;
+}
 
-	if (mipmap)
-	{
+static int upload_gl_image(const Image_Upload_Data& upload_data, int texture_address_mode) {
+	int w = upload_data.base_level_width;
+	int h = upload_data.base_level_height;
+
+	bool has_alpha = false;
+	for (int i = 0; i < w * h; i++) {
+		if (upload_data.buffer[i*4 + 3] != 255)  {
+			has_alpha = true;
+			break;
+		}
+	}
+	int internal_format = GL_RGBA8;
+	if (glConfig.textureCompression && !has_alpha) {
+		internal_format = GL_RGB4_S3TC;
+	} else if (r_texturebits->integer <= 16) {
+		internal_format = has_alpha ? GL_RGBA4 : GL_RGB5;
+	}
+
+	auto buffer = upload_data.buffer;
+	for (int i = 0; i < upload_data.mip_levels; i++) {
+		qglTexImage2D(GL_TEXTURE_2D, i, internal_format, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+		buffer += w * h * 4;
+
+		w >>= 1;
+		if (w < 1) w = 1;
+
+		h >>= 1;
+		if (h < 1) h = 1;
+	}
+
+	if (upload_data.mip_levels > 1) {
 		qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
 		qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
-	}
-	else
-	{
+	} else {
 		qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 		qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 	}
 
-	GL_CheckErrors();
+	qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, texture_address_mode);
+	qglTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, texture_address_mode);
 
-	if ( scaledBuffer != 0 )
-		ri.Hunk_FreeTempMemory( scaledBuffer );
-	if ( resampledBuffer != 0 )
-		ri.Hunk_FreeTempMemory( resampledBuffer );
+	GL_CheckErrors();
+	return internal_format;
 }
 
+// VULKAN
+static Vk_Image upload_vk_image(const Image_Upload_Data& upload_data, bool repeat_texture) {
+	int w = upload_data.base_level_width;
+	int h = upload_data.base_level_height;
+
+	bool has_alpha = false;
+	for (int i = 0; i < w * h; i++) {
+		if (upload_data.buffer[i*4 + 3] != 255)  {
+			has_alpha = true;
+			break;
+		}
+	}
+	VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+	if (r_texturebits->integer <= 16) {
+		format = has_alpha ? VK_FORMAT_B4G4R4A4_UNORM_PACK16 : VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+	}
+
+	int bytes_per_pixel = 4;
+
+	if (format == VK_FORMAT_A1R5G5B5_UNORM_PACK16) {
+		bytes_per_pixel = 2;
+		auto p = (uint16_t*)upload_data.buffer;
+		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
+			byte r = upload_data.buffer[i+0];
+			byte g = upload_data.buffer[i+1];
+			byte b = upload_data.buffer[i+2];
+
+			*p = uint32_t((b/255.0) * 31.0 + 0.5) |
+				(uint32_t((g/255.0) * 31.0 + 0.5) << 5) |
+				(uint32_t((r/255.0) * 31.0 + 0.5) << 10) |
+				(1 << 15);
+		}
+	} else if (format == VK_FORMAT_B4G4R4A4_UNORM_PACK16) {
+		bytes_per_pixel = 2;
+		auto p = (uint16_t*)upload_data.buffer;
+		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
+			byte r = upload_data.buffer[i+0];
+			byte g = upload_data.buffer[i+1];
+			byte b = upload_data.buffer[i+2];
+			byte a = upload_data.buffer[i+3];
+
+			*p = uint32_t((a/255.0) * 15.0 + 0.5) |
+				(uint32_t((r/255.0) * 15.0 + 0.5) << 4) |
+				(uint32_t((g/255.0) * 15.0 + 0.5) << 8) |
+				(uint32_t((b/255.0) * 15.0 + 0.5) << 12);
+		}
+	}
+
+	Vk_Image image = vk_create_image(w, h, format, upload_data.mip_levels, repeat_texture);
+	vk_upload_image_data(image.handle, w, h, upload_data.mip_levels > 1, upload_data.buffer, bytes_per_pixel);
+	return image;
+}
 
 /*
 ================
@@ -759,62 +748,51 @@ This is the only way any image_t are created
 */
 image_t *R_CreateImage( const char *name, const byte *pic, int width, int height, 
 					   qboolean mipmap, qboolean allowPicmip, int glWrapClampMode ) {
-	image_t		*image;
-	qboolean	isLightmap = qfalse;
-	long		hash;
 
 	if (strlen(name) >= MAX_QPATH ) {
 		ri.Error (ERR_DROP, "R_CreateImage: \"%s\" is too long\n", name);
-	}
-	if ( !strncmp( name, "*lightmap", 9 ) ) {
-		isLightmap = qtrue;
 	}
 
 	if ( tr.numImages == MAX_DRAWIMAGES ) {
 		ri.Error( ERR_DROP, "R_CreateImage: MAX_DRAWIMAGES hit\n");
 	}
 
-	image = tr.images[tr.numImages] = (image_t*) ri.Hunk_Alloc( sizeof( image_t ), h_low );
+	// Create image_t object.
+	auto image = tr.images[tr.numImages] = (image_t*) ri.Hunk_Alloc( sizeof( image_t ), h_low );
     image->index = tr.numImages;
 	image->texnum = 1024 + tr.numImages;
-	tr.numImages++;
-
 	image->mipmap = mipmap;
 	image->allowPicmip = allowPicmip;
-
 	strcpy (image->imgName, name);
-
 	image->width = width;
 	image->height = height;
 	image->wrapClampMode = glWrapClampMode;
 
+	long hash = generateHashValue(name);
+	image->next = hashTable[hash];
+	hashTable[hash] = image;
+
+	tr.numImages++;
+
+	// Create corresponding GPU resource.
+	bool isLightmap = (strncmp(name, "*lightmap", 9) == 0);
 	GL_SelectTexture(isLightmap ? 1 : 0);
 	GL_Bind(image);
+	
+	Image_Upload_Data upload_data = generate_image_upload_data(pic, width, height, mipmap, allowPicmip);
 
-	Upload32( (unsigned *)pic, image->width, image->height, 
-								image->mipmap,
-								allowPicmip,
-								isLightmap,
-								&image->internalFormat,
-								&image->uploadWidth,
-								&image->uploadHeight,
-                                vk_resources.images[image->index],
-                                glWrapClampMode == GL_REPEAT
-    );
-
-	qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, glWrapClampMode );
-	qglTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, glWrapClampMode );
-
-	qglBindTexture( GL_TEXTURE_2D, 0 );
+	if (glActive) {
+		image->internalFormat = upload_gl_image(upload_data, glWrapClampMode);
+	}
+	// VULKAN
+	if (vk.active) {
+		vk_resources.images[image->index] = upload_vk_image(upload_data, glWrapClampMode == GL_REPEAT);
+	}
 
 	if (isLightmap) {
 		GL_SelectTexture( 0 );
 	}
-
-	hash = generateHashValue(name);
-	image->next = hashTable[hash];
-	hashTable[hash] = image;
-
+	ri.Hunk_FreeTempMemory(upload_data.buffer);
 	return image;
 }
 

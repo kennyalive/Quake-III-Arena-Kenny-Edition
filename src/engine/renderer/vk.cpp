@@ -251,33 +251,8 @@ static void record_and_run_commands(VkCommandPool command_pool, VkQueue queue, s
     vkFreeCommandBuffers(vk.device, command_pool, 1, &command_buffer);
 }
 
-static void record_image_layout_transition(VkCommandBuffer command_buffer, VkImage image, VkFormat format,
+static void record_image_layout_transition(VkCommandBuffer command_buffer, VkImage image, VkImageAspectFlags image_aspect_flags,
     VkAccessFlags src_access_flags, VkImageLayout old_layout, VkAccessFlags dst_access_flags, VkImageLayout new_layout) {
-
-    auto has_depth_component = [](VkFormat format) {
-        switch (format) {
-        case VK_FORMAT_D16_UNORM:
-        case VK_FORMAT_X8_D24_UNORM_PACK32:
-        case VK_FORMAT_D32_SFLOAT:
-        case VK_FORMAT_D16_UNORM_S8_UINT:
-        case VK_FORMAT_D24_UNORM_S8_UINT:
-        case VK_FORMAT_D32_SFLOAT_S8_UINT:
-            return true;
-        default:
-            return false;
-        }
-    };
-    auto has_stencil_component = [](VkFormat format) {
-        switch (format) {
-        case VK_FORMAT_S8_UINT:
-        case VK_FORMAT_D16_UNORM_S8_UINT:
-        case VK_FORMAT_D24_UNORM_S8_UINT:
-        case VK_FORMAT_D32_SFLOAT_S8_UINT:
-            return true;
-        default:
-            return false;
-        }
-    };
 
     VkImageMemoryBarrier barrier;
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -289,18 +264,7 @@ static void record_image_layout_transition(VkCommandBuffer command_buffer, VkIma
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-
-    bool depth = has_depth_component(format);
-    bool stencil = has_stencil_component(format);
-    if (depth && stencil)
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    else if (depth)
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    else if (stencil)
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
-    else
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-
+	barrier.subresourceRange.aspectMask = image_aspect_flags;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -860,8 +824,12 @@ void vk_initialize() {
             VK_CHECK(vkCreateImageView(vk.device, &desc, nullptr, &vk.depth_image_view));
         }
 
-        record_and_run_commands(vk.command_pool, vk.queue, [&depth_format](VkCommandBuffer command_buffer) {
-            record_image_layout_transition(command_buffer, vk.depth_image, depth_format, 0, VK_IMAGE_LAYOUT_UNDEFINED,
+		VkImageAspectFlags image_aspect_flags = VK_IMAGE_ASPECT_DEPTH_BIT;
+		if (r_stencilbits->integer)
+			image_aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+        record_and_run_commands(vk.command_pool, vk.queue, [&image_aspect_flags](VkCommandBuffer command_buffer) {
+            record_image_layout_transition(command_buffer, vk.depth_image, image_aspect_flags, 0, VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         });
     }
@@ -1321,7 +1289,7 @@ static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer,
     vkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, nullptr, 1, &barrier, 0, nullptr);
 }
 
-Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_texture) {
+Vk_Image vk_create_image(int width, int height, VkFormat format, int mip_levels, bool repeat_texture) {
     Vk_Image image;
 
     // create image
@@ -1331,7 +1299,7 @@ Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_text
         desc.pNext = nullptr;
         desc.flags = 0;
         desc.imageType = VK_IMAGE_TYPE_2D;
-        desc.format = VK_FORMAT_R8G8B8A8_UNORM;
+        desc.format = format;
         desc.extent.width = width;
         desc.extent.height = height;
         desc.extent.depth = 1;
@@ -1357,7 +1325,7 @@ Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_text
         desc.flags = 0;
         desc.image = image.handle;
         desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        desc.format = VK_FORMAT_R8G8B8A8_UNORM;
+        desc.format = format;
         desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -1387,7 +1355,7 @@ Vk_Image vk_create_image(int width, int height, int mip_levels, bool repeat_text
     return image;
 }
 
-void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* rgba_pixels) {
+void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, const uint8_t* pixels, int bytes_per_pixel) {
     VkBufferImageCopy regions[16];
     int num_regions = 0;
 
@@ -1408,7 +1376,7 @@ void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, con
         regions[num_regions] = region;
         num_regions++;
 
-        buffer_size += width * height * 4;
+        buffer_size += width * height * bytes_per_pixel;
 
         if (!mipmap || (width == 1 && height == 1))
             break;
@@ -1421,7 +1389,7 @@ void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, con
     }
 
     ensure_staging_buffer_allocation(buffer_size);
-    Com_Memcpy(vk_resources.staging_buffer_ptr, rgba_pixels, buffer_size);
+    Com_Memcpy(vk_resources.staging_buffer_ptr, pixels, buffer_size);
 
     record_and_run_commands(vk.command_pool, vk.queue,
         [&image, &num_regions, &regions](VkCommandBuffer command_buffer) {
@@ -1430,12 +1398,12 @@ void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, con
             VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
-        record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
+        record_image_layout_transition(command_buffer, image, VK_IMAGE_ASPECT_COLOR_BIT,
             0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         vkCmdCopyBufferToImage(command_buffer, vk_resources.staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
 
-        record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
+        record_image_layout_transition(command_buffer, image, VK_IMAGE_ASPECT_COLOR_BIT,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     });
 }
@@ -2336,11 +2304,11 @@ void vk_read_pixels(byte* buffer) {
 	VK_CHECK(vkBindImageMemory(vk.device, image, memory, 0));
 
 	record_and_run_commands(vk.command_pool, vk.queue, [&image](VkCommandBuffer command_buffer) {
-		record_image_layout_transition(command_buffer, vk.swapchain_images[vk.swapchain_image_index], vk.surface_format.format,
+		record_image_layout_transition(command_buffer, vk.swapchain_images[vk.swapchain_image_index], VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_ACCESS_MEMORY_READ_BIT, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 
 			VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-		record_image_layout_transition(command_buffer, image, VK_FORMAT_R8G8B8A8_UNORM,
+		record_image_layout_transition(command_buffer, image, VK_IMAGE_ASPECT_COLOR_BIT,
 			0, VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL);
 	});
