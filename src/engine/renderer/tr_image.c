@@ -519,10 +519,7 @@ struct Image_Upload_Data {
 	int base_level_height;
 };
 
-static Image_Upload_Data generate_image_upload_data(const byte* data,  int width, int height, qboolean mipmap, qboolean picmip) {
-	Image_Upload_Data upload_data;
-	upload_data.buffer = (byte*) ri.Hunk_AllocateTempMemory(2 * 4 * width * height);
-
+static Image_Upload_Data generate_image_upload_data(const byte* data, int width, int height, qboolean mipmap, qboolean picmip) {
 	//
 	// convert to exact power of 2 sizes
 	//
@@ -536,6 +533,9 @@ static Image_Upload_Data generate_image_upload_data(const byte* data,  int width
 		scaled_width >>= 1;
 	if ( r_roundImagesDown->integer && scaled_height > height )
 		scaled_height >>= 1;
+
+	Image_Upload_Data upload_data;
+	upload_data.buffer = (byte*) ri.Hunk_AllocateTempMemory(2 * 4 * scaled_width * scaled_height);
 
 	byte* resampled_buffer = nullptr;
 	if ( scaled_width != width || scaled_height != height ) {
