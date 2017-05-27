@@ -549,7 +549,24 @@ void R_LevelShot( void ) {
 	buffer[14] = 128;
 	buffer[16] = 24;	// pixel size
 
-	qglReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, GL_RGB, GL_UNSIGNED_BYTE, source ); 
+	if (r_renderAPI->integer == 0) {
+		qglReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, GL_RGB, GL_UNSIGNED_BYTE, source ); 
+	} else {
+		// VULKAN
+		byte* buffer2 = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);
+		vk_read_pixels(buffer2);
+
+		byte* buffer_ptr = source;
+		byte* buffer2_ptr = buffer2;
+		for (int i = 0; i < glConfig.vidWidth * glConfig.vidHeight; i++) {
+			buffer_ptr[0] = buffer2_ptr[0];
+			buffer_ptr[1] = buffer2_ptr[1];
+			buffer_ptr[2] = buffer2_ptr[2];
+			buffer_ptr += 3;
+			buffer2_ptr += 4;
+		}
+		ri.Hunk_FreeTempMemory(buffer2);
+	}
 
 	// resample from source
 	xScale = glConfig.vidWidth / 512.0f;
