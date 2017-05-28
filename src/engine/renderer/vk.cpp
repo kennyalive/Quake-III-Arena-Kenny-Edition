@@ -710,35 +710,44 @@ void vk_initialize() {
 
 	vkGetDeviceQueue(vk.device, vk.queue_family_index, 0, &vk.queue);
 
-	vk.swapchain = create_swapchain(vk.physical_device, vk.device, vk.surface, vk.surface_format);
+	//
+	// Swapchain.
+	//
+	{
+		vk.swapchain = create_swapchain(vk.physical_device, vk.device, vk.surface, vk.surface_format);
 
-	VK_CHECK(vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, nullptr));
+		VK_CHECK(vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, nullptr));
+		if (vk.swapchain_image_count > MAX_SWAPCHAIN_IMAGES)
+			vk.swapchain_image_count = MAX_SWAPCHAIN_IMAGES;
 
-	if (vk.swapchain_image_count > MAX_SWAPCHAIN_IMAGES)
-		ri.Error( ERR_FATAL, "initialize_vulkan: swapchain image count (%d) exceeded limit (%d)", vk.swapchain_image_count, MAX_SWAPCHAIN_IMAGES );
+		VkResult result = vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, vk.swapchain_images);
+		if (result != VK_SUCCESS && result != VK_INCOMPLETE)
+			ri.Error(ERR_FATAL, "vk_initialize: vkGetSwapchainImagesKHR failed");
 
-	VK_CHECK(vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, vk.swapchain_images));
-
-	for (std::size_t i = 0; i < vk.swapchain_image_count; i++) {
-		VkImageViewCreateInfo desc;
-		desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		desc.pNext = nullptr;
-		desc.flags = 0;
-		desc.image = vk.swapchain_images[i];
-		desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		desc.format = vk.surface_format.format;
-		desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-		desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		desc.subresourceRange.baseMipLevel = 0;
-		desc.subresourceRange.levelCount = 1;
-		desc.subresourceRange.baseArrayLayer = 0;
-		desc.subresourceRange.layerCount = 1;
-		VK_CHECK(vkCreateImageView(vk.device, &desc, nullptr, &vk.swapchain_image_views[i]));
+		for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
+			VkImageViewCreateInfo desc;
+			desc.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			desc.pNext = nullptr;
+			desc.flags = 0;
+			desc.image = vk.swapchain_images[i];
+			desc.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			desc.format = vk.surface_format.format;
+			desc.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+			desc.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+			desc.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+			desc.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+			desc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			desc.subresourceRange.baseMipLevel = 0;
+			desc.subresourceRange.levelCount = 1;
+			desc.subresourceRange.baseArrayLayer = 0;
+			desc.subresourceRange.layerCount = 1;
+			VK_CHECK(vkCreateImageView(vk.device, &desc, nullptr, &vk.swapchain_image_views[i]));
+		}
 	}
 
+	//
+	// Command pool.
+	//
 	{
 		VkCommandPoolCreateInfo desc;
 		desc.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -749,6 +758,9 @@ void vk_initialize() {
 		VK_CHECK(vkCreateCommandPool(vk.device, &desc, nullptr, &vk.command_pool));
 	}
 
+	//
+	// Command buffer.
+	//
 	{
 		VkCommandBufferAllocateInfo alloc_info;
 		alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
