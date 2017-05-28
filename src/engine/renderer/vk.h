@@ -19,7 +19,7 @@ const int MAX_IMAGE_CHUNKS = 16;
 #define VK_CHECK(function_call) { \
 	VkResult result = function_call; \
 	if (result < 0) \
-		ri.Error(ERR_FATAL, "Vulkan error: function %s, error code %d", #function_call, result); \
+		ri.Error(ERR_FATAL, "Vulkan: function %s, error code %d", #function_call, result); \
 }
 
 enum class Vk_Shader_Type {

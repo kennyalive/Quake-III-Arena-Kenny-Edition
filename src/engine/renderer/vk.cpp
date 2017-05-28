@@ -49,7 +49,7 @@ static uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t memo
 			return i;
 		}
 	}
-	ri.Error(ERR_FATAL, "Vulkan error: failed to find matching memory type with requested properties");
+	ri.Error(ERR_FATAL, "Vulkan: failed to find matching memory type with requested properties");
 	return -1;
 }
 
@@ -374,7 +374,7 @@ static void create_instance() {
 
 	for (auto name : instance_extensions) {
 		if (!is_extension_available(extension_properties, name))
-			ri.Error(ERR_FATAL, "Vulkan error: required instance extension is not available: %s", name);
+			ri.Error(ERR_FATAL, "Vulkan: required instance extension is not available: %s", name);
 	}
 
 	VkInstanceCreateInfo desc;
@@ -397,7 +397,7 @@ static void create_device() {
 		VK_CHECK(vkEnumeratePhysicalDevices(vk.instance, &count, nullptr));
 
 		if (count == 0)
-			ri.Error(ERR_FATAL, "Vulkan error: no physical device found");
+			ri.Error(ERR_FATAL, "Vulkan: no physical device found");
 
 		std::vector<VkPhysicalDevice> physical_devices(count);
 		VK_CHECK(vkEnumeratePhysicalDevices(vk.instance, &count, physical_devices.data()));
@@ -444,7 +444,7 @@ static void create_device() {
 			}
 		}
 		if (vk.queue_family_index == -1)
-			ri.Error(ERR_FATAL, "Vulkan error: failed to find queue family");
+			ri.Error(ERR_FATAL, "Vulkan: failed to find queue family");
 	}
 
 	// create VkDevice
@@ -457,7 +457,7 @@ static void create_device() {
 
 		for (auto name : device_extensions) {
 			if (!is_extension_available(extension_properties, name))
-				ri.Error(ERR_FATAL, "Vulkan error: required device extension is not available: %s", name);
+				ri.Error(ERR_FATAL, "Vulkan: required device extension is not available: %s", name);
 		}
 
 		const float priority = 1.0;
@@ -1001,7 +1001,7 @@ void vk_initialize() {
 	{
 		auto create_shader_module = [](uint8_t* bytes, int count) {
 			if (count % 4 != 0) {
-				ri.Error(ERR_FATAL, "Vulkan error: SPIR-V binary buffer size is not multiple of 4");
+				ri.Error(ERR_FATAL, "Vulkan: SPIR-V binary buffer size is not multiple of 4");
 			}
 			VkShaderModuleCreateInfo desc;
 			desc.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
