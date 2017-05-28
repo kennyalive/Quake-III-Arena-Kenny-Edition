@@ -65,6 +65,7 @@ typedef enum SpvSourceLanguage_ {
     SpvSourceLanguageGLSL = 2,
     SpvSourceLanguageOpenCL_C = 3,
     SpvSourceLanguageOpenCL_CPP = 4,
+    SpvSourceLanguageHLSL = 5,
     SpvSourceLanguageMax = 0x7fffffff,
 } SpvSourceLanguage;
 
@@ -145,6 +146,7 @@ typedef enum SpvStorageClass_ {
     SpvStorageClassPushConstant = 9,
     SpvStorageClassAtomicCounter = 10,
     SpvStorageClassImage = 11,
+    SpvStorageClassStorageBuffer = 12,
     SpvStorageClassMax = 0x7fffffff,
 } SpvStorageClass;
 
@@ -632,12 +634,16 @@ typedef enum SpvCapability_ {
     SpvCapabilitySubgroupBallotKHR = 4423,
     SpvCapabilityDrawParameters = 4427,
     SpvCapabilitySubgroupVoteKHR = 4431,
+    SpvCapabilityStorageBuffer16BitAccess = 4433,
     SpvCapabilityStorageUniformBufferBlock16 = 4433,
     SpvCapabilityStorageUniform16 = 4434,
+    SpvCapabilityUniformAndStorageBuffer16BitAccess = 4434,
     SpvCapabilityStoragePushConstant16 = 4435,
     SpvCapabilityStorageInputOutput16 = 4436,
     SpvCapabilityDeviceGroup = 4437,
     SpvCapabilityMultiView = 4439,
+    SpvCapabilityVariablePointersStorageBuffer = 4441,
+    SpvCapabilityVariablePointers = 4442,
     SpvCapabilitySampleMaskOverrideCoverageNV = 5249,
     SpvCapabilityGeometryShaderPassthroughNV = 5251,
     SpvCapabilityShaderViewportIndexLayerNV = 5254,
