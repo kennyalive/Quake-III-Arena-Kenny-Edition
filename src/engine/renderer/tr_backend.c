@@ -35,9 +35,9 @@ static float	s_flipMatrix[16] = {
 };
 
 #ifdef _DEBUG
-float fast_sky_color[4] = { 0.8f, 0.7f, 0.4f, 1.0f };
+static float fast_sky_color[4] = { 0.8f, 0.7f, 0.4f, 1.0f };
 #else
-float fast_sky_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+static float fast_sky_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 #endif
 
 
@@ -438,7 +438,7 @@ void RB_BeginDrawingView (void) {
 	qglClear( clearBits );
 
 	// VULKAN
-	vk_clear_attachments(vk_resources.dirty_attachments, fast_sky, fast_sky_color);
+	vk_clear_attachments(vk_resources.dirty_depth_attachment, fast_sky, fast_sky_color);
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{

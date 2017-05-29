@@ -225,10 +225,10 @@ struct Vk_Resources {
 	// Descriptor sets corresponding to bound texture images.
 	VkDescriptorSet current_descriptor_sets[2];
 
-	// This flag is used to decide whether framebuffer's attachments should be cleared
-	// with vmCmdClearAttachment (dirty_attachments == true), or they have just been
-	// cleared by render pass instance clear op (dirty_attachments == false).
-	bool dirty_attachments;
+	// This flag is used to decide whether framebuffer's depth attachment should be cleared
+	// with vmCmdClearAttachment (dirty_depth_attachment == true), or it have just been
+	// cleared by render pass instance clear op (dirty_depth_attachment == false).
+	bool dirty_depth_attachment;
 
 	float modelview_transform[16];
 };

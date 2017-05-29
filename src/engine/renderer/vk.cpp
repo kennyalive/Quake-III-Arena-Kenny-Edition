@@ -5,8 +5,6 @@
 #include <functional>
 #include <vector>
 
-extern float fast_sky_color[4];
-
 const int VERTEX_CHUNK_SIZE = 512 * 1024;
 
 const int XYZ_SIZE      = 4 * VERTEX_CHUNK_SIZE;
@@ -22,23 +20,6 @@ const int ST1_OFFSET    = ST0_OFFSET + ST0_SIZE;
 static const int VERTEX_BUFFER_SIZE = XYZ_SIZE + COLOR_SIZE + ST0_SIZE + ST1_SIZE;
 static const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
 
-static const std::vector<const char*> instance_extensions = {
-	VK_KHR_SURFACE_EXTENSION_NAME,
-	VK_KHR_WIN32_SURFACE_EXTENSION_NAME
-};
-
-static const std::vector<const char*> device_extensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-
-static bool is_extension_available(const std::vector<VkExtensionProperties>& properties, const char* extension_name) {
-	for (const auto& property : properties) {
-		if (strcmp(property.extensionName, extension_name) == 0)
-			return true;
-	}
-	return false;
-}
-
 static uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t memory_type_bits, VkMemoryPropertyFlags properties) {
 	VkPhysicalDeviceMemoryProperties memory_properties;
 	vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
@@ -53,31 +34,27 @@ static uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t memo
 	return -1;
 }
 
-static VkFormat find_depth_format(VkPhysicalDevice physical_device) {
+static VkFormat get_depth_format(VkPhysicalDevice physical_device) {
+	VkFormat formats[2];
 	if (r_stencilbits->integer > 0) {
-		VkFormat depth_stencil_formats[2] = {VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT};
-		for (int i = 0; i < 2; i++) {
-			VkFormatProperties props;
-			vkGetPhysicalDeviceFormatProperties(physical_device, depth_stencil_formats[i], &props);
-			if ((props.optimalTilingFeatures  & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0) {
-				glConfig.stencilBits = 8;
-				return depth_stencil_formats[i];
-			}
-		}
-		ri.Error(ERR_FATAL, "find_depth_format: failed to find depth-stencil attachment format");
+		formats[0] = VK_FORMAT_D24_UNORM_S8_UINT;
+		formats[1] = VK_FORMAT_D32_SFLOAT_S8_UINT;
+		glConfig.stencilBits = 8;
 	} else {
-		VkFormat depth_formats[2] = {VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D32_SFLOAT};
-		for (int i = 0; i < 2; i++) {
-			VkFormatProperties props;
-			vkGetPhysicalDeviceFormatProperties(physical_device, depth_formats[i], &props);
-			if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0) {
-				glConfig.stencilBits = 0;
-				return depth_formats[i];
-			}
-		}
-		ri.Error(ERR_FATAL, "find_depth_format: failed to find depth attachment format");
+		formats[0] = VK_FORMAT_X8_D24_UNORM_PACK32;
+		formats[1] = VK_FORMAT_D32_SFLOAT;
+		glConfig.stencilBits = 0;
 	}
-	return VK_FORMAT_UNDEFINED; // neger get here
+
+	for (int i = 0; i < 2; i++) {
+		VkFormatProperties props;
+		vkGetPhysicalDeviceFormatProperties(physical_device, formats[i], &props);
+		if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0) {
+			return formats[i];
+		}
+	}
+	ri.Error(ERR_FATAL, "get_depth_format: failed to find depth attachment format");
+	return VK_FORMAT_UNDEFINED; // never get here
 }
 
 static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevice device, VkSurfaceKHR surface, VkSurfaceFormatKHR surface_format) {
@@ -363,17 +340,26 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 	vk_resources.staging_buffer_ptr = (byte*)data;
 }
 
-VkPipeline create_pipeline(const Vk_Pipeline_Def&);
-
 static void create_instance() {
+	const char* instance_extensions[] = {
+		VK_KHR_SURFACE_EXTENSION_NAME,
+		VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+	};
+
 	uint32_t count = 0;
 	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
-
 	std::vector<VkExtensionProperties> extension_properties(count);
 	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, extension_properties.data()));
 
 	for (auto name : instance_extensions) {
-		if (!is_extension_available(extension_properties, name))
+		bool supported = false;
+		for (const auto& property : extension_properties) {
+			if (!strcmp(property.extensionName, name)) {
+				supported = true;
+				break;
+			}
+		}
+		if (!supported)
 			ri.Error(ERR_FATAL, "Vulkan: required instance extension is not available: %s", name);
 	}
 
@@ -384,8 +370,8 @@ static void create_instance() {
 	desc.pApplicationInfo = nullptr;
 	desc.enabledLayerCount = 0;
 	desc.ppEnabledLayerNames = nullptr;
-	desc.enabledExtensionCount = static_cast<uint32_t>(instance_extensions.size());
-	desc.ppEnabledExtensionNames = instance_extensions.data();
+	desc.enabledExtensionCount = sizeof(instance_extensions)/sizeof(instance_extensions[0]);
+	desc.ppEnabledExtensionNames = instance_extensions;
 
 	VK_CHECK(vkCreateInstance(&desc, nullptr, &vk.instance));
 }
@@ -449,14 +435,24 @@ static void create_device() {
 
 	// create VkDevice
 	{
+		const char* device_extensions[] = {
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		};
+
 		uint32_t count = 0;
 		VK_CHECK(vkEnumerateDeviceExtensionProperties(vk.physical_device, nullptr, &count, nullptr));
-
 		std::vector<VkExtensionProperties> extension_properties(count);
 		VK_CHECK(vkEnumerateDeviceExtensionProperties(vk.physical_device, nullptr, &count, extension_properties.data()));
 
 		for (auto name : device_extensions) {
-			if (!is_extension_available(extension_properties, name))
+			bool supported = false;
+			for (const auto& property : extension_properties) {
+				if (!strcmp(property.extensionName, name)) {
+					supported = true;
+					break;
+				}
+			}
+			if (!supported)
 				ri.Error(ERR_FATAL, "Vulkan: required device extension is not available: %s", name);
 		}
 
@@ -482,8 +478,8 @@ static void create_device() {
 		device_desc.pQueueCreateInfos = &queue_desc;
 		device_desc.enabledLayerCount = 0;
 		device_desc.ppEnabledLayerNames = nullptr;
-		device_desc.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
-		device_desc.ppEnabledExtensionNames = device_extensions.data();
+		device_desc.enabledExtensionCount = sizeof(device_extensions)/sizeof(device_extensions[0]);
+		device_desc.ppEnabledExtensionNames = device_extensions;
 		device_desc.pEnabledFeatures = &features;
 		VK_CHECK(vkCreateDevice(vk.physical_device, &device_desc, nullptr, &vk.device));
 	}
@@ -698,6 +694,8 @@ static void deinit_vulkan_library() {
 	vkQueuePresentKHR							= nullptr;
 }
 
+VkPipeline create_pipeline(const Vk_Pipeline_Def&);
+
 void vk_initialize() {
 	init_vulkan_library();
 
@@ -717,12 +715,8 @@ void vk_initialize() {
 		vk.swapchain = create_swapchain(vk.physical_device, vk.device, vk.surface, vk.surface_format);
 
 		VK_CHECK(vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, nullptr));
-		if (vk.swapchain_image_count > MAX_SWAPCHAIN_IMAGES)
-			vk.swapchain_image_count = MAX_SWAPCHAIN_IMAGES;
-
-		VkResult result = vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, vk.swapchain_images);
-		if (result != VK_SUCCESS && result != VK_INCOMPLETE)
-			ri.Error(ERR_FATAL, "vk_initialize: vkGetSwapchainImagesKHR failed");
+		vk.swapchain_image_count = std::min(vk.swapchain_image_count, (uint32_t)MAX_SWAPCHAIN_IMAGES);
+		VK_CHECK(vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &vk.swapchain_image_count, vk.swapchain_images));
 
 		for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
 			VkImageViewCreateInfo desc;
@@ -775,7 +769,7 @@ void vk_initialize() {
 	// Depth attachment image.
 	// 
 	{
-		VkFormat depth_format = find_depth_format(vk.physical_device);
+		VkFormat depth_format = get_depth_format(vk.physical_device);
 
 		// create depth image
 		{
@@ -850,7 +844,7 @@ void vk_initialize() {
 	// Renderpass.
 	//
 	{
-		VkFormat depth_format = find_depth_format(vk.physical_device);
+		VkFormat depth_format = get_depth_format(vk.physical_device);
 		vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
 	}
 
@@ -1792,18 +1786,6 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 	return pipeline;
 }
 
-struct Timer {
-	using Clock = std::chrono::high_resolution_clock;
-	using Second = std::chrono::duration<double, std::ratio<1>>;
-
-	Clock::time_point start = Clock::now();
-	double Elapsed_Seconds() const {
-		const auto duration = Clock::now() - start;
-		double seconds = std::chrono::duration_cast<Second>(duration).count();
-		return seconds;
-	}
-};
-
 VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
 	// Look for sampler among existing samplers.
 	for (int i = 0; i < vk_resources.num_samplers; i++) {
@@ -1889,6 +1871,18 @@ VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
 	return sampler;
 }
 
+struct Timer {
+	using Clock = std::chrono::high_resolution_clock;
+	using Second = std::chrono::duration<double, std::ratio<1>>;
+
+	Clock::time_point start = Clock::now();
+	double elapsed_seconds() const {
+		const auto duration = Clock::now() - start;
+		double seconds = std::chrono::duration_cast<Second>(duration).count();
+		return seconds;
+	}
+};
+
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
 	for (int i = 0; i < vk_resources.num_pipelines; i++) {
 		const auto& cur_def = vk_resources.pipeline_defs[i];
@@ -1912,7 +1906,7 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
 
 	Timer t;
 	VkPipeline pipeline = create_pipeline(def);
-	vk_resources.pipeline_create_time += t.Elapsed_Seconds();
+	vk_resources.pipeline_create_time += t.elapsed_seconds();
 
 	vk_resources.pipeline_defs[vk_resources.num_pipelines] = def;
 	vk_resources.pipelines[vk_resources.num_pipelines] = pipeline;
@@ -2192,7 +2186,7 @@ void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range de
 	else
 		vkCmdDraw(vk.command_buffer, tess.numVertexes, 1, 0, 0);
 
-	vk_resources.dirty_attachments = true;
+	vk_resources.dirty_depth_attachment = true;
 }
 
 void vk_begin_frame() {
@@ -2239,7 +2233,7 @@ void vk_begin_frame() {
 
 	vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-	vk_resources.dirty_attachments = false;
+	vk_resources.dirty_depth_attachment = false;
 	vk.xyz_elements = 0;
 	vk.color_st_elements = 0;
 	vk.index_buffer_offset = 0;
