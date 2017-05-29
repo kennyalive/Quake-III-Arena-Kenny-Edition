@@ -1,12 +1,26 @@
-Welcome to the Quake 3 source code!
-===============================
+# Welcome to the Quake 3 source code!
 
-Quake 3 is one of my favourite games. This repository contains updated version of the original Q3 codebase with reorganized code structure, compatibility fixes, build setup for the latest Visual Studio and my own modifications that update the core tech but preserve original gameplay, look and feel.
+This repository contains updated version of the original Q3 codebase with reorganized code structure, compatibility fixes, build setup for the latest Visual Studio and modifications that update the core tech but preserve original gameplay, look and feel.
 
-The general direction is to simplify the things. The codebase should be easy to build, executable does not require additional shared libraries to work, no crazy no-op OOP or multi-layered abstractions in the code (until I need this, since there are no absolute rules). Only windows platform is supported.
+The general direction is to simplify the things. The codebase should be easy to build, executable does not require additional shared libraries to work and we do not talk about OOP here. Only Windows platform is supported.
 
-The screeenshot below has no relation to this codebase, I just like it.
+## Vulkan support
+The codebase supports Vulkan API. There are no difference in graphics between OpenGL and Vulkan modes.
+In addition to base rendering functionality and graphics customization options Vulkan backend also supports Q3 debug visualization features.
 
-Kenny
+#### New cvars:
+* **r_renderAPI** - 3D API to use: 0 - OpenGL, 1 - Vulkan. Requires vid_restart.
+
+* **r_twinMode** - Debug feature to compare rendering output between OpenGL and Vulkan APIs.
+    If enabled, renderer uses both APIs and renders current frame to two side-by-side windows.
+    Requires vid_restart.
+    
+Q: How to check that Vulkan backend is really active?
+
+A: _gfxinfo_ console command reports information about active rendering backend.
+
+    
+## Visual Studio
+The project files are provides for Visual Studio 2017. Free community version is available online.
 
 ![Screenshot](https://github.com/artemalive/Quake-III-Arena/raw/master/Screenshot.jpg)
