@@ -6,7 +6,7 @@ The general direction is to simplify the things. The codebase should be easy to 
 
 ## Vulkan support
 The codebase supports Vulkan API. There are no difference in graphics between OpenGL and Vulkan modes.
-In addition to base rendering functionality and graphics customization options Vulkan backend also supports Q3 debug visualization features.
+In addition to base rendering functionality and graphics customization options Vulkan backend also supports Q3 debug visualization features. The following mods were tested: baseq3, missionpack, cpma 1.48, spiterbot.
 
 Make sure that the latest AMD/NVIDIA drivers are installed. Vulkan backend was tested on AMD and NVIDIA hardware. Unfortunately no guarantees for Intel GPUs - there is no vulkan support for my 4790K Haswell processor.
 
@@ -25,5 +25,7 @@ Make sure that the latest AMD/NVIDIA drivers are installed. Vulkan backend was t
 
 ## Visual Studio
 The project files are provides for Visual Studio 2017. Free community version is available online.
+
+visual-studio/quake3.vcxproj.user.example file is provided with example configuration options to start game from visual studio and to enable vulkan validation layers.
 
 ![Screenshot](https://github.com/artemalive/Quake-III-Arena/raw/master/Screenshot.jpg)
