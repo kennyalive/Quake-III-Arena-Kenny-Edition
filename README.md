@@ -8,6 +8,12 @@ The general direction is to simplify the things. The codebase should be easy to 
 The codebase supports Vulkan API. There are no difference in graphics between OpenGL and Vulkan modes.
 In addition to base rendering functionality and graphics customization options Vulkan backend also supports Q3 debug visualization features.
 
+Make sure that the latest AMD/NVIDIA drivers are installed. Vulkan backend was tested on AMD and NVIDIA hardware. Unfortunately no guarantees for Intel GPUs - there is no vulkan support for my 4790K Haswell processor.
+
+By default OpenGL backend is active. To enable Vulkan backend start game with:
+    `quake3-ke.exe +set r_renderAPI 1`
+    
+
 #### New cvars:
 * **r_renderAPI** - 3D API to use: 0 - OpenGL, 1 - Vulkan. Requires vid_restart.
 
