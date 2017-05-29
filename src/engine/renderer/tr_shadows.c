@@ -331,17 +331,17 @@ void RB_ShadowFinish( void ) {
 
 		// set backEnd.or.modelMatrix to identity matrix
 		float tmp[16];
-		Com_Memcpy(tmp, vk_resources.modelview_transform, 64);
-		Com_Memset(vk_resources.modelview_transform, 0, 64);
-		vk_resources.modelview_transform[0] = 1.0f;
-		vk_resources.modelview_transform[5] = 1.0f;
-		vk_resources.modelview_transform[10] = 1.0f;
-		vk_resources.modelview_transform[15] = 1.0f;
+		Com_Memcpy(tmp, vk_world.modelview_transform, 64);
+		Com_Memset(vk_world.modelview_transform, 0, 64);
+		vk_world.modelview_transform[0] = 1.0f;
+		vk_world.modelview_transform[5] = 1.0f;
+		vk_world.modelview_transform[10] = 1.0f;
+		vk_world.modelview_transform[15] = 1.0f;
 
 		vk_bind_geometry();
 		vk_shade_geometry(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
 
-		Com_Memcpy(vk_resources.modelview_transform, tmp, 64);
+		Com_Memcpy(vk_world.modelview_transform, tmp, 64);
 		tess.numIndexes = 0;
 		tess.numVertexes = 0;
 	}

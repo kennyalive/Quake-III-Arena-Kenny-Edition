@@ -150,7 +150,7 @@ void GL_TextureMode( const char *string ) {
 		for ( i = 0 ; i < tr.numImages ; i++ ) {
 			image_t* glt = tr.images[i];
 			if (glt->mipmap) {
-				Vk_Image& image = vk_resources.images[i];
+				Vk_Image& image = vk_world.images[i];
 				vk_update_descriptor_set(image.descriptor_set, image.view, true, glt->wrapClampMode == GL_REPEAT);
 			}
 		}
@@ -569,7 +569,7 @@ static Image_Upload_Data generate_image_upload_data(const byte* data, int width,
 	// scale both axis down equally so we don't have to
 	// deal with a half mip resampling
 	//
-	int max_texture_size = glActive ? glConfig.maxTextureSize : 2048;
+	int max_texture_size = gl_active ? glConfig.maxTextureSize : 2048;
 	while ( scaled_width > max_texture_size
 		|| scaled_height > max_texture_size ) {
 		scaled_width >>= 1;
@@ -781,12 +781,12 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	
 	Image_Upload_Data upload_data = generate_image_upload_data(pic, width, height, mipmap, allowPicmip);
 
-	if (glActive) {
+	if (gl_active) {
 		image->internalFormat = upload_gl_image(upload_data, glWrapClampMode);
 	}
 	// VULKAN
 	if (vk.active) {
-		vk_resources.images[image->index] = upload_vk_image(upload_data, glWrapClampMode == GL_REPEAT);
+		vk_world.images[image->index] = upload_vk_image(upload_data, glWrapClampMode == GL_REPEAT);
 	}
 
 	if (isLightmap) {

@@ -23,13 +23,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_local.h"
 
-bool		glActive;
+bool		gl_active;
 glconfig_t	glConfig;
 glstate_t	glState;
 
 // VULKAN
 Vk_Instance vk;
-Vk_Resources vk_resources;
+Vk_World	vk_world;
 
 static void GfxInfo_f( void );
 
@@ -194,7 +194,7 @@ static void InitRenderAPI( void )
 			qglGetIntegerv( GL_MAX_TEXTURE_SIZE, &temp );
 			glConfig.maxTextureSize = temp;
 
-			glActive = true;
+			gl_active = true;
 		}
 
 		// VULKAN
@@ -781,7 +781,7 @@ void GfxInfo_f( void )
 		"fullscreen"
 	};
 
-	if (glActive) {
+	if (gl_active) {
 		ri.Printf( PRINT_ALL, "\nGL_VENDOR: %s\n", glConfig.vendor_string );
 		ri.Printf( PRINT_ALL, "GL_RENDERER: %s\n", glConfig.renderer_string );
 		ri.Printf( PRINT_ALL, "GL_VERSION: %s\n", glConfig.version_string );
@@ -807,7 +807,7 @@ void GfxInfo_f( void )
 	ri.Printf( PRINT_ALL, "picmip: %d\n", r_picmip->integer );
 	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer );
 
-	if (glActive) {
+	if (gl_active) {
 		ri.Printf( PRINT_ALL, "compiled vertex arrays: %s\n", enablestrings[qglLockArraysEXT != 0 ] );
 		ri.Printf( PRINT_ALL, "texenv add: %s\n", enablestrings[glConfig.textureEnvAddAvailable != 0] );
 		ri.Printf( PRINT_ALL, "compressed textures: %s\n", enablestrings[glConfig.textureCompression!=TC_NONE] );
@@ -817,7 +817,7 @@ void GfxInfo_f( void )
 	{
 		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
 	}
-	if ( glActive && glConfig.smpActive ) {
+	if ( gl_active && glConfig.smpActive ) {
 		ri.Printf( PRINT_ALL, "Using dual processor acceleration\n" );
 	}
 
@@ -1002,7 +1002,7 @@ void R_Init( void ) {
 	Com_Memset( &tr, 0, sizeof( tr ) );
 	Com_Memset( &backEnd, 0, sizeof( backEnd ) );
 	Com_Memset( &tess, 0, sizeof( tess ) );
-	Com_Memset( &vk_resources, 0, sizeof( vk_resources ) );
+	Com_Memset( &vk_world, 0, sizeof( vk_world ) );
 
 	if ( (intptr_t)tess.xyz & 15 ) {
 		Com_Printf( "WARNING: tess.xyz not 16 byte aligned\n" );
@@ -1111,7 +1111,7 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	R_DoneFreeType();
 
 	// shut down platform specific OpenGL stuff
-	if ( glActive ) {
+	if ( gl_active ) {
 		if (destroyWindow)
 			GLimp_Shutdown();
 	}
@@ -1143,7 +1143,7 @@ void RE_EndRegistration( void ) {
 	}
 
 	// VULKAN
-	ri.Printf(PRINT_ALL, "Vulkan: pipelines create time %d msec\n", (int)(vk_resources.pipeline_create_time * 1000));
+	ri.Printf(PRINT_ALL, "Vulkan: pipelines create time %d msec\n", (int)(vk_world.pipeline_create_time * 1000));
 }
 
 

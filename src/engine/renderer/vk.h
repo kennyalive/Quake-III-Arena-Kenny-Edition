@@ -104,7 +104,8 @@ void vk_end_frame();
 
 void vk_read_pixels(byte* buffer);
 
-// Vulkan specific structures used by the engine.
+// Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
+// This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
 struct Vk_Instance {
 	bool active = false;
 	VkInstance instance = VK_NULL_HANDLE;
@@ -120,6 +121,11 @@ struct Vk_Instance {
 	uint32_t swapchain_image_count = 0;
 	VkImage swapchain_images[MAX_SWAPCHAIN_IMAGES];
 	VkImageView swapchain_image_views[MAX_SWAPCHAIN_IMAGES];
+	uint32_t swapchain_image_index = -1;
+
+	VkSemaphore image_acquired = VK_NULL_HANDLE;
+	VkSemaphore rendering_finished = VK_NULL_HANDLE;
+	VkFence rendering_finished_fence = VK_NULL_HANDLE;
 
 	VkCommandPool command_pool = VK_NULL_HANDLE;
 	VkCommandBuffer command_buffer = VK_NULL_HANDLE;
@@ -147,12 +153,9 @@ struct Vk_Instance {
 	// host visible memory that holds both vertex and index data
 	VkDeviceMemory geometry_buffer_memory = VK_NULL_HANDLE;
 
-	VkSemaphore image_acquired = VK_NULL_HANDLE;
-	uint32_t swapchain_image_index = -1;
-
-	VkSemaphore rendering_finished = VK_NULL_HANDLE;
-	VkFence rendering_finished_fence = VK_NULL_HANDLE;
-
+	//
+	// Shader modules.
+	//
 	VkShaderModule single_texture_vs = VK_NULL_HANDLE;
 	VkShaderModule single_texture_clipping_plane_vs = VK_NULL_HANDLE;
 	VkShaderModule single_texture_fs = VK_NULL_HANDLE;
@@ -161,6 +164,9 @@ struct Vk_Instance {
 	VkShaderModule multi_texture_mul_fs = VK_NULL_HANDLE;
 	VkShaderModule multi_texture_add_fs = VK_NULL_HANDLE;
 
+	//
+	// Standard pipelines.
+	//
 	VkPipeline skybox_pipeline = VK_NULL_HANDLE;
 
 	// dim 0: 0 - front side, 1 - back size
@@ -178,6 +184,7 @@ struct Vk_Instance {
 	// dim 2 is a polygon offset value (0 - off, 1 - on).
 	VkPipeline dlight_pipelines[2][3][2];
 
+	// debug visualization pipelines
 	VkPipeline tris_debug_pipeline;
 	VkPipeline tris_mirror_debug_pipeline;
 	VkPipeline normals_debug_pipeline;
@@ -186,7 +193,11 @@ struct Vk_Instance {
 	VkPipeline images_debug_pipeline;
 };
 
-struct Vk_Resources {
+//
+// Vk_World contains vulkan resources/state requested by the game code.
+// It is reinitialized on a map change.
+//
+struct Vk_World {
 	//
 	// Resources.
 	//

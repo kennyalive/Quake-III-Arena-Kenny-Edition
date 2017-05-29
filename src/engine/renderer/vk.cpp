@@ -259,16 +259,16 @@ static void allocate_and_bind_image_memory(VkImage image) {
 		ri.Error(ERR_FATAL, "Vulkan: could not allocate memory, image is too large.");
 	}
 
-	Vk_Resources::Chunk* chunk = nullptr;
+	Vk_World::Chunk* chunk = nullptr;
 
 	// Try to find an existing chunk of sufficient capacity.
 	const auto mask = ~(memory_requirements.alignment - 1);
-	for (int i = 0; i < vk_resources.num_image_chunks; i++) {
+	for (int i = 0; i < vk_world.num_image_chunks; i++) {
 		// ensure that memory region has proper alignment
-		VkDeviceSize offset = (vk_resources.image_chunks[i].used + memory_requirements.alignment - 1) & mask;
+		VkDeviceSize offset = (vk_world.image_chunks[i].used + memory_requirements.alignment - 1) & mask;
 
 		if (offset + memory_requirements.size <= IMAGE_CHUNK_SIZE) {
-			chunk = &vk_resources.image_chunks[i];
+			chunk = &vk_world.image_chunks[i];
 			chunk->used = offset + memory_requirements.size;
 			break;
 		}
@@ -276,7 +276,7 @@ static void allocate_and_bind_image_memory(VkImage image) {
 
 	// Allocate a new chunk in case we couldn't find suitable existing chunk.
 	if (chunk == nullptr) {
-		if (vk_resources.num_image_chunks >= MAX_IMAGE_CHUNKS) {
+		if (vk_world.num_image_chunks >= MAX_IMAGE_CHUNKS) {
 			ri.Error(ERR_FATAL, "Vulkan: image chunk limit has been reached");
 		}
 
@@ -289,8 +289,8 @@ static void allocate_and_bind_image_memory(VkImage image) {
 		VkDeviceMemory memory;
 		VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &memory));
 
-		chunk = &vk_resources.image_chunks[vk_resources.num_image_chunks];
-		vk_resources.num_image_chunks++;
+		chunk = &vk_world.image_chunks[vk_world.num_image_chunks];
+		vk_world.num_image_chunks++;
 		chunk->memory = memory;
 		chunk->used = memory_requirements.size;
 	}
@@ -299,16 +299,16 @@ static void allocate_and_bind_image_memory(VkImage image) {
 }
 
 static void ensure_staging_buffer_allocation(VkDeviceSize size) {
-	if (vk_resources.staging_buffer_size >= size)
+	if (vk_world.staging_buffer_size >= size)
 		return;
 
-	if (vk_resources.staging_buffer != VK_NULL_HANDLE)
-		vkDestroyBuffer(vk.device, vk_resources.staging_buffer, nullptr);
+	if (vk_world.staging_buffer != VK_NULL_HANDLE)
+		vkDestroyBuffer(vk.device, vk_world.staging_buffer, nullptr);
 
-	if (vk_resources.staging_buffer_memory != VK_NULL_HANDLE)
-		vkFreeMemory(vk.device, vk_resources.staging_buffer_memory, nullptr);
+	if (vk_world.staging_buffer_memory != VK_NULL_HANDLE)
+		vkFreeMemory(vk.device, vk_world.staging_buffer_memory, nullptr);
 
-	vk_resources.staging_buffer_size = size;
+	vk_world.staging_buffer_size = size;
 
 	VkBufferCreateInfo buffer_desc;
 	buffer_desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -319,10 +319,10 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 	buffer_desc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	buffer_desc.queueFamilyIndexCount = 0;
 	buffer_desc.pQueueFamilyIndices = nullptr;
-	VK_CHECK(vkCreateBuffer(vk.device, &buffer_desc, nullptr, &vk_resources.staging_buffer));
+	VK_CHECK(vkCreateBuffer(vk.device, &buffer_desc, nullptr, &vk_world.staging_buffer));
 
 	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements(vk.device, vk_resources.staging_buffer, &memory_requirements);
+	vkGetBufferMemoryRequirements(vk.device, vk_world.staging_buffer, &memory_requirements);
 
 	uint32_t memory_type = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -332,12 +332,12 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 	alloc_info.pNext = nullptr;
 	alloc_info.allocationSize = memory_requirements.size;
 	alloc_info.memoryTypeIndex = memory_type;
-	VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk_resources.staging_buffer_memory));
-	VK_CHECK(vkBindBufferMemory(vk.device, vk_resources.staging_buffer, vk_resources.staging_buffer_memory, 0));
+	VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk_world.staging_buffer_memory));
+	VK_CHECK(vkBindBufferMemory(vk.device, vk_world.staging_buffer, vk_world.staging_buffer_memory, 0));
 
 	void* data;
-	VK_CHECK(vkMapMemory(vk.device, vk_resources.staging_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
-	vk_resources.staging_buffer_ptr = (byte*)data;
+	VK_CHECK(vkMapMemory(vk.device, vk_world.staging_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
+	vk_world.staging_buffer_ptr = (byte*)data;
 }
 
 static void create_instance() {
@@ -740,6 +740,25 @@ void vk_initialize() {
 	}
 
 	//
+	// Sync primitives.
+	//
+	{
+		VkSemaphoreCreateInfo desc;
+		desc.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		desc.pNext = nullptr;
+		desc.flags = 0;
+
+		VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.image_acquired));
+		VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.rendering_finished));
+
+		VkFenceCreateInfo fence_desc;
+		fence_desc.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		fence_desc.pNext = nullptr;
+		fence_desc.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+		VK_CHECK(vkCreateFence(vk.device, &fence_desc, nullptr, &vk.rendering_finished_fence));
+	}
+
+	//
 	// Command pool.
 	//
 	{
@@ -983,25 +1002,6 @@ void vk_initialize() {
 	}
 
 	//
-	// Sync primitives.
-	//
-	{
-		VkSemaphoreCreateInfo desc;
-		desc.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-		desc.pNext = nullptr;
-		desc.flags = 0;
-
-		VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.image_acquired));
-		VK_CHECK(vkCreateSemaphore(vk.device, &desc, nullptr, &vk.rendering_finished));
-
-		VkFenceCreateInfo fence_desc;
-		fence_desc.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-		fence_desc.pNext = nullptr;
-		fence_desc.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-		VK_CHECK(vkCreateFence(vk.device, &fence_desc, nullptr, &vk.rendering_finished_fence));
-	}
-
-	//
 	// Shader modules.
 	//
 	{
@@ -1239,27 +1239,26 @@ void vk_shutdown() {
 
 void vk_release_resources() {
 	vkDeviceWaitIdle(vk.device);
-	auto& res = vk_resources;
 
-	for (int i = 0; i < res.num_image_chunks; i++)
-		vkFreeMemory(vk.device, res.image_chunks[i].memory, nullptr);
+	for (int i = 0; i < vk_world.num_image_chunks; i++)
+		vkFreeMemory(vk.device, vk_world.image_chunks[i].memory, nullptr);
 
-	if (res.staging_buffer != VK_NULL_HANDLE)
-		vkDestroyBuffer(vk.device, res.staging_buffer, nullptr);
+	if (vk_world.staging_buffer != VK_NULL_HANDLE)
+		vkDestroyBuffer(vk.device, vk_world.staging_buffer, nullptr);
 
-	if (res.staging_buffer_memory != VK_NULL_HANDLE)
-		vkFreeMemory(vk.device, res.staging_buffer_memory, nullptr);
+	if (vk_world.staging_buffer_memory != VK_NULL_HANDLE)
+		vkFreeMemory(vk.device, vk_world.staging_buffer_memory, nullptr);
 
-	for (int i = 0; i < res.num_samplers; i++)
-		vkDestroySampler(vk.device, res.samplers[i], nullptr);
+	for (int i = 0; i < vk_world.num_samplers; i++)
+		vkDestroySampler(vk.device, vk_world.samplers[i], nullptr);
 
-	for (int i = 0; i < res.num_pipelines; i++)
-		vkDestroyPipeline(vk.device, res.pipelines[i], nullptr);
+	for (int i = 0; i < vk_world.num_pipelines; i++)
+		vkDestroyPipeline(vk.device, vk_world.pipelines[i], nullptr);
 
-	vk_resources.pipeline_create_time = 0.0f;
+	vk_world.pipeline_create_time = 0.0f;
 
 	for (int i = 0; i < MAX_VK_IMAGES; i++) {
-		Vk_Image& image = res.images[i];
+		Vk_Image& image = vk_world.images[i];
 
 		if (image.handle != VK_NULL_HANDLE) {
 			vkDestroyImage(vk.device, image.handle, nullptr);
@@ -1267,7 +1266,7 @@ void vk_release_resources() {
 		}
 	}
 
-	Com_Memset(&res, 0, sizeof(res));
+	Com_Memset(&vk_world, 0, sizeof(vk_world));
 
 	VK_CHECK(vkResetDescriptorPool(vk.device, vk.descriptor_pool, 0));
 
@@ -1355,7 +1354,7 @@ Vk_Image vk_create_image(int width, int height, VkFormat format, int mip_levels,
 		VK_CHECK(vkAllocateDescriptorSets(vk.device, &desc, &image.descriptor_set));
 
 		vk_update_descriptor_set(image.descriptor_set, image.view, mip_levels > 1, repeat_texture);
-		vk_resources.current_descriptor_sets[glState.currenttmu] = image.descriptor_set;
+		vk_world.current_descriptor_sets[glState.currenttmu] = image.descriptor_set;
 	}
 
 	return image;
@@ -1395,19 +1394,19 @@ void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, con
 	}
 
 	ensure_staging_buffer_allocation(buffer_size);
-	Com_Memcpy(vk_resources.staging_buffer_ptr, pixels, buffer_size);
+	Com_Memcpy(vk_world.staging_buffer_ptr, pixels, buffer_size);
 
 	record_and_run_commands(vk.command_pool, vk.queue,
 		[&image, &num_regions, &regions](VkCommandBuffer command_buffer) {
 
-		record_buffer_memory_barrier(command_buffer, vk_resources.staging_buffer,
+		record_buffer_memory_barrier(command_buffer, vk_world.staging_buffer,
 			VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
 		record_image_layout_transition(command_buffer, image, VK_IMAGE_ASPECT_COLOR_BIT,
 			0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-		vkCmdCopyBufferToImage(command_buffer, vk_resources.staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
+		vkCmdCopyBufferToImage(command_buffer, vk_world.staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
 
 		record_image_layout_transition(command_buffer, image, VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1788,19 +1787,19 @@ static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 
 VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
 	// Look for sampler among existing samplers.
-	for (int i = 0; i < vk_resources.num_samplers; i++) {
-		const auto& cur_def = vk_resources.sampler_defs[i];
+	for (int i = 0; i < vk_world.num_samplers; i++) {
+		const auto& cur_def = vk_world.sampler_defs[i];
 
 		if (cur_def.repeat_texture == def.repeat_texture &&
 			cur_def.gl_mag_filter == def.gl_mag_filter && 
 			cur_def.gl_min_filter == def.gl_min_filter)
 		{
-			return vk_resources.samplers[i];
+			return vk_world.samplers[i];
 		}
 	}
 
 	// Create new sampler.
-	if (vk_resources.num_samplers >= MAX_VK_SAMPLERS) {
+	if (vk_world.num_samplers >= MAX_VK_SAMPLERS) {
 		ri.Error(ERR_DROP, "vk_find_sampler: MAX_VK_SAMPLERS hit\n");
 	}
 
@@ -1865,9 +1864,9 @@ VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
 	VkSampler sampler;
 	VK_CHECK(vkCreateSampler(vk.device, &desc, nullptr, &sampler));
 
-	vk_resources.sampler_defs[vk_resources.num_samplers] = def;
-	vk_resources.samplers[vk_resources.num_samplers] = sampler;
-	vk_resources.num_samplers++;
+	vk_world.sampler_defs[vk_world.num_samplers] = def;
+	vk_world.samplers[vk_world.num_samplers] = sampler;
+	vk_world.num_samplers++;
 	return sampler;
 }
 
@@ -1884,8 +1883,8 @@ struct Timer {
 };
 
 VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
-	for (int i = 0; i < vk_resources.num_pipelines; i++) {
-		const auto& cur_def = vk_resources.pipeline_defs[i];
+	for (int i = 0; i < vk_world.num_pipelines; i++) {
+		const auto& cur_def = vk_world.pipeline_defs[i];
 
 		if (cur_def.shader_type == def.shader_type &&
 			cur_def.state_bits == def.state_bits &&
@@ -1896,21 +1895,21 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
 			cur_def.line_primitives == def.line_primitives &&
 			cur_def.shadow_phase == def.shadow_phase)
 		{
-			return vk_resources.pipelines[i];
+			return vk_world.pipelines[i];
 		}
 	}
 
-	if (vk_resources.num_pipelines >= MAX_VK_PIPELINES) {
+	if (vk_world.num_pipelines >= MAX_VK_PIPELINES) {
 		ri.Error(ERR_DROP, "vk_find_pipeline: MAX_VK_PIPELINES hit\n");
 	}
 
 	Timer t;
 	VkPipeline pipeline = create_pipeline(def);
-	vk_resources.pipeline_create_time += t.elapsed_seconds();
+	vk_world.pipeline_create_time += t.elapsed_seconds();
 
-	vk_resources.pipeline_defs[vk_resources.num_pipelines] = def;
-	vk_resources.pipelines[vk_resources.num_pipelines] = pipeline;
-	vk_resources.num_pipelines++;
+	vk_world.pipeline_defs[vk_world.num_pipelines] = def;
+	vk_world.pipelines[vk_world.num_pipelines] = pipeline;
+	vk_world.num_pipelines++;
 	return pipeline;
 }
 
@@ -2050,7 +2049,7 @@ static void get_mvp_transform(float* mvp) {
 			p[12], p[13], P14,  p[15]
 		};
 
-		myGlMultMatrix(vk_resources.modelview_transform, proj, mvp);
+		myGlMultMatrix(vk_world.modelview_transform, proj, mvp);
 	}
 }
 
@@ -2164,7 +2163,7 @@ void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range de
 
 	// bind descriptor sets
 	uint32_t set_count = multitexture ? 2 : 1;
-	vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, vk_resources.current_descriptor_sets, 0, nullptr);
+	vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, set_count, vk_world.current_descriptor_sets, 0, nullptr);
 
 	// bind pipeline
 	vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -2186,7 +2185,7 @@ void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range de
 	else
 		vkCmdDraw(vk.command_buffer, tess.numVertexes, 1, 0, 0);
 
-	vk_resources.dirty_depth_attachment = true;
+	vk_world.dirty_depth_attachment = true;
 }
 
 void vk_begin_frame() {
@@ -2233,7 +2232,7 @@ void vk_begin_frame() {
 
 	vkCmdBeginRenderPass(vk.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-	vk_resources.dirty_depth_attachment = false;
+	vk_world.dirty_depth_attachment = false;
 	vk.xyz_elements = 0;
 	vk.color_st_elements = 0;
 	vk.index_buffer_offset = 0;

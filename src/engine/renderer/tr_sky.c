@@ -724,7 +724,7 @@ void RB_StageIteratorSky( void ) {
 	// draw the outer skybox
 	if ( tess.shader->sky.outerbox[0] && tess.shader->sky.outerbox[0] != tr.defaultImage ) {
         float modelMatrix_original[16];
-        Com_Memcpy(modelMatrix_original, vk_resources.modelview_transform, sizeof(float[16]));
+        Com_Memcpy(modelMatrix_original, vk_world.modelview_transform, sizeof(float[16]));
 
         float skybox_translate[16] = {
             1, 0, 0, 0,
@@ -732,16 +732,16 @@ void RB_StageIteratorSky( void ) {
             0, 0, 1, 0,
             backEnd.viewParms.or.origin[0], backEnd.viewParms.or.origin[1], backEnd.viewParms.or.origin[2], 1
         };
-        myGlMultMatrix(skybox_translate, modelMatrix_original, vk_resources.modelview_transform);
+        myGlMultMatrix(skybox_translate, modelMatrix_original, vk_world.modelview_transform);
 
 		GL_State( 0 );
         qglColor3f( tr.identityLight, tr.identityLight, tr.identityLight );
         qglPushMatrix ();
-        qglLoadMatrixf(vk_resources.modelview_transform);
+        qglLoadMatrixf(vk_world.modelview_transform);
 		DrawSkyBox( tess.shader );
 		qglPopMatrix();
 
-        Com_Memcpy(vk_resources.modelview_transform, modelMatrix_original, sizeof(float[16]));
+        Com_Memcpy(vk_world.modelview_transform, modelMatrix_original, sizeof(float[16]));
 	}
 
 	// generate the vertexes for all the clouds, which will be drawn

@@ -1416,7 +1416,7 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 
 	// Backface culling.
 	auto transform_to_eye_space = [](vec3_t v, vec3_t v_eye) {
-		auto m = vk_resources.modelview_transform;
+		auto m = vk_world.modelview_transform;
 		v_eye[0] = m[0]*v[0] + m[4]*v[1] + m[8 ]*v[2] + m[12];
 		v_eye[1] = m[1]*v[0] + m[5]*v[1] + m[9 ]*v[2] + m[13];
 		v_eye[2] = m[2]*v[0] + m[6]*v[1] + m[10]*v[2] + m[14];

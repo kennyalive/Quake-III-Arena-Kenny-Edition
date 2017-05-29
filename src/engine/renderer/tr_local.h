@@ -924,13 +924,13 @@ typedef struct {
 
 extern backEndState_t	backEnd;
 extern trGlobals_t	tr;
-extern bool			glActive;		// set to true if OpenGL is used for rendering
+extern bool			gl_active;		// set to true if OpenGL is used for rendering
 extern glconfig_t	glConfig;		// outside of TR since it shouldn't be cleared during ref re-init
 extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during ref re-init
 
 // VULKAN
 extern Vk_Instance	vk;				// shouldn't be cleared during ref re-init
-extern Vk_Resources	vk_resources;	// this data is cleared during ref re-init
+extern Vk_World		vk_world;		// this data is cleared during ref re-init
 
 
 //

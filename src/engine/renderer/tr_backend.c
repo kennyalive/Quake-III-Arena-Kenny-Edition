@@ -65,8 +65,8 @@ void GL_Bind( image_t *image ) {
 
 		// VULKAN
 		if (vk.active) {
-			VkDescriptorSet set = vk_resources.images[final_image->index].descriptor_set;
-			vk_resources.current_descriptor_sets[glState.currenttmu] = set;
+			VkDescriptorSet set = vk_world.images[final_image->index].descriptor_set;
+			vk_world.current_descriptor_sets[glState.currenttmu] = set;
 		}
 	}
 }
@@ -438,7 +438,7 @@ void RB_BeginDrawingView (void) {
 	qglClear( clearBits );
 
 	// VULKAN
-	vk_clear_attachments(vk_resources.dirty_depth_attachment, fast_sky, fast_sky_color);
+	vk_clear_attachments(vk_world.dirty_depth_attachment, fast_sky, fast_sky_color);
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{
@@ -571,7 +571,7 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 			qglLoadMatrixf( backEnd.or.modelMatrix );
 
 			// VULKAN
-			Com_Memcpy(vk_resources.modelview_transform, backEnd.or.modelMatrix, 64);
+			Com_Memcpy(vk_world.modelview_transform, backEnd.or.modelMatrix, 64);
 
 			//
 			// change depthrange if needed
@@ -603,7 +603,7 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 	qglLoadMatrixf( backEnd.viewParms.world.modelMatrix );
 
 	// VULKAN
-	Com_Memcpy(vk_resources.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
+	Com_Memcpy(vk_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
 
 	if ( depthRange ) {
 		qglDepthRange (0, 1);
@@ -712,7 +712,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 
 		// VULKAN
 		if (vk.active) {
-			Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+			Vk_Image& image = vk_world.images[tr.scratchImage[client]->index];
 			vkDestroyImage(vk.device, image.handle, nullptr);
 			vkDestroyImageView(vk.device, image.view, nullptr);
 			vkFreeDescriptorSets(vk.device, vk.descriptor_pool, 1, &image.descriptor_set);
@@ -727,7 +727,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 
 			// VULKAN
 			if (vk.active) {
-				const Vk_Image& image = vk_resources.images[tr.scratchImage[client]->index];
+				const Vk_Image& image = vk_world.images[tr.scratchImage[client]->index];
 				vk_upload_image_data(image.handle, cols, rows, false, data, 4);
 			}
 		}
@@ -901,7 +901,7 @@ void RB_ShowImages( void ) {
 	float	x, y, w, h;
 	int		start, end;
 
-	if (!glActive)
+	if (!gl_active)
 		return;
 
 	if ( !backEnd.projection2D ) {
