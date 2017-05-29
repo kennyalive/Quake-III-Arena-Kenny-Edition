@@ -5,8 +5,7 @@ This repository contains updated version of the original Q3 codebase with reorga
 The general direction is to simplify the things. The codebase should be easy to build, executable does not require additional shared libraries to work and we do not talk about OOP here. Only Windows platform is supported.
 
 ## Vulkan support
-The codebase supports Vulkan API. There are no difference in graphics between OpenGL and Vulkan modes.
-In addition to base rendering functionality and graphics customization options Vulkan backend also supports Q3 debug visualization features. The following mods were tested: baseq3, missionpack, cpma 1.48, spiterbot.
+Vulkan backend provides the same graphics features as original OpenGL-based one including customization via r_xxx cvars and debug visualization.
 
 Make sure that the latest AMD/NVIDIA drivers are installed. Vulkan backend was tested on AMD and NVIDIA hardware. Unfortunately no guarantees for Intel GPUs - there is no vulkan support for my 4790K Haswell processor.
 
