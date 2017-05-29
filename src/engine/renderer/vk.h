@@ -19,7 +19,7 @@ const int MAX_IMAGE_CHUNKS = 16;
 #define VK_CHECK(function_call) { \
 	VkResult result = function_call; \
 	if (result < 0) \
-		ri.Error(ERR_FATAL, "Vulkan: function %s, error code %d", #function_call, result); \
+		ri.Error(ERR_FATAL, "Vulkan: error code %d returned by %s", result, #function_call); \
 }
 
 enum class Vk_Shader_Type {
@@ -95,14 +95,13 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def);
 //
 // Rendering setup.
 //
-VkRect2D vk_get_scissor_rect();
 void vk_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color);
 void vk_bind_geometry();
 void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed = true);
 void vk_begin_frame();
 void vk_end_frame();
 
-void vk_read_pixels(byte* buffer);
+void vk_read_pixels(byte* buffer); // screenshots
 
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.

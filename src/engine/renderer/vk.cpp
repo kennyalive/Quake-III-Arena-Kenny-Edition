@@ -1913,58 +1913,6 @@ VkPipeline vk_find_pipeline(const Vk_Pipeline_Def& def) {
 	return pipeline;
 }
 
-void vk_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color) {
-	if (!vk.active)
-		return;
-
-	if (!clear_depth_stencil && !clear_color)
-		return;
-
-	VkClearAttachment attachments[2];
-	uint32_t attachment_count = 0;
-
-	if (clear_depth_stencil) {
-		attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-		attachments[0].clearValue.depthStencil.depth = 1.0f;
-
-		if (r_shadows->integer == 2) {
-			attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-			attachments[0].clearValue.depthStencil.stencil = 0;
-		}
-		attachment_count = 1;
-	}
-
-	if (clear_color) {
-		attachments[attachment_count].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		attachments[attachment_count].colorAttachment = 0;
-		attachments[attachment_count].clearValue.color = { color[0], color[1], color[2], color[3] };
-		attachment_count++;
-	}
-
-	VkClearRect clear_rect[2];
-	clear_rect[0].rect = vk_get_scissor_rect();
-	clear_rect[0].baseArrayLayer = 0;
-	clear_rect[0].layerCount = 1;
-	int rect_count = 1;
-
-	// Split viewport rectangle into two non-overlapping rectangles.
-	// It's a HACK to prevent Vulkan validation layer's performance warning:
-	//		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
-	//		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
-	// 
-	// NOTE: we don't use LOAD_OP_CLEAR for color attachment when we begin renderpass
-	// since at that point we don't know whether we need collor buffer clear (usually we don't).
-	if (clear_color) {
-		uint32_t h = clear_rect[0].rect.extent.height / 2;
-		clear_rect[0].rect.extent.height = h;
-		clear_rect[1] = clear_rect[0];
-		clear_rect[1].rect.offset.y = h;
-		rect_count = 2;
-	}
-
-	vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, rect_count, clear_rect);
-}
-
 static VkRect2D get_viewport_rect() {
 	VkRect2D r;
 	if (backEnd.projection2D) {
@@ -2006,7 +1954,7 @@ static VkViewport get_viewport(Vk_Depth_Range depth_range) {
 	return viewport;
 }
 
-VkRect2D vk_get_scissor_rect() {
+static VkRect2D get_scissor_rect() {
 	VkRect2D r = get_viewport_rect();
 
 	if (r.offset.x < 0)
@@ -2051,6 +1999,58 @@ static void get_mvp_transform(float* mvp) {
 
 		myGlMultMatrix(vk_world.modelview_transform, proj, mvp);
 	}
+}
+
+void vk_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color) {
+	if (!vk.active)
+		return;
+
+	if (!clear_depth_stencil && !clear_color)
+		return;
+
+	VkClearAttachment attachments[2];
+	uint32_t attachment_count = 0;
+
+	if (clear_depth_stencil) {
+		attachments[0].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		attachments[0].clearValue.depthStencil.depth = 1.0f;
+
+		if (r_shadows->integer == 2) {
+			attachments[0].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+			attachments[0].clearValue.depthStencil.stencil = 0;
+		}
+		attachment_count = 1;
+	}
+
+	if (clear_color) {
+		attachments[attachment_count].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		attachments[attachment_count].colorAttachment = 0;
+		attachments[attachment_count].clearValue.color = { color[0], color[1], color[2], color[3] };
+		attachment_count++;
+	}
+
+	VkClearRect clear_rect[2];
+	clear_rect[0].rect = get_scissor_rect();
+	clear_rect[0].baseArrayLayer = 0;
+	clear_rect[0].layerCount = 1;
+	int rect_count = 1;
+
+	// Split viewport rectangle into two non-overlapping rectangles.
+	// It's a HACK to prevent Vulkan validation layer's performance warning:
+	//		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
+	//		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
+	// 
+	// NOTE: we don't use LOAD_OP_CLEAR for color attachment when we begin renderpass
+	// since at that point we don't know whether we need collor buffer clear (usually we don't).
+	if (clear_color) {
+		uint32_t h = clear_rect[0].rect.extent.height / 2;
+		clear_rect[0].rect.extent.height = h;
+		clear_rect[1] = clear_rect[0];
+		clear_rect[1].rect.offset.y = h;
+		rect_count = 2;
+	}
+
+	vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, rect_count, clear_rect);
 }
 
 void vk_bind_geometry() {
@@ -2169,7 +2169,7 @@ void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range de
 	vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	// configure pipeline's dynamic state
-	VkRect2D scissor_rect = vk_get_scissor_rect();
+	VkRect2D scissor_rect = get_scissor_rect();
 	vkCmdSetScissor(vk.command_buffer, 0, 1, &scissor_rect);
 
 	VkViewport viewport = get_viewport(depth_range);
