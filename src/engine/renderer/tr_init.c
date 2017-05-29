@@ -769,7 +769,6 @@ GfxInfo_f
 */
 void GfxInfo_f( void ) 
 {
-	cvar_t *sys_cpustring = ri.Cvar_Get( "sys_cpustring", "", 0 );
 	const char *enablestrings[] =
 	{
 		"disabled",
@@ -782,47 +781,25 @@ void GfxInfo_f( void )
 	};
 
 	if (gl_active) {
-		ri.Printf( PRINT_ALL, "\nGL_VENDOR: %s\n", glConfig.vendor_string );
+		ri.Printf( PRINT_ALL, "\nActive 3D API: OpenGL\n" );
+		ri.Printf( PRINT_ALL, "GL_VENDOR: %s\n", glConfig.vendor_string );
 		ri.Printf( PRINT_ALL, "GL_RENDERER: %s\n", glConfig.renderer_string );
 		ri.Printf( PRINT_ALL, "GL_VERSION: %s\n", glConfig.version_string );
 		ri.Printf( PRINT_ALL, "GL_MAX_TEXTURE_SIZE: %d\n", glConfig.maxTextureSize );
 		ri.Printf( PRINT_ALL, "GL_MAX_ACTIVE_TEXTURES_ARB: %d\n", glConfig.maxActiveTextures );
-		ri.Printf( PRINT_ALL, "\nPIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits );
-	} else {
-		ri.Printf( PRINT_ALL, "\n");
-	}
-
-	ri.Printf( PRINT_ALL, "MODE: %d, %d x %d %s\n", r_mode->integer, glConfig.vidWidth, glConfig.vidHeight, fsstrings[r_fullscreen->integer == 1] );
-
-	if ( glConfig.deviceSupportsGamma )
-	{
-		ri.Printf( PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits );
-	}
-	else
-	{
-		ri.Printf( PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits );
-	}
-
-	ri.Printf( PRINT_ALL, "texturemode: %s\n", r_textureMode->string );
-	ri.Printf( PRINT_ALL, "picmip: %d\n", r_picmip->integer );
-	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer );
-
-	if (gl_active) {
+		ri.Printf( PRINT_ALL, "PIXELFORMAT: color(%d-bits) Z(%d-bit) stencil(%d-bits)\n", glConfig.colorBits, glConfig.depthBits, glConfig.stencilBits );
 		ri.Printf( PRINT_ALL, "compiled vertex arrays: %s\n", enablestrings[qglLockArraysEXT != 0 ] );
 		ri.Printf( PRINT_ALL, "texenv add: %s\n", enablestrings[glConfig.textureEnvAddAvailable != 0] );
 		ri.Printf( PRINT_ALL, "compressed textures: %s\n", enablestrings[glConfig.textureCompression!=TC_NONE] );
-	}
 
-	if ( r_vertexLight->integer )
-	{
-		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
-	}
-	if ( gl_active && glConfig.smpActive ) {
-		ri.Printf( PRINT_ALL, "Using dual processor acceleration\n" );
+		if (glConfig.smpActive) {
+			ri.Printf( PRINT_ALL, "Using dual processor acceleration\n" );
+		}
 	}
 
 	// VULKAN
 	if (vk.active) {
+		ri.Printf( PRINT_ALL, "\nActive 3D API: Vulkan\n" );
 		VkPhysicalDeviceProperties props;
 		vkGetPhysicalDeviceProperties(vk.physical_device, &props);
 
@@ -851,12 +828,32 @@ void GfxInfo_f( void )
 			vendor_name = "Intel Corporation";
 		}
 
-		ri.Printf(PRINT_ALL, "\nVk api version: %d.%d.%d\n", major, minor, patch);
+		ri.Printf(PRINT_ALL, "Vk api version: %d.%d.%d\n", major, minor, patch);
 		ri.Printf(PRINT_ALL, "Vk driver version: %d\n", props.driverVersion);
 		ri.Printf(PRINT_ALL, "Vk vendor id: 0x%X (%s)\n", props.vendorID, vendor_name);
 		ri.Printf(PRINT_ALL, "Vk device id: 0x%X\n", props.deviceID);
 		ri.Printf(PRINT_ALL, "Vk device type: %s\n", device_type);
 		ri.Printf(PRINT_ALL, "Vk device name: %s\n", props.deviceName);
+	}
+
+	//
+	// Info that doesn't depend on r_renderAPI
+	//
+	ri.Printf( PRINT_ALL, "\nMODE: %d, %d x %d %s\n", r_mode->integer, glConfig.vidWidth, glConfig.vidHeight, fsstrings[r_fullscreen->integer == 1] );
+
+	if (glConfig.deviceSupportsGamma) {
+		ri.Printf( PRINT_ALL, "GAMMA: hardware w/ %d overbright bits\n", tr.overbrightBits );
+	} 
+	else {
+		ri.Printf( PRINT_ALL, "GAMMA: software w/ %d overbright bits\n", tr.overbrightBits );
+	}
+
+	ri.Printf( PRINT_ALL, "texturemode: %s\n", r_textureMode->string );
+	ri.Printf( PRINT_ALL, "picmip: %d\n", r_picmip->integer );
+	ri.Printf( PRINT_ALL, "texture bits: %d\n", r_texturebits->integer );
+
+	if ( r_vertexLight->integer ) {
+		ri.Printf( PRINT_ALL, "HACK: using vertex lightmap approximation\n" );
 	}
 }
 
@@ -1143,7 +1140,9 @@ void RE_EndRegistration( void ) {
 	}
 
 	// VULKAN
-	ri.Printf(PRINT_ALL, "Vulkan: pipelines create time %d msec\n", (int)(vk_world.pipeline_create_time * 1000));
+	if (vk.active) {
+		ri.Printf(PRINT_ALL, "Vulkan: pipelines create time %d msec\n", (int)(vk_world.pipeline_create_time * 1000));
+	}
 }
 
 
