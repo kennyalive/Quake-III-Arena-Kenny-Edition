@@ -1,7 +1,6 @@
-* Only windows platform is supported.
-* Only 64-bit compilation is supported.
+* Reorganized project structure.
 * The codebase is compiled as C++ code.
-* Project files are provided for Visual Studio 2017.
+* 64-bit compilation.
 * Vulkan support.
 
 New cvars:
