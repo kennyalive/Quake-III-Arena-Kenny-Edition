@@ -4,6 +4,10 @@ This repository contains updated version of the original Q3 codebase with reorga
 
 The general direction is to simplify the things. The codebase should be easy to build, executable does not require additional shared libraries to work and we do not talk about OOP here. Only Windows platform is supported.
 
+## Usage
+* Build `visual-studio/quake3.sln` solution.
+* Copy `quake3-ke.exe` to your local Quake-III-Arena installation folder.
+
 ## Vulkan support
 Vulkan backend provides the same graphics features as original OpenGL-based one including customization via r_xxx cvars and debug visualization.
 
@@ -25,6 +29,6 @@ Make sure that the latest AMD/NVIDIA drivers are installed. Vulkan backend was t
 ## Visual Studio
 The project files are provides for Visual Studio 2017. Free community version is available online.
 
-visual-studio/quake3.vcxproj.user.example file is provided with example configuration options to start game from visual studio and to enable vulkan validation layers.
+`visual-studio/quake3.vcxproj.user.example` file is provided with example configuration options to start game from visual studio and to enable vulkan validation layers.
 
 ![Screenshot](https://github.com/artemalive/Quake-III-Arena/raw/master/Screenshot.jpg)
