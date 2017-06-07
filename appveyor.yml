@@ -1,0 +1,24 @@
+version: '0.0.1-{build}'
+
+os: Visual Studio 2017
+platform: x64
+clone_folder: C:\src
+clone_depth: 1
+test: off
+
+configuration:
+ - Release
+before_build:
+ - del "C:\Program Files (x86)\MSBuild\14.0\Microsoft.Common.targets\ImportAfter\Xamarin.Common.targets"
+
+
+build_script:
+ - msbuild "C:\src\visual-studio\quake3.sln" /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+
+install:
+ - set COMMIT_SHA=%APPVEYOR_REPO_COMMIT:~0,8%
+
+artifacts:
+ - path: bin\x64\Release
+   name: 'q3vk-$(COMMIT_SHA)_win64'
+   type: zip
