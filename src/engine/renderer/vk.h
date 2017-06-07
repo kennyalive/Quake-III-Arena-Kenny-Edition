@@ -192,10 +192,8 @@ struct Vk_Instance {
 	VkPipeline images_debug_pipeline;
 };
 
-//
 // Vk_World contains vulkan resources/state requested by the game code.
 // It is reinitialized on a map change.
-//
 struct Vk_World {
 	//
 	// Resources.
@@ -243,99 +241,12 @@ struct Vk_World {
 	float modelview_transform[16];
 };
 
-// Vulkan API function pointers.
-extern PFN_vkGetInstanceProcAddr						vkGetInstanceProcAddr;
-
-extern PFN_vkCreateInstance								vkCreateInstance;
-extern PFN_vkEnumerateInstanceExtensionProperties		vkEnumerateInstanceExtensionProperties;
-
-extern PFN_vkCreateDevice								vkCreateDevice;
-extern PFN_vkEnumerateDeviceExtensionProperties			vkEnumerateDeviceExtensionProperties;
-extern PFN_vkEnumeratePhysicalDevices					vkEnumeratePhysicalDevices;
-extern PFN_vkGetDeviceProcAddr							vkGetDeviceProcAddr;
-extern PFN_vkGetPhysicalDeviceFeatures					vkGetPhysicalDeviceFeatures;
-extern PFN_vkGetPhysicalDeviceFormatProperties			vkGetPhysicalDeviceFormatProperties;
-extern PFN_vkGetPhysicalDeviceMemoryProperties			vkGetPhysicalDeviceMemoryProperties;
-extern PFN_vkGetPhysicalDeviceProperties				vkGetPhysicalDeviceProperties;
-extern PFN_vkGetPhysicalDeviceQueueFamilyProperties		vkGetPhysicalDeviceQueueFamilyProperties;
-extern PFN_vkCreateWin32SurfaceKHR						vkCreateWin32SurfaceKHR;
-extern PFN_vkDestroySurfaceKHR							vkDestroySurfaceKHR;
-extern PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR	vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
-extern PFN_vkGetPhysicalDeviceSurfaceFormatsKHR			vkGetPhysicalDeviceSurfaceFormatsKHR;
-extern PFN_vkGetPhysicalDeviceSurfacePresentModesKHR	vkGetPhysicalDeviceSurfacePresentModesKHR;
-extern PFN_vkGetPhysicalDeviceSurfaceSupportKHR			vkGetPhysicalDeviceSurfaceSupportKHR;
-
-extern PFN_vkAllocateCommandBuffers						vkAllocateCommandBuffers;
-extern PFN_vkAllocateDescriptorSets						vkAllocateDescriptorSets;
-extern PFN_vkAllocateMemory								vkAllocateMemory;
-extern PFN_vkBeginCommandBuffer							vkBeginCommandBuffer;
-extern PFN_vkBindBufferMemory							vkBindBufferMemory;
-extern PFN_vkBindImageMemory							vkBindImageMemory;
-extern PFN_vkCmdBeginRenderPass							vkCmdBeginRenderPass;
-extern PFN_vkCmdBindDescriptorSets						vkCmdBindDescriptorSets;
-extern PFN_vkCmdBindIndexBuffer							vkCmdBindIndexBuffer;
-extern PFN_vkCmdBindPipeline							vkCmdBindPipeline;
-extern PFN_vkCmdBindVertexBuffers						vkCmdBindVertexBuffers;
-extern PFN_vkCmdBlitImage								vkCmdBlitImage;
-extern PFN_vkCmdClearAttachments						vkCmdClearAttachments;
-extern PFN_vkCmdCopyBufferToImage						vkCmdCopyBufferToImage;
-extern PFN_vkCmdCopyImage								vkCmdCopyImage;
-extern PFN_vkCmdDraw									vkCmdDraw;
-extern PFN_vkCmdDrawIndexed								vkCmdDrawIndexed;
-extern PFN_vkCmdEndRenderPass							vkCmdEndRenderPass;
-extern PFN_vkCmdPipelineBarrier							vkCmdPipelineBarrier;
-extern PFN_vkCmdPushConstants							vkCmdPushConstants;
-extern PFN_vkCmdSetDepthBias							vkCmdSetDepthBias;
-extern PFN_vkCmdSetScissor								vkCmdSetScissor;
-extern PFN_vkCmdSetViewport								vkCmdSetViewport;
-extern PFN_vkCreateBuffer								vkCreateBuffer;
-extern PFN_vkCreateCommandPool							vkCreateCommandPool;
-extern PFN_vkCreateDescriptorPool						vkCreateDescriptorPool;
-extern PFN_vkCreateDescriptorSetLayout					vkCreateDescriptorSetLayout;
-extern PFN_vkCreateFence								vkCreateFence;
-extern PFN_vkCreateFramebuffer							vkCreateFramebuffer;
-extern PFN_vkCreateGraphicsPipelines					vkCreateGraphicsPipelines;
-extern PFN_vkCreateImage								vkCreateImage;
-extern PFN_vkCreateImageView							vkCreateImageView;
-extern PFN_vkCreatePipelineLayout						vkCreatePipelineLayout;
-extern PFN_vkCreateRenderPass							vkCreateRenderPass;
-extern PFN_vkCreateSampler								vkCreateSampler;
-extern PFN_vkCreateSemaphore							vkCreateSemaphore;
-extern PFN_vkCreateShaderModule							vkCreateShaderModule;
-extern PFN_vkDestroyBuffer								vkDestroyBuffer;
-extern PFN_vkDestroyCommandPool							vkDestroyCommandPool;
-extern PFN_vkDestroyDescriptorPool						vkDestroyDescriptorPool;
-extern PFN_vkDestroyDescriptorSetLayout					vkDestroyDescriptorSetLayout;
-extern PFN_vkDestroyDevice								vkDestroyDevice;
-extern PFN_vkDestroyFence								vkDestroyFence;
-extern PFN_vkDestroyFramebuffer							vkDestroyFramebuffer;
-extern PFN_vkDestroyImage								vkDestroyImage;
-extern PFN_vkDestroyImageView							vkDestroyImageView;
-extern PFN_vkDestroyInstance							vkDestroyInstance;
-extern PFN_vkDestroyPipeline							vkDestroyPipeline;
-extern PFN_vkDestroyPipelineLayout						vkDestroyPipelineLayout;
-extern PFN_vkDestroyRenderPass							vkDestroyRenderPass;
-extern PFN_vkDestroySampler								vkDestroySampler;
-extern PFN_vkDestroySemaphore							vkDestroySemaphore;
-extern PFN_vkDestroyShaderModule						vkDestroyShaderModule;
-extern PFN_vkDeviceWaitIdle								vkDeviceWaitIdle;
-extern PFN_vkEndCommandBuffer							vkEndCommandBuffer;
-extern PFN_vkFreeCommandBuffers							vkFreeCommandBuffers;
-extern PFN_vkFreeDescriptorSets							vkFreeDescriptorSets;
-extern PFN_vkFreeMemory									vkFreeMemory;
-extern PFN_vkGetBufferMemoryRequirements				vkGetBufferMemoryRequirements;
-extern PFN_vkGetDeviceQueue								vkGetDeviceQueue;
-extern PFN_vkGetImageMemoryRequirements					vkGetImageMemoryRequirements;
-extern PFN_vkGetImageSubresourceLayout					vkGetImageSubresourceLayout;
-extern PFN_vkMapMemory									vkMapMemory;
-extern PFN_vkQueueSubmit								vkQueueSubmit;
-extern PFN_vkQueueWaitIdle								vkQueueWaitIdle;
-extern PFN_vkResetDescriptorPool						vkResetDescriptorPool;
-extern PFN_vkResetFences								vkResetFences;
-extern PFN_vkUpdateDescriptorSets						vkUpdateDescriptorSets;
-extern PFN_vkWaitForFences								vkWaitForFences;
-extern PFN_vkAcquireNextImageKHR						vkAcquireNextImageKHR;
-extern PFN_vkCreateSwapchainKHR							vkCreateSwapchainKHR;
-extern PFN_vkDestroySwapchainKHR						vkDestroySwapchainKHR;
-extern PFN_vkGetSwapchainImagesKHR						vkGetSwapchainImagesKHR;
-extern PFN_vkQueuePresentKHR							vkQueuePresentKHR;
+// Most of the renderer's code uses Vulkan API via function provides in this file but 
+// there are few places outside of vk.cpp where we use Vulkan commands directly.
+extern PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
+extern PFN_vkFreeDescriptorSets vkFreeDescriptorSets;
+extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+extern PFN_vkGetPhysicalDeviceProperties vkGetPhysicalDeviceProperties;
+extern PFN_vkDestroyImage vkDestroyImage;
+extern PFN_vkDestroyImageView vkDestroyImageView;
+extern PFN_vkDeviceWaitIdle vkDeviceWaitIdle;
