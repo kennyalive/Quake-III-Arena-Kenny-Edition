@@ -31,4 +31,5 @@ The project files are provides for Visual Studio 2017. Free community version is
 
 `visual-studio/quake3.vcxproj.user.example` file is provided with example configuration options to start game from visual studio and to enable vulkan validation layers.
 
+P.S. The aesthetically pleasing screenshot below is a historical artifact that was created somewhere in 2005 and has no direct relation to the codebase itself.
 ![Screenshot](https://github.com/artemalive/Quake-III-Arena/raw/master/Screenshot.jpg)
