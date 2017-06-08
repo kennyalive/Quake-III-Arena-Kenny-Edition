@@ -1,5 +1,7 @@
 # Welcome to the Quake 3 source code!
 
+<img src="https://ci.appveyor.com/api/projects/status/github/kennyalive/Quake-III-Arena-Kenny-Edition?svg=true" alt="Project Badge">
+
 This repository contains updated version of the original Q3 codebase with reorganized code structure, compatibility fixes, build setup for the latest Visual Studio and modifications that update the core tech but preserve original gameplay, look and feel.
 
 The general direction is to simplify the things. The codebase should be easy to build, executable does not require additional shared libraries to work and we do not talk about OOP here. Only Windows platform is supported.
@@ -33,4 +35,4 @@ The project files are provides for Visual Studio 2017. Free community version is
 
 ![Screenshot](https://github.com/artemalive/Quake-III-Arena/raw/master/Screenshot.jpg)
 </br>
-P.S. The aesthetically pleasing screenshot above is a historical artifact that was created somewhere in 2005 and has no direct relation to the codebase itself.
+P.S. The screenshot above is a historical artifact that was created somewhere in 2005 and has no direct relation to the codebase itself.
