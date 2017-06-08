@@ -1,4 +1,4 @@
-version: '0.0.1-{build}'
+version: '1.1.{build}'
 
 os: Visual Studio 2017
 platform: x64
@@ -19,6 +19,6 @@ install:
  - set COMMIT_SHA=%APPVEYOR_REPO_COMMIT:~0,8%
 
 artifacts:
- - path: bin\x64\Release
-   name: 'q3vk-$(COMMIT_SHA)_win64'
+ - path: bin\x64\Release\quake3-ke.exe
+   name: 'quake3-ke-$(COMMIT_SHA)'
    type: zip
