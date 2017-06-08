@@ -21,4 +21,4 @@ install:
 artifacts:
  - path: bin\x64\Release\quake3-ke.exe
    name: 'quake3-ke-$(COMMIT_SHA)'
-   type: zip
+   
