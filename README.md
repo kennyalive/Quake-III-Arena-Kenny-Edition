@@ -29,8 +29,8 @@ Make sure that the latest AMD/NVIDIA drivers are installed. Vulkan backend was t
 * Q: How to check that Vulkan backend is really active? A: `gfxinfo` console command reports information about active rendering backend.
 
 ## Visual Studio
-The project files are provides for Visual Studio 2017. Free community version is available online.
+The project files are provided for Visual Studio 2017. Free community version is available online.
 
-`visual-studio/quake3.vcxproj.user.example` file is provided with example configuration options to start game from visual studio and to enable vulkan validation layers.
+`visual-studio/quake3.vcxproj.user.example` file is provided with example configuration options to start the game from visual studio and to enable vulkan validation layers.
 
 ![quake3-ke](https://user-images.githubusercontent.com/4964024/28160268-4f0707d4-67c8-11e7-9009-8540789aab0b.jpeg)
