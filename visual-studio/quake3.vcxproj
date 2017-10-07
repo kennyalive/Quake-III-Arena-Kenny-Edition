@@ -91,6 +91,9 @@
       </OutputFile>
     </Bscmake>
     <PostBuildEvent />
+    <Manifest>
+      <AdditionalManifestFiles>DeclareDPIAware.manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -127,6 +130,9 @@
       <OutputFile>
       </OutputFile>
     </Bscmake>
+    <Manifest>
+      <AdditionalManifestFiles>DeclareDPIAware.manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\engine\server\sv_bot.c">

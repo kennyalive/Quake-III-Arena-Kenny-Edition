@@ -538,6 +538,22 @@ static void SetMode(int mode, qboolean fullscreen) {
 			ri.Printf( PRINT_ALL, " invalid mode\n" );
 			ri.Error(ERR_FATAL, "SetMode - could not set the given mode (%d)\n", mode);
 		}
+
+		// Ensure that window size does not exceed desktop size.
+		// CreateWindow Win32 API does not allow to create windows larger than desktop.
+		int desktop_width = GetDesktopWidth();
+		int desktop_height = GetDesktopHeight();
+
+		if (glConfig.vidWidth > desktop_width || glConfig.vidHeight > desktop_height) {
+			int default_mode = 4;
+			ri.Printf(PRINT_WARNING, "\nMode %d specifies width that is larger than desktop width: using default mode %d\n", mode, default_mode);
+			
+			ri.Printf( PRINT_ALL, "...setting mode %d:", default_mode );
+			if (!R_GetModeInfo(&glConfig.vidWidth, &glConfig.vidHeight, &glConfig.windowAspect, default_mode)) {
+				ri.Printf( PRINT_ALL, " invalid mode\n" );
+				ri.Error(ERR_FATAL, "SetMode - could not set the given mode (%d)\n", default_mode);
+			}
+		}
 	}
 	glConfig.isFullscreen = fullscreen;
 	ri.Printf( PRINT_ALL, " %d %d %s\n", glConfig.vidWidth, glConfig.vidHeight, fullscreen ? "FS" : "W");
