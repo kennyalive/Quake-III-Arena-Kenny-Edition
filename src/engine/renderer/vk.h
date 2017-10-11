@@ -8,6 +8,13 @@
 #define VK_NO_PROTOTYPES
 #include "vulkan/vulkan.h"
 
+#include "D3d12.h"
+#include "D3d12SDKLayers.h"
+#include "DXGI1_4.h"
+#include "wrl.h"
+
+using Microsoft::WRL::ComPtr;
+
 const int MAX_SWAPCHAIN_IMAGES = 8;
 const int MAX_VK_SAMPLERS = 32;
 const int MAX_VK_PIPELINES = 1024;
@@ -20,6 +27,12 @@ const int MAX_IMAGE_CHUNKS = 16;
 	VkResult result = function_call; \
 	if (result < 0) \
 		ri.Error(ERR_FATAL, "Vulkan: error code %d returned by %s", result, #function_call); \
+}
+
+#define DX_CHECK(function_call) { \
+	HRESULT hr = function_call; \
+	if (FAILED(hr)) \
+		ri.Error(ERR_FATAL, "Direct3D: error returned by %s", #function_call); \
 }
 
 enum class Vk_Shader_Type {
@@ -107,6 +120,9 @@ void vk_read_pixels(byte* buffer); // screenshots
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
 struct Vk_Instance {
 	bool active = false;
+
+	ComPtr<ID3D12Device> dx_device;
+
 	VkInstance instance = VK_NULL_HANDLE;
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 	VkSurfaceKHR surface = VK_NULL_HANDLE;

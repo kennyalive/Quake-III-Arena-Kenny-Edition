@@ -797,7 +797,49 @@ static void deinit_vulkan_library() {
 
 VkPipeline create_pipeline(const Vk_Pipeline_Def&);
 
+// Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
+// If no such adapter can be found, *ppAdapter will be set to nullptr.
+void get_hardware_adapter(IDXGIFactory4* p_factory, IDXGIAdapter1** pp_adapter) {
+	ComPtr<IDXGIAdapter1> adapter;
+	*pp_adapter = nullptr;
+
+	for (UINT adapter_index = 0; DXGI_ERROR_NOT_FOUND != p_factory->EnumAdapters1(adapter_index, &adapter); ++adapter_index) {
+		DXGI_ADAPTER_DESC1 desc;
+		adapter->GetDesc1(&desc);
+
+		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
+			// Don't select the Basic Render Driver adapter.
+			// If you want a software adapter, pass in "/warp" on the command line.
+			continue;
+		}
+
+		// Check to see if the adapter supports Direct3D 12, but don't create the
+		// actual device yet.
+		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
+			break;
+		}
+	}
+	*pp_adapter = adapter.Detach();
+}
+
 void vk_initialize() {
+#if defined(_DEBUG)
+	// Enable the D3D12 debug layer
+	{
+		ComPtr<ID3D12Debug> debug_controller;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_controller)))) {
+			debug_controller->EnableDebugLayer();
+		}
+	}
+#endif
+
+	ComPtr<IDXGIFactory4> factory;
+    DX_CHECK(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+
+	ComPtr<IDXGIAdapter1> hardware_adapter;
+	get_hardware_adapter(factory.Get(), &hardware_adapter);
+	DX_CHECK(D3D12CreateDevice(hardware_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&vk.dx_device)));
+
 	init_vulkan_library();
 
 	VkPhysicalDeviceFeatures features;
