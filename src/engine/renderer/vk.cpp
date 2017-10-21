@@ -870,6 +870,7 @@ void dx_initialize() {
 	// This sample does not support fullscreen transitions.
 	DX_CHECK(factory->MakeWindowAssociation(g_wv.hWnd_dx, DXGI_MWA_NO_ALT_ENTER));
 	DX_CHECK(swapchain.As(&vk.dx_swapchain));
+	vk.dx_frame_index = vk.dx_swapchain->GetCurrentBackBufferIndex();
 
 	// Create descriptor heaps.
 	{
@@ -890,13 +891,44 @@ void dx_initialize() {
 		// Create a RTV for each frame.
 		for (UINT n = 0; n < D3D_FRAME_COUNT; n++)
 		{
-			DX_CHECK(vk.dx_swapchain->GetBuffer(n, IID_PPV_ARGS(&vk.render_targets[n])));
-			vk.dx_device->CreateRenderTargetView(vk.render_targets[n].Get(), nullptr, rtv_handle);
+			DX_CHECK(vk.dx_swapchain->GetBuffer(n, IID_PPV_ARGS(&vk.dx_render_targets[n])));
+			vk.dx_device->CreateRenderTargetView(vk.dx_render_targets[n], nullptr, rtv_handle);
 			rtv_handle.Offset(1, vk.dx_rtv_descriptor_size);
 		}
 	}
 
 	DX_CHECK(vk.dx_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&vk.dx_command_allocator)));
+
+
+	DX_CHECK(vk.dx_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, vk.dx_command_allocator, nullptr, IID_PPV_ARGS(&vk.dx_command_list)));
+
+	// Command lists are created in the recording state, but there is nothing
+	// to record yet. The main loop expects it to be closed, so close it now.
+	DX_CHECK(vk.dx_command_list->Close());
+
+	// Create synchronization objects.
+	{
+		DX_CHECK(vk.dx_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&vk.dx_fence)));
+		vk.dx_fence_value = 1;
+
+		// Create an event handle to use for frame synchronization.
+		vk.dx_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (vk.dx_fence_event == NULL)
+		{
+			DX_CHECK(HRESULT_FROM_WIN32(GetLastError()));
+		}
+	}
+
+	// Create an empty root signature.
+   /* {
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+        rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        ComPtr<ID3DBlob> signature;
+        ComPtr<ID3DBlob> error;
+        DX_CHECK(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+        DX_CHECK(vk.dx_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+    }*/
 }
 
 void vk_initialize() {
@@ -1386,7 +1418,7 @@ void dx_shutdown() {
 	vk.dx_command_allocator = nullptr;
 
 	for (int i = 0; i < D3D_FRAME_COUNT; i++) {
-		vk.render_targets[i].Reset();
+		vk.dx_render_targets[i]->Release();
 	}
 
 	vk.dx_rtv_heap->Release();
@@ -1394,6 +1426,15 @@ void dx_shutdown() {
 
 	vk.dx_command_queue->Release();
 	vk.dx_command_queue = nullptr;
+
+	vk.dx_command_list->Release();
+	vk.dx_command_list = nullptr;
+
+	vk.dx_fence->Release();
+	vk.dx_fence = nullptr;
+
+	::CloseHandle(vk.dx_fence_event);
+	vk.dx_fence_event = NULL;
 
 	vk.dx_device->Release();
 	vk.dx_device = nullptr;
@@ -2409,6 +2450,67 @@ void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range de
 		vkCmdDraw(vk.command_buffer, tess.numVertexes, 1, 0, 0);
 
 	vk_world.dirty_depth_attachment = true;
+}
+
+void dx_begin_frame() {
+	// Command list allocators can only be reset when the associated 
+	// command lists have finished execution on the GPU; apps should use 
+	// fences to determine GPU execution progress.
+	DX_CHECK(vk.dx_command_allocator->Reset());
+
+	// However, when ExecuteCommandList() is called on a particular command 
+	// list, that command list can then be reset at any time and must be before 
+	// re-recording.
+	DX_CHECK(vk.dx_command_list->Reset(vk.dx_command_allocator, vk.dx_pipeline_state));
+
+	// Indicate that the back buffer will be used as a render target.
+	vk.dx_command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(vk.dx_render_targets[vk.dx_frame_index],
+		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(vk.dx_rtv_heap->GetCPUDescriptorHandleForHeapStart(), vk.dx_frame_index, vk.dx_rtv_descriptor_size);
+
+	// Record commands.
+	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+	vk.dx_command_list->ClearRenderTargetView(rtv_handle, clearColor, 0, nullptr);
+
+	// Indicate that the back buffer will now be used to present.
+	vk.dx_command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(vk.dx_render_targets[vk.dx_frame_index],
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+	DX_CHECK(vk.dx_command_list->Close());
+}
+
+void wait_for_previous_frame()
+{
+	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
+	// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
+	// sample illustrates how to use fences for efficient resource usage and to
+	// maximize GPU utilization.
+
+	// Signal and increment the fence value.
+	const UINT64 fence = vk.dx_fence_value;
+	DX_CHECK(vk.dx_command_queue->Signal(vk.dx_fence, fence));
+	vk.dx_fence_value++;
+
+	// Wait until the previous frame is finished.
+	if (vk.dx_fence->GetCompletedValue() < fence)
+	{
+		DX_CHECK(vk.dx_fence->SetEventOnCompletion(fence, vk.dx_fence_event));
+		WaitForSingleObject(vk.dx_fence_event, INFINITE);
+	}
+
+	vk.dx_frame_index = vk.dx_swapchain->GetCurrentBackBufferIndex();
+}
+
+void dx_end_frame() {
+	// Execute the command list.
+	ID3D12CommandList* ppCommandLists[] = { vk.dx_command_list };
+	vk.dx_command_queue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	// Present the frame.
+	DX_CHECK(vk.dx_swapchain->Present(1, 0));
+
+	wait_for_previous_frame();
 }
 
 void vk_begin_frame() {

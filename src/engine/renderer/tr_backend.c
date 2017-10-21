@@ -870,6 +870,7 @@ const void	*RB_DrawBuffer( const void *data ) {
 
 	// VULKAN
 	vk_begin_frame();
+	dx_begin_frame();
 
 	// clear screen for debugging
 	if ( r_clear->integer ) {
@@ -1047,6 +1048,7 @@ const void	*RB_SwapBuffers( const void *data ) {
 
 	// VULKAN
 	vk_end_frame();
+	dx_end_frame();
 
 	return (const void *)(cmd + 1);
 }

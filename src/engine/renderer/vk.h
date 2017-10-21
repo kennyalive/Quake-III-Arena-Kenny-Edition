@@ -122,6 +122,9 @@ void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range de
 void vk_begin_frame();
 void vk_end_frame();
 
+void dx_begin_frame();
+void dx_end_frame();
+
 void vk_read_pixels(byte* buffer); // screenshots
 
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
@@ -134,8 +137,15 @@ struct Vk_Instance {
 	ComPtr<IDXGISwapChain3> dx_swapchain;
 	ID3D12DescriptorHeap* dx_rtv_heap = nullptr;
 	UINT dx_rtv_descriptor_size = 0;
-	ComPtr<ID3D12Resource> render_targets[D3D_FRAME_COUNT];
+	ID3D12Resource* dx_render_targets[D3D_FRAME_COUNT];
 	ID3D12CommandAllocator* dx_command_allocator = nullptr;
+	ID3D12GraphicsCommandList* dx_command_list = nullptr;
+	ID3D12PipelineState* dx_pipeline_state = nullptr;
+
+	UINT dx_frame_index = 0;
+	ID3D12Fence* dx_fence = nullptr;
+	UINT64 dx_fence_value = 0;
+	HANDLE dx_fence_event = NULL;
 
 	VkInstance instance = VK_NULL_HANDLE;
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
