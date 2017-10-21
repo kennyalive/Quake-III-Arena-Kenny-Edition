@@ -822,7 +822,7 @@ void get_hardware_adapter(IDXGIFactory4* p_factory, IDXGIAdapter1** pp_adapter) 
 	*pp_adapter = adapter.Detach();
 }
 
-void vk_initialize() {
+void dx_initialize() {
 #if defined(_DEBUG)
 	// Enable the D3D12 debug layer
 	{
@@ -840,6 +840,66 @@ void vk_initialize() {
 	get_hardware_adapter(factory.Get(), &hardware_adapter);
 	DX_CHECK(D3D12CreateDevice(hardware_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&vk.dx_device)));
 
+	// Describe and create the command queue.
+	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+	DX_CHECK(vk.dx_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&vk.dx_command_queue)));
+
+	// Describe and create the swap chain.
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+    swapChainDesc.BufferCount = D3D_FRAME_COUNT;
+    swapChainDesc.Width = glConfig.vidWidth;
+    swapChainDesc.Height = glConfig.vidHeight;
+    swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.SampleDesc.Count = 1;
+
+	ComPtr<IDXGISwapChain1> swapchain;
+    DX_CHECK(factory->CreateSwapChainForHwnd(
+        vk.dx_command_queue,        // Swap chain needs the queue so that it can force a flush on it.
+		g_wv.hWnd_dx,
+        &swapChainDesc,
+		nullptr,
+		nullptr,
+        &swapchain
+        ));
+
+	// This sample does not support fullscreen transitions.
+	DX_CHECK(factory->MakeWindowAssociation(g_wv.hWnd_dx, DXGI_MWA_NO_ALT_ENTER));
+	DX_CHECK(swapchain.As(&vk.dx_swapchain));
+
+	// Create descriptor heaps.
+	{
+		// Describe and create a render target view (RTV) descriptor heap.
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+		rtvHeapDesc.NumDescriptors = D3D_FRAME_COUNT;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		DX_CHECK(vk.dx_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&vk.dx_rtv_heap)));
+
+		vk.dx_rtv_descriptor_size = vk.dx_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
+
+	// Create frame resources.
+	{
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(vk.dx_rtv_heap->GetCPUDescriptorHandleForHeapStart());
+
+		// Create a RTV for each frame.
+		for (UINT n = 0; n < D3D_FRAME_COUNT; n++)
+		{
+			DX_CHECK(vk.dx_swapchain->GetBuffer(n, IID_PPV_ARGS(&vk.render_targets[n])));
+			vk.dx_device->CreateRenderTargetView(vk.render_targets[n].Get(), nullptr, rtv_handle);
+			rtv_handle.Offset(1, vk.dx_rtv_descriptor_size);
+		}
+	}
+
+	DX_CHECK(vk.dx_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&vk.dx_command_allocator)));
+}
+
+void vk_initialize() {
 	init_vulkan_library();
 
 	VkPhysicalDeviceFeatures features;
@@ -1317,6 +1377,26 @@ void vk_initialize() {
 		}
 	}
 	vk.active = true;
+}
+
+void dx_shutdown() {
+	vk.dx_swapchain.Reset();
+
+	vk.dx_command_allocator->Release();
+	vk.dx_command_allocator = nullptr;
+
+	for (int i = 0; i < D3D_FRAME_COUNT; i++) {
+		vk.render_targets[i].Reset();
+	}
+
+	vk.dx_rtv_heap->Release();
+	vk.dx_rtv_heap = nullptr;
+
+	vk.dx_command_queue->Release();
+	vk.dx_command_queue = nullptr;
+
+	vk.dx_device->Release();
+	vk.dx_device = nullptr;
 }
 
 void vk_shutdown() {

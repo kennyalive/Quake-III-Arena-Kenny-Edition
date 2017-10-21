@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // win_local.h: Win32-specific Quake3 header file
 
+#pragma once
+
 #if defined (_MSC_VER) && (_MSC_VER >= 1200)
 #pragma warning(disable : 4201)
 #pragma warning( push )
@@ -77,6 +79,7 @@ typedef struct
 
     HWND            hWnd_opengl;
     HWND            hWnd_vulkan;
+	HWND			hWnd_dx;
 
 	HINSTANCE		hInstance;
 	qboolean		activeApp;

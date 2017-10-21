@@ -431,7 +431,7 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
     return hwnd;
 }
 
-static HWND create_twin_window(int width, int height)
+static HWND create_twin_window(int width, int height, bool dx_window)
 {
     //
     // register the window class if necessary
@@ -502,7 +502,7 @@ static HWND create_twin_window(int width, int height)
     // If r_renderAPI = 0 (OpenGL) then twin window uses Vulkan API.
     // If r_renderAPI = 1 (Vulkan) then twin window uses OpenGL API.
     char window_name[1024];
-    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, r_renderAPI->integer == 0 ? "Vulkan" : "OpenGL");
+    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, dx_window ? "DX12" : (r_renderAPI->integer == 0 ? "Vulkan" : "OpenGL"));
 
     HWND hwnd = CreateWindowEx(
         0, 
@@ -726,7 +726,7 @@ void GLimp_Init( void )
 		SetFocus(g_wv.hWnd);
 		WG_CheckHardwareGamma();
 	} else {
-		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight);
+		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, false);
 	}
 
 	if (!GLW_InitDriver(g_wv.hWnd_opengl)) {
@@ -837,8 +837,10 @@ void vk_imp_init() {
 		SetForegroundWindow(g_wv.hWnd);
 		SetFocus(g_wv.hWnd);
 		WG_CheckHardwareGamma();
+
+		g_wv.hWnd_dx = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, true);
 	} else {
-		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight);
+		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, false);
 	}
 }
 
@@ -861,6 +863,16 @@ void vk_imp_shutdown() {
 		vk_library_handle = NULL;
 	}
 	vkGetInstanceProcAddr = nullptr;
+
+	if (g_wv.hWnd_dx) {
+		ri.Printf(PRINT_ALL, "...destroying DX12 window\n");
+		DestroyWindow(g_wv.hWnd_dx);
+
+		if (g_wv.hWnd == g_wv.hWnd_dx) {
+			g_wv.hWnd_dx = NULL;
+		}
+		g_wv.hWnd_dx = NULL;
+	}
 
 	// For vulkan mode we still have qgl pointers initialized with placeholder values.
 	// Reset them the same way as we do in opengl mode.

@@ -201,6 +201,7 @@ static void InitRenderAPI( void )
 		if (r_renderAPI->integer != 0 || r_twinMode->integer) {
 			vk_imp_init();
 			vk_initialize();
+			dx_initialize();
 		}
 	}
 
@@ -1117,6 +1118,8 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	if (vk.active) {
 		vk_release_resources();
 		if (destroyWindow) {
+			dx_shutdown();
+
 			vk_shutdown();
 			vk_imp_shutdown();
 		}

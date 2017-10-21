@@ -12,6 +12,8 @@
 #include "D3d12SDKLayers.h"
 #include "DXGI1_4.h"
 #include "wrl.h"
+#include "d3dx12.h"
+#include "../../engine/platform/win_local.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -22,6 +24,8 @@ const int MAX_VK_IMAGES = 2048; // should be the same as MAX_DRAWIMAGES
 
 const int IMAGE_CHUNK_SIZE = 32 * 1024 * 1024;
 const int MAX_IMAGE_CHUNKS = 16;
+
+const int D3D_FRAME_COUNT = 2;
 
 #define VK_CHECK(function_call) { \
 	VkResult result = function_call; \
@@ -89,8 +93,12 @@ struct Vk_Image {
 // After calling this function we get fully functional vulkan subsystem.
 void vk_initialize();
 
+void dx_initialize();
+
 // Shutdown vulkan subsystem by releasing resources acquired by Vk_Instance.
 void vk_shutdown();
+
+void dx_shutdown();
 
 // Releases vulkan resources allocated during program execution.
 // This effectively puts vulkan subsystem into initial state (the state we have after vk_initialize call).
@@ -121,7 +129,13 @@ void vk_read_pixels(byte* buffer); // screenshots
 struct Vk_Instance {
 	bool active = false;
 
-	ComPtr<ID3D12Device> dx_device;
+	ID3D12Device* dx_device = nullptr;
+	ID3D12CommandQueue* dx_command_queue = nullptr;
+	ComPtr<IDXGISwapChain3> dx_swapchain;
+	ID3D12DescriptorHeap* dx_rtv_heap = nullptr;
+	UINT dx_rtv_descriptor_size = 0;
+	ComPtr<ID3D12Resource> render_targets[D3D_FRAME_COUNT];
+	ID3D12CommandAllocator* dx_command_allocator = nullptr;
 
 	VkInstance instance = VK_NULL_HANDLE;
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
