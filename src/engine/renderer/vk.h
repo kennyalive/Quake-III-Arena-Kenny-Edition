@@ -13,9 +13,12 @@
 #include "DXGI1_4.h"
 #include "wrl.h"
 #include "d3dx12.h"
+#include "D3Dcompiler.h"
+#include <DirectXMath.h>
 #include "../../engine/platform/win_local.h"
 
 using Microsoft::WRL::ComPtr;
+using namespace DirectX;
 
 const int MAX_SWAPCHAIN_IMAGES = 8;
 const int MAX_VK_SAMPLERS = 32;
@@ -138,6 +141,7 @@ struct Vk_Instance {
 	ID3D12DescriptorHeap* dx_rtv_heap = nullptr;
 	UINT dx_rtv_descriptor_size = 0;
 	ID3D12Resource* dx_render_targets[D3D_FRAME_COUNT];
+	ID3D12RootSignature* dx_root_signature = nullptr;
 	ID3D12CommandAllocator* dx_command_allocator = nullptr;
 	ID3D12GraphicsCommandList* dx_command_list = nullptr;
 	ID3D12PipelineState* dx_pipeline_state = nullptr;
@@ -146,6 +150,9 @@ struct Vk_Instance {
 	ID3D12Fence* dx_fence = nullptr;
 	UINT64 dx_fence_value = 0;
 	HANDLE dx_fence_event = NULL;
+
+	ID3D12Resource* dx_vertex_buffer = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW dx_vertex_buffer_view;
 
 	VkInstance instance = VK_NULL_HANDLE;
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
