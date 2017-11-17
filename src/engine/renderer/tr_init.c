@@ -31,6 +31,10 @@ glstate_t	glState;
 Vk_Instance vk;
 Vk_World	vk_world;
 
+// D3D
+Dx_Instance dx;
+Dx_World	dx_world;
+
 static void GfxInfo_f( void );
 
 cvar_t *r_renderAPI;
@@ -1116,6 +1120,7 @@ void RE_Shutdown( qboolean destroyWindow ) {
 
 	// VULKAN
 	if (vk.active) {
+		dx_release_resources();
 		vk_release_resources();
 		if (destroyWindow) {
 			dx_shutdown();

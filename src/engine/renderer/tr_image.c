@@ -686,6 +686,60 @@ static int upload_gl_image(const Image_Upload_Data& upload_data, int texture_add
 	return internal_format;
 }
 
+// D3D
+static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repeat_texture, int image_index) {
+	int w = upload_data.base_level_width;
+	int h = upload_data.base_level_height;
+
+	bool has_alpha = false;
+	for (int i = 0; i < w * h; i++) {
+		if (upload_data.buffer[i*4 + 3] != 255)  {
+			has_alpha = true;
+			break;
+		}
+	}
+
+	DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	if (r_texturebits->integer <= 16) {
+		format = has_alpha ? DXGI_FORMAT_B4G4R4A4_UNORM : DXGI_FORMAT_B5G5R5A1_UNORM;
+	}
+
+	int bytes_per_pixel = 4;
+
+	if (format == DXGI_FORMAT_B5G5R5A1_UNORM) {
+		bytes_per_pixel = 2;
+		auto p = (uint16_t*)upload_data.buffer;
+		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
+			byte r = upload_data.buffer[i+0];
+			byte g = upload_data.buffer[i+1];
+			byte b = upload_data.buffer[i+2];
+
+			*p = uint32_t((b/255.0) * 31.0 + 0.5) |
+				(uint32_t((g/255.0) * 31.0 + 0.5) << 5) |
+				(uint32_t((r/255.0) * 31.0 + 0.5) << 10) |
+				(1 << 15);
+		}
+	} else if (format == DXGI_FORMAT_B4G4R4A4_UNORM) {
+		bytes_per_pixel = 2;
+		auto p = (uint16_t*)upload_data.buffer;
+		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
+			byte r = upload_data.buffer[i+0];
+			byte g = upload_data.buffer[i+1];
+			byte b = upload_data.buffer[i+2];
+			byte a = upload_data.buffer[i+3];
+
+			*p = uint32_t((a/255.0) * 15.0 + 0.5) |
+				(uint32_t((r/255.0) * 15.0 + 0.5) << 4) |
+				(uint32_t((g/255.0) * 15.0 + 0.5) << 8) |
+				(uint32_t((b/255.0) * 15.0 + 0.5) << 12);
+		}
+	}
+
+	Dx_Image image = dx_create_image(w, h, format, upload_data.mip_levels, repeat_texture, image_index);
+	dx_upload_image_data(image.texture, w, h, upload_data.mip_levels > 1, upload_data.buffer, bytes_per_pixel);
+	return image;
+}
+
 // VULKAN
 static Vk_Image upload_vk_image(const Image_Upload_Data& upload_data, bool repeat_texture) {
 	int w = upload_data.base_level_width;
@@ -787,6 +841,10 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	// VULKAN
 	if (vk.active) {
 		vk_world.images[image->index] = upload_vk_image(upload_data, glWrapClampMode == GL_REPEAT);
+	}
+	// D3D
+	if (dx.active) {
+		dx_world.images[image->index] = upload_dx_image(upload_data, glWrapClampMode == GL_REPEAT, image->index);
 	}
 
 	if (isLightmap) {

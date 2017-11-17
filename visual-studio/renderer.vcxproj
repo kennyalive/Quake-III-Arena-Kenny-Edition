@@ -93,6 +93,7 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\engine\renderer\dx.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_add_frag.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_clipping_plane_vert.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_mul_frag.cpp" />
@@ -129,6 +130,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\engine\qcommon\cm_public.h" />
+    <ClInclude Include="..\src\engine\renderer\dx.h" />
     <ClInclude Include="..\src\engine\renderer\vk.h" />
     <ClInclude Include="..\src\game\q_shared.h" />
     <ClInclude Include="..\src\engine\qcommon\qcommon.h" />

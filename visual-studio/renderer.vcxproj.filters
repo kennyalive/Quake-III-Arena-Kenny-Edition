@@ -113,6 +113,9 @@
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\single_texture_clipping_plane_vert.cpp">
       <Filter>Source Files\spirv</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\engine\renderer\dx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\engine\qcommon\cm_public.h">
@@ -146,6 +149,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\renderer\vk.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\renderer\dx.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

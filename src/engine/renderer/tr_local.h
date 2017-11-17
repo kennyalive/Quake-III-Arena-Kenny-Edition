@@ -34,6 +34,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // VULKAN
 #include "vk.h"
 
+// D3D
+#include "dx.h"
+
 #define GL_INDEX_TYPE		GL_UNSIGNED_INT
 typedef unsigned int glIndex_t;
 
@@ -931,6 +934,10 @@ extern glstate_t	glState;		// outside of TR since it shouldn't be cleared during
 // VULKAN
 extern Vk_Instance	vk;				// shouldn't be cleared during ref re-init
 extern Vk_World		vk_world;		// this data is cleared during ref re-init
+
+// D3D
+extern Dx_Instance	dx;				// shouldn't be cleared during ref re-init
+extern Dx_World		dx_world;		// this data is cleared during ref re-init
 
 
 //

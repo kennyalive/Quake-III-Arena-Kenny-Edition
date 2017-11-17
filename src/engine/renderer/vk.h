@@ -8,18 +8,6 @@
 #define VK_NO_PROTOTYPES
 #include "vulkan/vulkan.h"
 
-#include "D3d12.h"
-#include "D3d12SDKLayers.h"
-#include "DXGI1_4.h"
-#include "wrl.h"
-#include "d3dx12.h"
-#include "D3Dcompiler.h"
-#include <DirectXMath.h>
-#include "../../engine/platform/win_local.h"
-
-using Microsoft::WRL::ComPtr;
-using namespace DirectX;
-
 const int MAX_SWAPCHAIN_IMAGES = 8;
 const int MAX_VK_SAMPLERS = 32;
 const int MAX_VK_PIPELINES = 1024;
@@ -28,18 +16,10 @@ const int MAX_VK_IMAGES = 2048; // should be the same as MAX_DRAWIMAGES
 const int IMAGE_CHUNK_SIZE = 32 * 1024 * 1024;
 const int MAX_IMAGE_CHUNKS = 16;
 
-const int D3D_FRAME_COUNT = 2;
-
 #define VK_CHECK(function_call) { \
 	VkResult result = function_call; \
 	if (result < 0) \
 		ri.Error(ERR_FATAL, "Vulkan: error code %d returned by %s", result, #function_call); \
-}
-
-#define DX_CHECK(function_call) { \
-	HRESULT hr = function_call; \
-	if (FAILED(hr)) \
-		ri.Error(ERR_FATAL, "Direct3D: error returned by %s", #function_call); \
 }
 
 enum class Vk_Shader_Type {
@@ -96,12 +76,8 @@ struct Vk_Image {
 // After calling this function we get fully functional vulkan subsystem.
 void vk_initialize();
 
-void dx_initialize();
-
 // Shutdown vulkan subsystem by releasing resources acquired by Vk_Instance.
 void vk_shutdown();
-
-void dx_shutdown();
 
 // Releases vulkan resources allocated during program execution.
 // This effectively puts vulkan subsystem into initial state (the state we have after vk_initialize call).
@@ -125,35 +101,12 @@ void vk_shade_geometry(VkPipeline pipeline, bool multitexture, Vk_Depth_Range de
 void vk_begin_frame();
 void vk_end_frame();
 
-void dx_begin_frame();
-void dx_end_frame();
-
 void vk_read_pixels(byte* buffer); // screenshots
 
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
 struct Vk_Instance {
 	bool active = false;
-
-	ID3D12Device* dx_device = nullptr;
-	ID3D12CommandQueue* dx_command_queue = nullptr;
-	ComPtr<IDXGISwapChain3> dx_swapchain;
-	ID3D12DescriptorHeap* dx_rtv_heap = nullptr;
-	UINT dx_rtv_descriptor_size = 0;
-	ID3D12Resource* dx_render_targets[D3D_FRAME_COUNT];
-	ID3D12RootSignature* dx_root_signature = nullptr;
-	ID3D12CommandAllocator* dx_command_allocator = nullptr;
-	ID3D12GraphicsCommandList* dx_command_list = nullptr;
-	ID3D12PipelineState* dx_pipeline_state = nullptr;
-
-	UINT dx_frame_index = 0;
-	ID3D12Fence* dx_fence = nullptr;
-	UINT64 dx_fence_value = 0;
-	HANDLE dx_fence_event = NULL;
-
-	ID3D12Resource* dx_vertex_buffer = nullptr;
-	D3D12_VERTEX_BUFFER_VIEW dx_vertex_buffer_view;
-
 	VkInstance instance = VK_NULL_HANDLE;
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 	VkSurfaceKHR surface = VK_NULL_HANDLE;
