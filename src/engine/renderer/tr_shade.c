@@ -748,6 +748,9 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 	// VULKAN
 	vk_bind_geometry();
 
+	// DX12
+	dx_bind_geometry();
+
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
 		shaderStage_t *pStage = tess.xstages[stage];
@@ -816,6 +819,26 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 
             vk_shade_geometry(pipeline, multitexture, depth_range);
         }
+
+		// DX12
+		if (dx.active) {
+			ID3D12PipelineState* pipeline_state = pStage->dx_pipeline_state;
+			if (backEnd.viewParms.isMirror)
+				pipeline_state = pStage->dx_mirror_pipeline_state;
+			else if (backEnd.viewParms.isPortal)
+				pipeline_state = pStage->dx_portal_pipeline_state;
+
+			Vk_Depth_Range depth_range = Vk_Depth_Range::normal;
+			if (input->shader->isSky) {
+				depth_range = Vk_Depth_Range::force_one;
+				if (r_showsky->integer)
+					depth_range = Vk_Depth_Range::force_zero;
+			} else if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
+				depth_range = Vk_Depth_Range::weapon;
+			}
+
+			dx_shade_geometry(pipeline_state, multitexture, depth_range);
+		}
 
 		// allow skipping out to show just lightmaps during development
 		if ( r_lightmap->integer && ( pStage->bundle[0].isLightmap || pStage->bundle[1].isLightmap ) )

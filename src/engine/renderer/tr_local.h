@@ -325,6 +325,12 @@ typedef struct {
 	VkPipeline		vk_pipeline = VK_NULL_HANDLE;
 	VkPipeline		vk_portal_pipeline = VK_NULL_HANDLE;
 	VkPipeline		vk_mirror_pipeline = VK_NULL_HANDLE;
+
+	// D3D
+	ID3D12PipelineState* dx_pipeline_state = nullptr;
+	ID3D12PipelineState* dx_portal_pipeline_state = nullptr;
+	ID3D12PipelineState* dx_mirror_pipeline_state = nullptr;
+	
 } shaderStage_t;
 
 struct shaderCommands_s;

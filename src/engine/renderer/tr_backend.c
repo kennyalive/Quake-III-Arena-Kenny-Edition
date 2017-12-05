@@ -68,6 +68,10 @@ void GL_Bind( image_t *image ) {
 			VkDescriptorSet set = vk_world.images[final_image->index].descriptor_set;
 			vk_world.current_descriptor_sets[glState.currenttmu] = set;
 		}
+		// D3D
+		if (dx.active) {
+			dx_world.current_image_indices[glState.currenttmu] = final_image->index;
+		}
 	}
 }
 
