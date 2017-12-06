@@ -463,16 +463,15 @@ static void get_mvp_transform(float* mvp) {
 	} else {
 		const float* p = backEnd.viewParms.projectionMatrix;
 
-		// update q3's proj matrix (opengl) to vulkan conventions: z - [0, 1] instead of [-1, 1] and invert y direction
+		// update q3's proj matrix (opengl) to d3d conventions: z - [0, 1] instead of [-1, 1]
 		float zNear	= r_znear->value;
 		float zFar = backEnd.viewParms.zFar;
 		float P10 = -zFar / (zFar - zNear);
 		float P14 = -zFar*zNear / (zFar - zNear);
-		float P5 = -p[5];
 
 		float proj[16] = {
 			p[0],  p[1],  p[2], p[3],
-			p[4],  P5,    p[6], p[7],
+			p[4],  p[5],  p[6], p[7],
 			p[8],  p[9],  P10,  p[11],
 			p[12], p[13], P14,  p[15]
 		};
