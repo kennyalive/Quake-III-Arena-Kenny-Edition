@@ -53,14 +53,19 @@ struct Dx_Instance {
 	ID3D12Device* device = nullptr;
 	ID3D12CommandQueue* command_queue = nullptr;
 	ComPtr<IDXGISwapChain3> swapchain;
+
 	ID3D12DescriptorHeap* rtv_heap = nullptr;
 	UINT rtv_descriptor_size = 0;
+
 	ID3D12Resource* render_targets[D3D_FRAME_COUNT];
 	ID3D12RootSignature* root_signature = nullptr;
 	ID3D12CommandAllocator* command_allocator = nullptr;
 	ID3D12CommandAllocator* helper_command_allocator = nullptr;
 	ID3D12GraphicsCommandList* command_list = nullptr;
 	ID3D12PipelineState* pipeline_state = nullptr;
+
+	ID3D12Resource* depth_stencil_buffer = nullptr;
+	ID3D12DescriptorHeap* dsv_heap = nullptr;
 
 	UINT frame_index = 0;
 	ID3D12Fence* fence = nullptr;

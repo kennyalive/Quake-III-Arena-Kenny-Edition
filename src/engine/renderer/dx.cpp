@@ -26,6 +26,16 @@ const int ST1_OFFSET    = ST0_OFFSET + ST0_SIZE;
 static const int VERTEX_BUFFER_SIZE = XYZ_SIZE + COLOR_SIZE + ST0_SIZE + ST1_SIZE;
 static const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
 
+static DXGI_FORMAT get_depth_format() {
+	if (r_stencilbits->integer > 0) {
+		glConfig.stencilBits = 8;
+		return DXGI_FORMAT_D24_UNORM_S8_UINT;
+	} else {
+		glConfig.stencilBits = 0;
+		return DXGI_FORMAT_D32_FLOAT;
+	}
+}
+
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, *ppAdapter will be set to nullptr.
 static void get_hardware_adapter(IDXGIFactory4* p_factory, IDXGIAdapter1** pp_adapter) {
@@ -181,6 +191,49 @@ void dx_initialize() {
 			dx.device->CreateRenderTargetView(dx.render_targets[n], nullptr, rtv_handle);
 			rtv_handle.Offset(1, dx.rtv_descriptor_size);
 		}
+	}
+
+	// Create depth buffer resources.
+	{
+		D3D12_RESOURCE_DESC depth_desc = {};
+		depth_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depth_desc.Alignment = 0;
+		depth_desc.Width = glConfig.vidWidth;
+		depth_desc.Height = glConfig.vidHeight;
+		depth_desc.DepthOrArraySize = 1;
+		depth_desc.MipLevels = 1;
+		depth_desc.Format = get_depth_format();
+		depth_desc.SampleDesc.Count = 1;
+		depth_desc.SampleDesc.Quality = 0;
+		depth_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depth_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		D3D12_CLEAR_VALUE optimized_clear_value = {};
+		optimized_clear_value.Format = get_depth_format();
+		optimized_clear_value.DepthStencil.Depth = 1.0f;
+		optimized_clear_value.DepthStencil.Stencil = 0;
+
+		DX_CHECK(dx.device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&depth_desc,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			&optimized_clear_value,
+			IID_PPV_ARGS(&dx.depth_stencil_buffer)));
+
+		D3D12_DESCRIPTOR_HEAP_DESC ds_heap_desc = {};
+		ds_heap_desc.NumDescriptors = 1;
+		ds_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		ds_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		DX_CHECK(dx.device->CreateDescriptorHeap(&ds_heap_desc, IID_PPV_ARGS(&dx.dsv_heap)));
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC view_desc = {};
+		view_desc.Format = get_depth_format();
+		view_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		view_desc.Flags = D3D12_DSV_FLAG_NONE;
+
+		dx.device->CreateDepthStencilView(dx.depth_stencil_buffer, &view_desc,
+			dx.dsv_heap->GetCPUDescriptorHandleForHeapStart());
 	}
 
 	DX_CHECK(dx.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&dx.command_allocator)));
@@ -351,6 +404,11 @@ void dx_shutdown() {
 
 	::CloseHandle(dx.fence_event);
 	dx.fence_event = NULL;
+
+	dx.depth_stencil_buffer->Release();
+	dx.depth_stencil_buffer = nullptr;
+	dx.dsv_heap->Release();
+	dx.dsv_heap = nullptr;
 
 	dx.geometry_buffer->Release();
 	dx.geometry_buffer = nullptr;
@@ -581,6 +639,7 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	pipeline_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipeline_desc.NumRenderTargets = 1;
 	pipeline_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	pipeline_desc.DSVFormat = get_depth_format();
 	pipeline_desc.SampleDesc.Count = 1;
 
 	ID3D12PipelineState* pipeline_state;
@@ -911,13 +970,17 @@ void dx_begin_frame() {
 	dx.command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dx.render_targets[dx.frame_index],
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
+	CD3DX12_CPU_DESCRIPTOR_HANDLE dsv_handle(dx.dsv_heap->GetCPUDescriptorHandleForHeapStart());
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(dx.rtv_heap->GetCPUDescriptorHandleForHeapStart(), dx.frame_index, dx.rtv_descriptor_size);
-	dx.command_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
+	dx.command_list->OMSetRenderTargets(1, &rtv_handle, FALSE, &dsv_handle);
 
 	// Record commands.
 	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 	dx.command_list->ClearRenderTargetView(rtv_handle, clearColor, 0, nullptr);
 	dx.command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	dx.command_list->ClearDepthStencilView(dx.dsv_heap->GetCPUDescriptorHandleForHeapStart(),
+		D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	dx.xyz_elements = 0;
 	dx.color_st_elements = 0;
