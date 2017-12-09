@@ -62,7 +62,6 @@ struct Dx_Instance {
 	ID3D12CommandAllocator* command_allocator = nullptr;
 	ID3D12CommandAllocator* helper_command_allocator = nullptr;
 	ID3D12GraphicsCommandList* command_list = nullptr;
-	ID3D12PipelineState* pipeline_state = nullptr;
 
 	ID3D12Resource* depth_stencil_buffer = nullptr;
 	ID3D12DescriptorHeap* dsv_heap = nullptr;
@@ -89,9 +88,9 @@ struct Dx_World {
 	//
 	// Resources.
 	//
-	int num_pipelines = 0;
+	int num_pipeline_states = 0;
 	Vk_Pipeline_Def pipeline_defs[MAX_VK_PIPELINES];
-	ID3D12PipelineState* pipelines[MAX_VK_PIPELINES];
+	ID3D12PipelineState* pipeline_states[MAX_VK_PIPELINES];
 	float pipeline_create_time;
 
 	Dx_Image images[MAX_VK_IMAGES];

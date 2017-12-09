@@ -276,48 +276,7 @@ void dx_initialize() {
         DX_CHECK(dx.device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&dx.root_signature)));
     }
 
-	// Create the pipeline state, which includes compiling and loading shaders.
-	{
-		ComPtr<ID3DBlob> vertexShader;
-		ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-
-		DX_CHECK(D3DCompileFromFile(L"d:/Quake-III-Arena-Kenny-Edition/src/engine/renderer/shaders/shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-		DX_CHECK(D3DCompileFromFile(L"d:/Quake-III-Arena-Kenny-Edition/src/engine/renderer/shaders/shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
-
-		// Define the vertex input layout.
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 2, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-
-		// Describe and create the graphics pipeline state object (PSO).
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-		psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-		psoDesc.pRootSignature = dx.root_signature;
-		psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-
-		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-		psoDesc.DepthStencilState.DepthEnable = FALSE;
-		psoDesc.DepthStencilState.StencilEnable = FALSE;
-		psoDesc.SampleMask = UINT_MAX;
-		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		psoDesc.SampleDesc.Count = 1;
-		DX_CHECK(dx.device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&dx.pipeline_state)));
-	}
-
-	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.command_allocator, dx.pipeline_state, IID_PPV_ARGS(&dx.command_list)));
+	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.command_allocator, nullptr, IID_PPV_ARGS(&dx.command_list)));
 
 	// Command lists are created in the recording state, but there is nothing
 	// to record yet. The main loop expects it to be closed, so close it now.
@@ -396,9 +355,6 @@ void dx_shutdown() {
 	dx.command_list->Release();
 	dx.command_list = nullptr;
 
-	dx.pipeline_state->Release();
-	dx.pipeline_state = nullptr;
-
 	dx.fence->Release();
 	dx.fence = nullptr;
 
@@ -418,11 +374,17 @@ void dx_shutdown() {
 }
 
 void dx_release_resources() {
+	dx_world.pipeline_create_time = 0.0f;
+	for (int i = 0; i < dx_world.num_pipeline_states; i++) {
+		dx_world.pipeline_states[i]->Release();
+	}
+
 	for (int i = 0; i < MAX_VK_IMAGES; i++) {
 		if (dx_world.images[i].texture != nullptr) {
 			dx_world.images[i].texture->Release();
 		}
 	}
+
 	Com_Memset(&dx_world, 0, sizeof(dx_world));
 
 	// Reset geometry buffer's current offsets.
@@ -660,7 +622,7 @@ struct Timer {
 };
 
 ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) {
-	for (int i = 0; i < dx_world.num_pipelines; i++) {
+	for (int i = 0; i < dx_world.num_pipeline_states; i++) {
 		const auto& cur_def = dx_world.pipeline_defs[i];
 
 		if (cur_def.shader_type == def.shader_type &&
@@ -672,11 +634,11 @@ ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) {
 			cur_def.line_primitives == def.line_primitives &&
 			cur_def.shadow_phase == def.shadow_phase)
 		{
-			return dx_world.pipelines[i];
+			return dx_world.pipeline_states[i];
 		}
 	}
 
-	if (dx_world.num_pipelines >= MAX_VK_PIPELINES) {
+	if (dx_world.num_pipeline_states >= MAX_VK_PIPELINES) {
 		ri.Error(ERR_DROP, "dx_find_pipeline: MAX_VK_PIPELINES hit\n");
 	}
 
@@ -684,9 +646,9 @@ ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) {
 	ID3D12PipelineState* pipeline_state = create_pipeline(def);
 	dx_world.pipeline_create_time += t.elapsed_seconds();
 
-	dx_world.pipeline_defs[dx_world.num_pipelines] = def;
-	dx_world.pipelines[dx_world.num_pipelines] = pipeline_state;
-	dx_world.num_pipelines++;
+	dx_world.pipeline_defs[dx_world.num_pipeline_states] = def;
+	dx_world.pipeline_states[dx_world.num_pipeline_states] = pipeline_state;
+	dx_world.num_pipeline_states++;
 	return pipeline_state;
 }
 
@@ -947,7 +909,7 @@ void dx_begin_frame() {
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
-	DX_CHECK(dx.command_list->Reset(dx.command_allocator, dx.pipeline_state));
+	DX_CHECK(dx.command_list->Reset(dx.command_allocator, nullptr));
 
 	// Set necessary state.
 	dx.command_list->SetGraphicsRootSignature(dx.root_signature);
