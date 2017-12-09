@@ -468,11 +468,11 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, bool m
 }
 
 static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
-	ComPtr<ID3DBlob> vertexShader;
-	ComPtr<ID3DBlob> pixelShader;
+	extern unsigned char single_texture_vs[];
+	extern long long single_texture_vs_size;
 
-	DX_CHECK(D3DCompileFromFile(L"d:/Quake-III-Arena-Kenny-Edition/src/engine/renderer/shaders/shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, nullptr));
-	DX_CHECK(D3DCompileFromFile(L"d:/Quake-III-Arena-Kenny-Edition/src/engine/renderer/shaders/shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, nullptr));
+	extern unsigned char single_texture_ps[];
+	extern long long single_texture_ps_size;
 
 	// Define the vertex input layout.
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -485,8 +485,8 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {};
 	pipeline_desc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
 	pipeline_desc.pRootSignature = dx.root_signature;
-	pipeline_desc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-	pipeline_desc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+	pipeline_desc.VS = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
+	pipeline_desc.PS = CD3DX12_SHADER_BYTECODE(single_texture_ps, single_texture_ps_size);
 
 	pipeline_desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 

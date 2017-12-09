@@ -12,6 +12,9 @@
     <Filter Include="Source Files\spirv">
       <UniqueIdentifier>{b30d21cf-a2ec-44d4-80d2-73c969c32a41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\hlsl_compiled">
+      <UniqueIdentifier>{ff161648-6f6d-46ac-af5d-08fdfb82914a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\engine\renderer\tr_animation.c">
@@ -115,6 +118,12 @@
     </ClCompile>
     <ClCompile Include="..\src\engine\renderer\dx.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_ps.cpp">
+      <Filter>Source Files\hlsl_compiled</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_vs.cpp">
+      <Filter>Source Files\hlsl_compiled</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
