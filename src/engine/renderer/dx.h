@@ -84,6 +84,11 @@ struct Dx_World {
 	//
 	// Resources.
 	//
+	int num_pipelines = 0;
+	Vk_Pipeline_Def pipeline_defs[MAX_VK_PIPELINES];
+	ID3D12PipelineState* pipelines[MAX_VK_PIPELINES];
+	float pipeline_create_time;
+
 	Dx_Image images[MAX_VK_IMAGES];
 
 	//

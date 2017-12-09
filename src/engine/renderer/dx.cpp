@@ -1,5 +1,6 @@
 #include "tr_local.h"
 
+#include <chrono>
 #include <functional>
 
 #include "D3d12.h"
@@ -200,9 +201,9 @@ void dx_initialize() {
 
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
 		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.MipLODBias = 0;
 		sampler.MaxAnisotropy = 0;
 		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -446,8 +447,188 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, bool m
 	});
 }
 
+static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
+	ComPtr<ID3DBlob> vertexShader;
+	ComPtr<ID3DBlob> pixelShader;
+
+	DX_CHECK(D3DCompileFromFile(L"d:/Quake-III-Arena-Kenny-Edition/src/engine/renderer/shaders/shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", 0, 0, &vertexShader, nullptr));
+	DX_CHECK(D3DCompileFromFile(L"d:/Quake-III-Arena-Kenny-Edition/src/engine/renderer/shaders/shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", 0, 0, &pixelShader, nullptr));
+
+	// Define the vertex input layout.
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 2, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	// Describe and create the graphics pipeline state object (PSO).
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {};
+	pipeline_desc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
+	pipeline_desc.pRootSignature = dx.root_signature;
+	pipeline_desc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+	pipeline_desc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+
+	pipeline_desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+
+
+	pipeline_desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
+	//
+	// Blend.
+	//
+	auto& blend_state = pipeline_desc.BlendState;
+	blend_state.AlphaToCoverageEnable = FALSE;
+	blend_state.IndependentBlendEnable = FALSE;
+	auto& rt_blend_desc = blend_state.RenderTarget[0];
+	rt_blend_desc.BlendEnable = (def.state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) ? TRUE : FALSE;
+	rt_blend_desc.LogicOpEnable = FALSE;
+
+	if (rt_blend_desc.BlendEnable) {
+		switch (def.state_bits & GLS_SRCBLEND_BITS) {
+			case GLS_SRCBLEND_ZERO:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_ZERO;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_ZERO;
+				break;
+			case GLS_SRCBLEND_ONE:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_ONE;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_ONE;
+				break;
+			case GLS_SRCBLEND_DST_COLOR:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_DEST_COLOR;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+				break;
+			case GLS_SRCBLEND_ONE_MINUS_DST_COLOR:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_INV_DEST_ALPHA;
+				break;
+			case GLS_SRCBLEND_SRC_ALPHA:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+				break;
+			case GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_INV_SRC_ALPHA;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+				break;
+			case GLS_SRCBLEND_DST_ALPHA:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_DEST_ALPHA;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+				break;
+			case GLS_SRCBLEND_ONE_MINUS_DST_ALPHA:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_INV_DEST_ALPHA;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_INV_DEST_ALPHA;
+				break;
+			case GLS_SRCBLEND_ALPHA_SATURATE:
+				rt_blend_desc.SrcBlend = D3D12_BLEND_SRC_ALPHA_SAT;
+				rt_blend_desc.SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA_SAT;
+				break;
+			default:
+				ri.Error( ERR_DROP, "create_pipeline: invalid src blend state bits\n" );
+				break;
+		}
+		switch (def.state_bits & GLS_DSTBLEND_BITS) {
+			case GLS_DSTBLEND_ZERO:
+				rt_blend_desc.DestBlend = D3D12_BLEND_ZERO;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_ZERO;
+				break;
+			case GLS_DSTBLEND_ONE:
+				rt_blend_desc.DestBlend = D3D12_BLEND_ONE;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_ONE;
+				break;
+			case GLS_DSTBLEND_SRC_COLOR:
+				rt_blend_desc.DestBlend = D3D12_BLEND_SRC_COLOR;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+				break;
+			case GLS_DSTBLEND_ONE_MINUS_SRC_COLOR:
+				rt_blend_desc.DestBlend = D3D12_BLEND_INV_SRC_COLOR;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+				break;
+			case GLS_DSTBLEND_SRC_ALPHA:
+				rt_blend_desc.DestBlend = D3D12_BLEND_SRC_ALPHA;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+				break;
+			case GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA:
+				rt_blend_desc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+				break;
+			case GLS_DSTBLEND_DST_ALPHA:
+				rt_blend_desc.DestBlend = D3D12_BLEND_DEST_ALPHA;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+				break;
+			case GLS_DSTBLEND_ONE_MINUS_DST_ALPHA:
+				rt_blend_desc.DestBlend = D3D12_BLEND_INV_DEST_ALPHA;
+				rt_blend_desc.DestBlendAlpha = D3D12_BLEND_INV_DEST_ALPHA;
+				break;
+			default:
+				ri.Error( ERR_DROP, "create_pipeline: invalid dst blend state bits\n" );
+				break;
+		}
+	}
+	rt_blend_desc.BlendOp = D3D12_BLEND_OP_ADD;
+	rt_blend_desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rt_blend_desc.LogicOp = D3D12_LOGIC_OP_COPY;
+	rt_blend_desc.RenderTargetWriteMask = (def.shadow_phase == Vk_Shadow_Phase::shadow_edges_rendering) ? 0 : D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	//
+	// Depth/stencil.
+	//
+	auto& depth_stencil_state = pipeline_desc.DepthStencilState;
+	depth_stencil_state.DepthEnable = (def.state_bits & GLS_DEPTHTEST_DISABLE) ? FALSE : TRUE;
+	depth_stencil_state.DepthWriteMask = (def.state_bits & GLS_DEPTHMASK_TRUE) ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+	depth_stencil_state.DepthFunc = (def.state_bits & GLS_DEPTHFUNC_EQUAL) ? D3D12_COMPARISON_FUNC_EQUAL : D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	depth_stencil_state.StencilEnable = (def.shadow_phase != Vk_Shadow_Phase::disabled) ? TRUE : FALSE;
+
+	pipeline_desc.SampleMask = UINT_MAX;
+	pipeline_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pipeline_desc.NumRenderTargets = 1;
+	pipeline_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	pipeline_desc.SampleDesc.Count = 1;
+
+	ID3D12PipelineState* pipeline_state;
+	DX_CHECK(dx.device->CreateGraphicsPipelineState(&pipeline_desc, IID_PPV_ARGS(&pipeline_state)));
+	return pipeline_state;
+}
+
+struct Timer {
+	using Clock = std::chrono::high_resolution_clock;
+	using Second = std::chrono::duration<double, std::ratio<1>>;
+
+	Clock::time_point start = Clock::now();
+	double elapsed_seconds() const {
+		const auto duration = Clock::now() - start;
+		double seconds = std::chrono::duration_cast<Second>(duration).count();
+		return seconds;
+	}
+};
+
 ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) {
-	return dx.pipeline_state;
+	for (int i = 0; i < dx_world.num_pipelines; i++) {
+		const auto& cur_def = dx_world.pipeline_defs[i];
+
+		if (cur_def.shader_type == def.shader_type &&
+			cur_def.state_bits == def.state_bits &&
+			cur_def.face_culling == def.face_culling &&
+			cur_def.polygon_offset == def.polygon_offset &&
+			cur_def.clipping_plane == def.clipping_plane &&
+			cur_def.mirror == def.mirror &&
+			cur_def.line_primitives == def.line_primitives &&
+			cur_def.shadow_phase == def.shadow_phase)
+		{
+			return dx_world.pipelines[i];
+		}
+	}
+
+	if (dx_world.num_pipelines >= MAX_VK_PIPELINES) {
+		ri.Error(ERR_DROP, "dx_find_pipeline: MAX_VK_PIPELINES hit\n");
+	}
+
+	Timer t;
+	ID3D12PipelineState* pipeline_state = create_pipeline(def);
+	dx_world.pipeline_create_time += t.elapsed_seconds();
+
+	dx_world.pipeline_defs[dx_world.num_pipelines] = def;
+	dx_world.pipelines[dx_world.num_pipelines] = pipeline_state;
+	dx_world.num_pipelines++;
+	return pipeline_state;
 }
 
 static void get_mvp_transform(float* mvp) {
