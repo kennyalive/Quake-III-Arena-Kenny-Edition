@@ -729,7 +729,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			Dx_Image& image = dx_world.images[image_index];
 			image.texture->Release();
 			image = dx_create_image(cols, rows, DXGI_FORMAT_R8G8B8A8_UNORM, 1, false, image_index);
-			dx_upload_image_data(image.texture, cols, rows, false, data, 4);
+			dx_upload_image_data(image.texture, cols, rows, 1, data, 4);
 		}
 	} else {
 		if (dirty) {
@@ -740,12 +740,12 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			// VULKAN
 			if (vk.active) {
 				const Vk_Image& image = vk_world.images[tr.scratchImage[client]->index];
-				vk_upload_image_data(image.handle, cols, rows, false, data, 4);
+				vk_upload_image_data(image.handle, cols, rows, 1, data, 4);
 			}
 			// D3D
 			if (dx.active) {
 				const Dx_Image& image = dx_world.images[tr.scratchImage[client]->index];
-				dx_upload_image_data(image.texture, cols, rows, false, data, 4);
+				dx_upload_image_data(image.texture, cols, rows, 1, data, 4);
 			}
 		}
 	}

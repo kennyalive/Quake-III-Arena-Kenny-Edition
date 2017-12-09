@@ -404,7 +404,7 @@ Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_leve
 		desc.Width = width;
 		desc.Height = height;
 		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1; //  /* mip_levels */; !!!!!!!!!!!!!!!!!!!!!!
+		desc.MipLevels = mip_levels;
 		desc.Format = format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
@@ -426,7 +426,7 @@ Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_leve
 		srv_desc.Format = format;
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srv_desc.Texture2D.MipLevels = 1; // !!!!!!!!!!!!!!!!!!!!!!1
+		srv_desc.Texture2D.MipLevels = mip_levels;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE handle;
 		handle.ptr = dx.srv_heap->GetCPUDescriptorHandleForHeapStart().ptr + image_index * dx.srv_descriptor_size;
@@ -438,8 +438,8 @@ Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_leve
 	return image;
 }
 
-void dx_upload_image_data(ID3D12Resource* texture, int width, int height, bool mipmap, const uint8_t* pixels, int bytes_per_pixel) {
-	const UINT64 upload_buffer_size = GetRequiredIntermediateSize(texture, 0, 1);
+void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel) {
+	const UINT64 upload_buffer_size = GetRequiredIntermediateSize(texture, 0, mip_levels);
 
 	ComPtr<ID3D12Resource> upload_texture;
 	DX_CHECK(dx.device->CreateCommittedResource(
@@ -450,17 +450,29 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, bool m
 			nullptr,
 			IID_PPV_ARGS(&upload_texture)));
 
-	D3D12_SUBRESOURCE_DATA texture_data {};
-	texture_data.pData = pixels;
-	texture_data.RowPitch = width * bytes_per_pixel;
-	texture_data.SlicePitch = texture_data.RowPitch * height;
+	D3D12_SUBRESOURCE_DATA texture_data[16];
+	
+	for (int i = 0; i < mip_levels; i++) {
+		texture_data[i].pData = pixels;
+		texture_data[i].RowPitch = width * bytes_per_pixel;
+		texture_data[i].SlicePitch = texture_data[i].RowPitch * height;
+		
+		pixels += texture_data[i].SlicePitch;
 
-	record_and_run_commands(dx.command_queue, [&texture, &upload_texture, &texture_data](ID3D12GraphicsCommandList* command_list)
+		width >>= 1;
+		if (width < 1) width = 1;
+
+		height >>= 1;
+		if (height < 1) height = 1;
+	}
+
+	record_and_run_commands(dx.command_queue, [&texture, &upload_texture, &texture_data, &mip_levels]
+		(ID3D12GraphicsCommandList* command_list)
 	{
 		command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
-		UpdateSubresources(command_list, texture, upload_texture.Get(), 0, 0, 1, &texture_data);
+		UpdateSubresources(command_list, texture, upload_texture.Get(), 0, 0, mip_levels, texture_data);
 
 		command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
 			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
@@ -477,10 +489,10 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	// Vertex elements.
 	D3D12_INPUT_ELEMENT_DESC input_element_desc[] =
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 2, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 3, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 2, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 3, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 	//

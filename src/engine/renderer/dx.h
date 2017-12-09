@@ -36,7 +36,7 @@ void dx_release_resources();
 // Resources allocation.
 //
 Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_levels,  bool repeat_texture, int image_index);
-void dx_upload_image_data(ID3D12Resource* texture, int width, int height, bool mipmap, const uint8_t* pixels, int bytes_per_pixel);
+void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel);
 ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def);
 
 //

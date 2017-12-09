@@ -686,7 +686,7 @@ static int upload_gl_image(const Image_Upload_Data& upload_data, int texture_add
 	return internal_format;
 }
 
-// D3D
+// DX12
 static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repeat_texture, int image_index) {
 	int w = upload_data.base_level_width;
 	int h = upload_data.base_level_height;
@@ -736,7 +736,7 @@ static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repea
 	}
 
 	Dx_Image image = dx_create_image(w, h, format, upload_data.mip_levels, repeat_texture, image_index);
-	dx_upload_image_data(image.texture, w, h, upload_data.mip_levels > 1, upload_data.buffer, bytes_per_pixel);
+	dx_upload_image_data(image.texture, w, h, upload_data.mip_levels, upload_data.buffer, bytes_per_pixel);
 	return image;
 }
 
