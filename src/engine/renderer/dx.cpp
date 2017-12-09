@@ -474,29 +474,19 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	extern unsigned char single_texture_ps[];
 	extern long long single_texture_ps_size;
 
-	// Define the vertex input layout.
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+	// Vertex elements.
+	D3D12_INPUT_ELEMENT_DESC input_element_desc[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 2, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 2, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 3, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
-
-	// Describe and create the graphics pipeline state object (PSO).
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {};
-	pipeline_desc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-	pipeline_desc.pRootSignature = dx.root_signature;
-	pipeline_desc.VS = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
-	pipeline_desc.PS = CD3DX12_SHADER_BYTECODE(single_texture_ps, single_texture_ps_size);
-
-	pipeline_desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-
-
-	pipeline_desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 	//
 	// Blend.
 	//
-	auto& blend_state = pipeline_desc.BlendState;
+	D3D12_BLEND_DESC blend_state;
 	blend_state.AlphaToCoverageEnable = FALSE;
 	blend_state.IndependentBlendEnable = FALSE;
 	auto& rt_blend_desc = blend_state.RenderTarget[0];
@@ -589,20 +579,78 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	rt_blend_desc.RenderTargetWriteMask = (def.shadow_phase == Vk_Shadow_Phase::shadow_edges_rendering) ? 0 : D3D12_COLOR_WRITE_ENABLE_ALL;
 
 	//
-	// Depth/stencil.
+	// Rasteriazation state.
 	//
-	auto& depth_stencil_state = pipeline_desc.DepthStencilState;
+	D3D12_RASTERIZER_DESC rasterization_state = {};
+	rasterization_state.FillMode = (def.state_bits & GLS_POLYMODE_LINE) ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
+
+	if (def.face_culling == CT_TWO_SIDED)
+		rasterization_state.CullMode = D3D12_CULL_MODE_NONE;
+	else if (def.face_culling == CT_FRONT_SIDED)
+		rasterization_state.CullMode = (def.mirror ? D3D12_CULL_MODE_FRONT : D3D12_CULL_MODE_BACK);
+	else if (def.face_culling == CT_BACK_SIDED)
+		rasterization_state.CullMode = (def.mirror ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_FRONT);
+	else
+		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode\n");
+
+	rasterization_state.FrontCounterClockwise = FALSE; // Q3 defaults to clockwise vertex order
+	rasterization_state.DepthBias = 0;
+	rasterization_state.DepthBiasClamp = 0.0f;
+	rasterization_state.SlopeScaledDepthBias = 0.0f;
+	rasterization_state.DepthClipEnable = TRUE;
+	rasterization_state.MultisampleEnable = FALSE;
+	rasterization_state.AntialiasedLineEnable = FALSE;
+	rasterization_state.ForcedSampleCount = 0;
+	rasterization_state.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+	//
+	// Depth/stencil state.
+	//
+	D3D12_DEPTH_STENCIL_DESC depth_stencil_state = {};
 	depth_stencil_state.DepthEnable = (def.state_bits & GLS_DEPTHTEST_DISABLE) ? FALSE : TRUE;
 	depth_stencil_state.DepthWriteMask = (def.state_bits & GLS_DEPTHMASK_TRUE) ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
 	depth_stencil_state.DepthFunc = (def.state_bits & GLS_DEPTHFUNC_EQUAL) ? D3D12_COMPARISON_FUNC_EQUAL : D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	depth_stencil_state.StencilEnable = (def.shadow_phase != Vk_Shadow_Phase::disabled) ? TRUE : FALSE;
+	depth_stencil_state.StencilReadMask = 255;
+	depth_stencil_state.StencilWriteMask = 255;
 
+	if (def.shadow_phase == Vk_Shadow_Phase::shadow_edges_rendering) {
+		depth_stencil_state.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+		depth_stencil_state.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+		depth_stencil_state.FrontFace.StencilPassOp = (def.face_culling == CT_FRONT_SIDED) ? D3D12_STENCIL_OP_INCR_SAT : D3D12_STENCIL_OP_DECR_SAT;
+		depth_stencil_state.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NOT_EQUAL;
+
+		depth_stencil_state.BackFace = depth_stencil_state.FrontFace;
+	} else if (def.shadow_phase == Vk_Shadow_Phase::fullscreen_quad_rendering) {
+		depth_stencil_state.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+		depth_stencil_state.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+		depth_stencil_state.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+		depth_stencil_state.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NOT_EQUAL;
+
+		depth_stencil_state.BackFace = depth_stencil_state.FrontFace;
+	} else {
+		depth_stencil_state.FrontFace = {};
+		depth_stencil_state.BackFace = {};
+	}
+
+	//
+	// Create pipeline state.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {};
+	pipeline_desc.pRootSignature = dx.root_signature;
+	pipeline_desc.VS = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
+	pipeline_desc.PS = CD3DX12_SHADER_BYTECODE(single_texture_ps, single_texture_ps_size);
+	pipeline_desc.BlendState = blend_state;
 	pipeline_desc.SampleMask = UINT_MAX;
-	pipeline_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pipeline_desc.RasterizerState = rasterization_state;
+	pipeline_desc.DepthStencilState = depth_stencil_state;
+	pipeline_desc.InputLayout = { input_element_desc, _countof(input_element_desc) };
+	pipeline_desc.PrimitiveTopologyType = def.line_primitives ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE : D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipeline_desc.NumRenderTargets = 1;
 	pipeline_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	pipeline_desc.DSVFormat = get_depth_format();
 	pipeline_desc.SampleDesc.Count = 1;
+	pipeline_desc.SampleDesc.Quality = 0;
 
 	ID3D12PipelineState* pipeline_state;
 	DX_CHECK(dx.device->CreateGraphicsPipelineState(&pipeline_desc, IID_PPV_ARGS(&pipeline_state)));
