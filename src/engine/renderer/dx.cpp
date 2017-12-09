@@ -483,8 +483,42 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	extern unsigned char single_texture_vs[];
 	extern long long single_texture_vs_size;
 
+	extern unsigned char multi_texture_vs[];
+	extern long long multi_texture_vs_size;
+
 	extern unsigned char single_texture_ps[];
 	extern long long single_texture_ps_size;
+
+	extern unsigned char multi_texture_mul_ps[];
+	extern long long multi_texture_mul_ps_size;
+
+	extern unsigned char multi_texture_add_ps[];
+	extern long long multi_texture_add_ps_size;
+
+	D3D12_SHADER_BYTECODE vs_bytecode;
+	D3D12_SHADER_BYTECODE ps_bytecode;
+	if (def.shader_type == Vk_Shader_Type::single_texture) {
+		if (def.clipping_plane) {
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
+		} else {
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
+		}
+		ps_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_ps, single_texture_ps_size);
+	} else if (def.shader_type == Vk_Shader_Type::multi_texture_mul) {
+		if (def.clipping_plane) {
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
+		} else {
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
+		}
+		ps_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_mul_ps, multi_texture_mul_ps_size);
+	} else if (def.shader_type == Vk_Shader_Type::multi_texture_add) {
+		if (def.clipping_plane) {
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
+		} else {
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
+		}
+		ps_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_add_ps, multi_texture_add_ps_size);
+	}
 
 	// Vertex elements.
 	D3D12_INPUT_ELEMENT_DESC input_element_desc[] =
@@ -650,8 +684,8 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {};
 	pipeline_desc.pRootSignature = dx.root_signature;
-	pipeline_desc.VS = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
-	pipeline_desc.PS = CD3DX12_SHADER_BYTECODE(single_texture_ps, single_texture_ps_size);
+	pipeline_desc.VS = vs_bytecode;
+	pipeline_desc.PS = ps_bytecode;
 	pipeline_desc.BlendState = blend_state;
 	pipeline_desc.SampleMask = UINT_MAX;
 	pipeline_desc.RasterizerState = rasterization_state;
@@ -982,11 +1016,6 @@ void dx_begin_frame() {
 
 	ID3D12DescriptorHeap* heaps[] = { dx.srv_heap };
 	dx.command_list->SetDescriptorHeaps(_countof(heaps), heaps);
-
-	int image_index = 35 + (Com_Milliseconds() / 1000) %  (tr.numImages - 40);
-	D3D12_GPU_DESCRIPTOR_HANDLE handle = dx.srv_heap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += image_index * dx.srv_descriptor_size;
-	dx.command_list->SetGraphicsRootDescriptorTable(0, handle);
 
 	// Indicate that the back buffer will be used as a render target.
 	dx.command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dx.render_targets[dx.frame_index],
