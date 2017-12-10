@@ -16,8 +16,10 @@ cbuffer Constants : register(b0) {
 };
 
 Texture2D texture0 : register(t0);
-Texture2D texture1 : register(t1);
 SamplerState sampler0 : register(s0);
+
+Texture2D texture1 : register(t1);
+SamplerState sampler1 : register(s1);
 
 Single_Texture_PS_Data single_texture_vs(
     float4 position : POSITION,
@@ -50,12 +52,12 @@ float4 single_texture_ps(Single_Texture_PS_Data data) : SV_TARGET {
 }
 
 float4 multi_texture_mul_ps(Multi_Texture_PS_Data data) : SV_TARGET {
-    return data.color * texture0.Sample(sampler0, data.uv0) * texture1.Sample(sampler0, data.uv1);
+    return data.color * texture0.Sample(sampler0, data.uv0) * texture1.Sample(sampler1, data.uv1);
 }
 
 float4 multi_texture_add_ps(Multi_Texture_PS_Data data) : SV_TARGET {
     float4 color_a = data.color * texture0.Sample(sampler0, data.uv0);
-    float4 color_b = texture1.Sample(sampler0, data.uv1);
+    float4 color_b = texture1.Sample(sampler1, data.uv1);
     return float4(
         color_a.r + color_b.r,
         color_a.g + color_b.g,

@@ -20,8 +20,17 @@ const int D3D_FRAME_COUNT = 2;
 		ri.Error(ERR_FATAL, "Direct3D: error returned by %s", #function_call); \
 }
 
+enum Dx_Sampler_Index {
+	SAMPLER_MIP_REPEAT,
+	SAMPLER_MIP_CLAMP,
+	SAMPLER_NOMIP_REPEAT,
+	SAMPLER_NOMIP_CLAMP,
+	SAMPLER_COUNT
+};
+
 struct Dx_Image {
 	ID3D12Resource* texture = nullptr;
+	Dx_Sampler_Index sampler_index = SAMPLER_COUNT;
 };
 
 //
@@ -32,11 +41,14 @@ void dx_shutdown();
 
 void dx_release_resources();
 
+void dx_wait_device_idle();
+
 //
 // Resources allocation.
 //
 Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_levels,  bool repeat_texture, int image_index);
 void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel);
+void dx_create_sampler_descriptor(const Vk_Sampler_Def& def, Dx_Sampler_Index sampler_index);
 ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def);
 
 //
@@ -73,6 +85,9 @@ struct Dx_Instance {
 
 	ID3D12DescriptorHeap* srv_heap = nullptr;
 	UINT srv_descriptor_size = 0;
+
+	ID3D12DescriptorHeap* sampler_heap = nullptr;
+	UINT sampler_descriptor_size = 0;
 
 	byte* vertex_buffer_ptr = nullptr; // pointer to mapped vertex buffer
 	int xyz_elements = 0;

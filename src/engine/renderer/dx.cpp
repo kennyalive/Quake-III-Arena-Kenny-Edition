@@ -8,7 +8,6 @@
 #include "DXGI1_4.h"
 #include "wrl.h"
 #include "d3dx12.h"
-#include "D3Dcompiler.h"
 #include <DirectXMath.h>
 
 const int VERTEX_CHUNK_SIZE = 512 * 1024;
@@ -162,34 +161,85 @@ void dx_initialize() {
 
 	// Create descriptor heaps.
 	{
-		// Describe and create a render target view (RTV) descriptor heap.
-		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = D3D_FRAME_COUNT;
-		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		DX_CHECK(dx.device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&dx.rtv_heap)));
+		// RTV heap.
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC heap_desc;
+			heap_desc.NumDescriptors = D3D_FRAME_COUNT;
+			heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			heap_desc.NodeMask = 0;
+			DX_CHECK(dx.device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&dx.rtv_heap)));
+			dx.rtv_descriptor_size = dx.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		}
 
-		dx.rtv_descriptor_size = dx.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		// SRV heap.
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC heap_desc;
+			heap_desc.NumDescriptors = MAX_DRAWIMAGES;
+			heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			heap_desc.NodeMask = 0;
+			DX_CHECK(dx.device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&dx.srv_heap)));
+			dx.srv_descriptor_size = dx.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		}
 
-		D3D12_DESCRIPTOR_HEAP_DESC srv_heap_desc{};
-		srv_heap_desc.NumDescriptors = MAX_DRAWIMAGES;
-		srv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		srv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		DX_CHECK(dx.device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&dx.srv_heap)));
-
-		dx.srv_descriptor_size = dx.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		// Sampler heap.
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC heap_desc;
+			heap_desc.NumDescriptors = SAMPLER_COUNT;
+			heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+			heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			heap_desc.NodeMask = 0;
+			DX_CHECK(dx.device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&dx.sampler_heap)));
+			dx.sampler_descriptor_size = dx.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+		}
 	}
 
-	// Create frame resources.
+	//
+	// Create descriptors.
+	//
 	{
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(dx.rtv_heap->GetCPUDescriptorHandleForHeapStart());
-
-		// Create a RTV for each frame.
-		for (UINT n = 0; n < D3D_FRAME_COUNT; n++)
+		// RTV descriptors.
 		{
-			DX_CHECK(dx.swapchain->GetBuffer(n, IID_PPV_ARGS(&dx.render_targets[n])));
-			dx.device->CreateRenderTargetView(dx.render_targets[n], nullptr, rtv_handle);
-			rtv_handle.Offset(1, dx.rtv_descriptor_size);
+			CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(dx.rtv_heap->GetCPUDescriptorHandleForHeapStart());
+			for (UINT i = 0; i < D3D_FRAME_COUNT; i++)
+			{
+				DX_CHECK(dx.swapchain->GetBuffer(i, IID_PPV_ARGS(&dx.render_targets[i])));
+				dx.device->CreateRenderTargetView(dx.render_targets[i], nullptr, rtv_handle);
+				rtv_handle.Offset(1, dx.rtv_descriptor_size);
+			}
+		}
+
+		// Samplers.
+		{
+			{
+				Vk_Sampler_Def def;
+				def.repeat_texture = true;
+				def.gl_mag_filter = gl_filter_max;
+				def.gl_min_filter = gl_filter_min;
+				dx_create_sampler_descriptor(def, SAMPLER_MIP_REPEAT);
+			}
+			{
+				Vk_Sampler_Def def;
+				def.repeat_texture = false;
+				def.gl_mag_filter = gl_filter_max;
+				def.gl_min_filter = gl_filter_min;
+				dx_create_sampler_descriptor(def, SAMPLER_MIP_CLAMP);
+			}
+			{
+				Vk_Sampler_Def def;
+				def.repeat_texture = true;
+				def.gl_mag_filter = GL_LINEAR;
+				def.gl_min_filter = GL_LINEAR;
+				dx_create_sampler_descriptor(def, SAMPLER_NOMIP_REPEAT);
+			}
+			{
+				Vk_Sampler_Def def;
+				def.repeat_texture = false;
+				def.gl_mag_filter = GL_LINEAR;
+				def.gl_min_filter = GL_LINEAR;
+				dx_create_sampler_descriptor(def, SAMPLER_NOMIP_CLAMP);
+			}
 		}
 	}
 
@@ -240,43 +290,35 @@ void dx_initialize() {
 	DX_CHECK(dx.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&dx.helper_command_allocator)));
 
 	//
-	// Create the root signature.
+	// Create root signature.
 	//
-    {
-		CD3DX12_DESCRIPTOR_RANGE ranges[2];
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+	{
+		CD3DX12_DESCRIPTOR_RANGE ranges[4];
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,		1, 0);
+		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
+		ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,		1, 1);
+		ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 1);
 
-		CD3DX12_ROOT_PARAMETER root_parameters[3];
-		root_parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-		root_parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
-		root_parameters[2].InitAsConstants(32, 0);
-
-		D3D12_STATIC_SAMPLER_DESC sampler = {};
-		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler.MipLODBias = 0;
-		sampler.MaxAnisotropy = 0;
-		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-		sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-		sampler.MinLOD = 0.0f;
-		sampler.MaxLOD = D3D12_FLOAT32_MAX;
-		sampler.ShaderRegister = 0;
-		sampler.RegisterSpace = 0;
-		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		CD3DX12_ROOT_PARAMETER root_parameters[5];
+		root_parameters[0].InitAsConstants(32, 0);
+		root_parameters[1].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+		root_parameters[2].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
+		root_parameters[3].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
+		root_parameters[4].InitAsDescriptorTable(1, &ranges[3], D3D12_SHADER_VISIBILITY_PIXEL);
 
 		CD3DX12_ROOT_SIGNATURE_DESC root_signature_desc;
-		root_signature_desc.Init(_countof(root_parameters), root_parameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		root_signature_desc.Init(_countof(root_parameters), root_parameters, 0, nullptr,
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        DX_CHECK(D3D12SerializeRootSignature(&root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-        DX_CHECK(dx.device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&dx.root_signature)));
-    }
+		ComPtr<ID3DBlob> signature, error;
+		DX_CHECK(D3D12SerializeRootSignature(&root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1,
+			&signature, &error));
+		DX_CHECK(dx.device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
+			IID_PPV_ARGS(&dx.root_signature)));
+	}
 
-	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.command_allocator, nullptr, IID_PPV_ARGS(&dx.command_list)));
+	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.command_allocator, nullptr,
+		IID_PPV_ARGS(&dx.command_list)));
 
 	// Command lists are created in the recording state, but there is nothing
 	// to record yet. The main loop expects it to be closed, so close it now.
@@ -346,6 +388,10 @@ void dx_shutdown() {
 	dx.srv_heap->Release();
 	dx.srv_heap = nullptr;
 
+
+	dx.sampler_heap->Release();
+	dx.sampler_heap = nullptr;
+
 	dx.root_signature->Release();
 	dx.root_signature = nullptr;
 
@@ -393,6 +439,10 @@ void dx_release_resources() {
 	dx.index_buffer_offset = 0;
 }
 
+void dx_wait_device_idle() {
+	wait_for_queue_idle(dx.command_queue);
+}
+
 Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_levels,  bool repeat_texture, int image_index) {
 	Dx_Image image;
 
@@ -434,6 +484,11 @@ Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_leve
 
 		dx_world.current_image_indices[glState.currenttmu] = image_index;
 	}
+
+	if (mip_levels > 0)
+		image.sampler_index = repeat_texture ? SAMPLER_MIP_REPEAT : SAMPLER_MIP_CLAMP;
+	else
+		image.sampler_index = repeat_texture ? SAMPLER_NOMIP_REPEAT : SAMPLER_NOMIP_CLAMP;
 
 	return image;
 }
@@ -715,6 +770,66 @@ struct Timer {
 	}
 };
 
+void dx_create_sampler_descriptor(const Vk_Sampler_Def& def, Dx_Sampler_Index sampler_index)
+{
+	uint32_t min, mag, mip;
+
+	if (def.gl_mag_filter == GL_NEAREST) {
+		mag = 0;
+	} else if (def.gl_mag_filter == GL_LINEAR) {
+		mag = 1;
+	} else {
+		ri.Error(ERR_FATAL, "create_sampler_descriptor: invalid gl_mag_filter");
+	}
+
+	bool max_lod_0_25 = false; // used to emulate OpenGL's GL_LINEAR/GL_NEAREST minification filter
+	if (def.gl_min_filter == GL_NEAREST) {
+		min = 0;
+		mip = 0;
+		max_lod_0_25 = true;
+	} else if (def.gl_min_filter == GL_LINEAR) {
+		min = 1;
+		mip = 0;
+		max_lod_0_25 = true;
+	} else if (def.gl_min_filter == GL_NEAREST_MIPMAP_NEAREST) {
+		min = 0;
+		mip = 0;
+	} else if (def.gl_min_filter == GL_LINEAR_MIPMAP_NEAREST) {
+		min = 1;
+		mip = 0;
+	} else if (def.gl_min_filter == GL_NEAREST_MIPMAP_LINEAR) {
+		min = 0;
+		mip = 1;
+	} else if (def.gl_min_filter == GL_LINEAR_MIPMAP_LINEAR) {
+		min = 1;
+		mip = 1;
+	} else {
+		ri.Error(ERR_FATAL, "vk_find_sampler: invalid gl_min_filter");
+	}
+
+	D3D12_TEXTURE_ADDRESS_MODE address_mode = def.repeat_texture ? D3D12_TEXTURE_ADDRESS_MODE_WRAP : D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+
+	D3D12_SAMPLER_DESC sampler_desc;
+	sampler_desc.Filter = D3D12_ENCODE_BASIC_FILTER(min, mag, mip, 0);
+	sampler_desc.AddressU = address_mode;
+	sampler_desc.AddressV = address_mode;
+	sampler_desc.AddressW = address_mode;
+	sampler_desc.MipLODBias = 0.0f;
+	sampler_desc.MaxAnisotropy = 1;
+	sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	sampler_desc.BorderColor[0] = 0.0f;
+	sampler_desc.BorderColor[1] = 0.0f;
+	sampler_desc.BorderColor[2] = 0.0f;
+	sampler_desc.BorderColor[3] = 0.0f;
+	sampler_desc.MinLOD = 0.0f;
+	sampler_desc.MaxLOD = max_lod_0_25 ? 0.25f : 12.0f;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle = dx.sampler_heap->GetCPUDescriptorHandleForHeapStart();
+	sampler_handle.ptr += dx.sampler_descriptor_size * sampler_index;
+
+	dx.device->CreateSampler(&sampler_desc, sampler_handle);
+}
+
 ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) {
 	for (int i = 0; i < dx_world.num_pipeline_states; i++) {
 		const auto& cur_def = dx_world.pipeline_defs[i];
@@ -856,7 +971,7 @@ void dx_bind_geometry() {
 
 		root_constant_count += 16;
 	}
-	dx.command_list->SetGraphicsRoot32BitConstants(2, root_constant_count, root_constants, 0);
+	dx.command_list->SetGraphicsRoot32BitConstants(0, root_constant_count, root_constants, 0);
 }
 
 static D3D12_RECT get_viewport_rect() {
@@ -960,15 +1075,29 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 
 	dx.color_st_elements += tess.numVertexes;
 
-	// bind descriptor sets
-	D3D12_GPU_DESCRIPTOR_HANDLE handle = dx.srv_heap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += dx.srv_descriptor_size * dx_world.current_image_indices[0];
-	dx.command_list->SetGraphicsRootDescriptorTable(0, handle);
+	//
+	// Set descriptor tables.
+	//
+	{
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_handle = dx.srv_heap->GetGPUDescriptorHandleForHeapStart();
+		srv_handle.ptr += dx.srv_descriptor_size * dx_world.current_image_indices[0];
+		dx.command_list->SetGraphicsRootDescriptorTable(1, srv_handle);
+
+		D3D12_GPU_DESCRIPTOR_HANDLE sampler_handle = dx.sampler_heap->GetGPUDescriptorHandleForHeapStart();
+		const int sampler_index = dx_world.images[dx_world.current_image_indices[0]].sampler_index;
+		sampler_handle.ptr += dx.sampler_descriptor_size * sampler_index;
+		dx.command_list->SetGraphicsRootDescriptorTable(2, sampler_handle);
+	}
 
 	if (multitexture) {
-		handle = dx.srv_heap->GetGPUDescriptorHandleForHeapStart();
-		handle.ptr += dx.srv_descriptor_size * dx_world.current_image_indices[1];
-		dx.command_list->SetGraphicsRootDescriptorTable(1, handle);
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_handle = dx.srv_heap->GetGPUDescriptorHandleForHeapStart();
+		srv_handle.ptr += dx.srv_descriptor_size * dx_world.current_image_indices[1];
+		dx.command_list->SetGraphicsRootDescriptorTable(3, srv_handle);
+
+		D3D12_GPU_DESCRIPTOR_HANDLE sampler_handle = dx.sampler_heap->GetGPUDescriptorHandleForHeapStart();
+		const int sampler_index = dx_world.images[dx_world.current_image_indices[1]].sampler_index;
+		sampler_handle.ptr += dx.sampler_descriptor_size * sampler_index;
+		dx.command_list->SetGraphicsRootDescriptorTable(4, sampler_handle);
 	}
 
 	// bind pipeline
@@ -1014,7 +1143,7 @@ void dx_begin_frame() {
 	CD3DX12_RECT scissorRect(0, 0, static_cast<LONG>(glConfig.vidWidth), static_cast<LONG>(glConfig.vidHeight));
 	dx.command_list->RSSetScissorRects(1, &scissorRect);
 
-	ID3D12DescriptorHeap* heaps[] = { dx.srv_heap };
+	ID3D12DescriptorHeap* heaps[] = { dx.srv_heap, dx.sampler_heap };
 	dx.command_list->SetDescriptorHeaps(_countof(heaps), heaps);
 
 	// Indicate that the back buffer will be used as a render target.
