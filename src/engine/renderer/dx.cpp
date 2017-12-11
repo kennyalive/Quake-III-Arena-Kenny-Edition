@@ -695,9 +695,9 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode\n");
 
 	rasterization_state.FrontCounterClockwise = FALSE; // Q3 defaults to clockwise vertex order
-	rasterization_state.DepthBias = 0;
+	rasterization_state.DepthBias = def.polygon_offset ? r_offsetUnits->integer : 0;
 	rasterization_state.DepthBiasClamp = 0.0f;
-	rasterization_state.SlopeScaledDepthBias = 0.0f;
+	rasterization_state.SlopeScaledDepthBias = def.polygon_offset ? r_offsetFactor->value : 0.0f;
 	rasterization_state.DepthClipEnable = TRUE;
 	rasterization_state.MultisampleEnable = FALSE;
 	rasterization_state.AntialiasedLineEnable = FALSE;
