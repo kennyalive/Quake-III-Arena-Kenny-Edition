@@ -98,6 +98,34 @@ struct Dx_Instance {
 	int index_buffer_offset = 0;
 
 	ID3D12Resource* geometry_buffer = nullptr;
+
+	//
+	// Standard pipelines.
+	//
+	ID3D12PipelineState* skybox_pipeline_state = nullptr;
+
+	// dim 0: 0 - front side, 1 - back size
+	// dim 1: 0 - normal view, 1 - mirror view
+	ID3D12PipelineState* shadow_volume_pipeline_states[2][2];
+	ID3D12PipelineState* shadow_finish_pipeline_state = nullptr;
+
+	// dim 0 is based on fogPass_t: 0 - corresponds to FP_EQUAL, 1 - corresponds to FP_LE.
+	// dim 1 is directly a cullType_t enum value.
+	// dim 2 is a polygon offset value (0 - off, 1 - on).
+	ID3D12PipelineState* fog_pipeline_states[2][3][2];
+
+	// dim 0 is based on dlight additive flag: 0 - not additive, 1 - additive
+	// dim 1 is directly a cullType_t enum value.
+	// dim 2 is a polygon offset value (0 - off, 1 - on).
+	ID3D12PipelineState* dlight_pipeline_states[2][3][2];
+
+	// debug visualization pipelines
+	ID3D12PipelineState* tris_debug_pipeline_state = nullptr;
+	ID3D12PipelineState* tris_mirror_debug_pipeline_state = nullptr;
+	ID3D12PipelineState* normals_debug_pipeline_state = nullptr;
+	ID3D12PipelineState* surface_debug_pipeline_state_solid = nullptr;
+	ID3D12PipelineState* surface_debug_pipeline_state_outline = nullptr;
+	ID3D12PipelineState* images_debug_pipeline_state;
 };
 
 struct Dx_World {

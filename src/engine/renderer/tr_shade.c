@@ -398,6 +398,12 @@ static void ProjectDlightTexture( void ) {
 			VkPipeline pipeline = vk.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
 			vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
 		}
+
+		// DX12
+		if (dx.active) {
+			auto pipeline_state = dx.dlight_pipeline_states[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+			dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal);
+		}
 	}
 }
 
@@ -442,6 +448,13 @@ static void RB_FogPass( void ) {
 		assert(tess.shader->fogPass > 0);
 		VkPipeline pipeline = vk.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
 		vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
+	}
+
+	// DX12
+	if (dx.active) {
+		assert(tess.shader->fogPass > 0);
+		auto pipeline_state = dx.fog_pipeline_states[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+		dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal);
 	}
 }
 

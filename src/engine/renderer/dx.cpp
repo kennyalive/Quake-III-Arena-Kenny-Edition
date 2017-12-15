@@ -109,6 +109,8 @@ static void record_and_run_commands(ID3D12CommandQueue* command_queue, std::func
 	command_list->Release();
 }
 
+ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def);
+
 void dx_initialize() {
 #if defined(_DEBUG)
 	// Enable the D3D12 debug layer
@@ -366,10 +368,58 @@ void dx_initialize() {
 		assert(((size_t)dx.index_buffer_ptr & 0xffff) == 0);
 	}
 
+	//
+	// Standard pipelines.
+	//
+
+	// fog and dlights
+		{
+			Vk_Pipeline_Def def;
+			def.shader_type = Vk_Shader_Type::single_texture;
+			def.clipping_plane = false;
+			def.mirror = false;
+
+			unsigned int fog_state_bits[2] = {
+				GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_DEPTHFUNC_EQUAL,
+				GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA
+			};
+			unsigned int dlight_state_bits[2] = {
+				GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ONE | GLS_DEPTHFUNC_EQUAL,
+				GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHFUNC_EQUAL
+			};
+			bool polygon_offset[2] = {false, true};
+
+			for (int i = 0; i < 2; i++) {
+				unsigned fog_state = fog_state_bits[i];
+				unsigned dlight_state = dlight_state_bits[i];
+
+				for (int j = 0; j < 3; j++) {
+					def.face_culling = j; // cullType_t value
+
+					for (int k = 0; k < 2; k++) {
+						def.polygon_offset = polygon_offset[k];
+
+						def.state_bits = fog_state;
+						dx.fog_pipeline_states[i][j][k] = create_pipeline(def);
+
+						def.state_bits = dlight_state;
+						dx.dlight_pipeline_states[i][j][k] = create_pipeline(def);
+					}
+				}
+			}
+		}
+
 	dx.active = true;
 }
 
 void dx_shutdown() {
+	for (int i = 0; i < 2; i++)
+		for (int j = 0; j < 3; j++)
+			for (int k = 0; k < 2; k++) {
+				dx.fog_pipeline_states[i][j][k]->Release();
+				dx.dlight_pipeline_states[i][j][k]->Release();
+			}
+
 	dx.swapchain.Reset();
 
 	dx.command_allocator->Release();
