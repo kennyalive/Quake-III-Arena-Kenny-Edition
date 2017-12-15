@@ -891,6 +891,87 @@ static void get_mvp_transform(float* mvp) {
 	}
 }
 
+static D3D12_RECT get_viewport_rect() {
+	D3D12_RECT r;
+	if (backEnd.projection2D) {
+		r.left = 0.0f;
+		r.top = 0.0f;
+		r.right = glConfig.vidWidth;
+		r.bottom = glConfig.vidHeight;
+	} else {
+		r.left = backEnd.viewParms.viewportX;
+		r.top = glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight);
+		r.right = r.left + backEnd.viewParms.viewportWidth;
+		r.bottom = r.top + backEnd.viewParms.viewportHeight;
+	}
+	return r;
+}
+
+static D3D12_VIEWPORT get_viewport(Vk_Depth_Range depth_range) {
+	D3D12_RECT r = get_viewport_rect();
+
+	D3D12_VIEWPORT viewport;
+	viewport.TopLeftX = (float)r.left;
+	viewport.TopLeftY = (float)r.top;
+	viewport.Width = (float)(r.right - r.left);
+	viewport.Height = (float)(r.bottom - r.top);
+
+	if (depth_range == Vk_Depth_Range::force_zero) {
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 0.0f;
+	} else if (depth_range == Vk_Depth_Range::force_one) {
+		viewport.MinDepth = 1.0f;
+		viewport.MaxDepth = 1.0f;
+	} else if (depth_range == Vk_Depth_Range::weapon) {
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 0.3f;
+	} else {
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+	}
+	return viewport;
+}
+
+static D3D12_RECT get_scissor_rect() {
+	D3D12_RECT r = get_viewport_rect();
+
+	if (r.left < 0)
+		r.left = 0;
+	if (r.top < 0)
+		r.top = 0;
+
+	if (r.right > glConfig.vidWidth)
+		r.right = glConfig.vidWidth;
+	if (r.bottom > glConfig.vidHeight)
+		r.bottom = glConfig.vidHeight;
+
+	return r;
+}
+
+void dx_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color) {
+	if (!dx.active)
+		return;
+
+	if (!clear_depth_stencil && !clear_color)
+		return;
+
+	D3D12_RECT clear_rect = get_scissor_rect();
+
+	if (clear_depth_stencil) {
+		D3D12_CLEAR_FLAGS flags = D3D12_CLEAR_FLAG_DEPTH;
+		if (r_shadows->integer == 2)
+			flags |= D3D12_CLEAR_FLAG_STENCIL;
+
+		D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = dx.dsv_heap->GetCPUDescriptorHandleForHeapStart();
+		dx.command_list->ClearDepthStencilView(dsv_handle, flags, 1.0f, 0, 1, &clear_rect);
+	}
+
+	if (clear_color) {
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(dx.rtv_heap->GetCPUDescriptorHandleForHeapStart(), dx.frame_index, dx.rtv_descriptor_size);
+		dx.command_list->ClearRenderTargetView(rtv_handle, color, 1, &clear_rect);
+	}
+}
+
 void dx_bind_geometry() {
 	if (!dx.active) 
 		return;
@@ -974,63 +1055,6 @@ void dx_bind_geometry() {
 	dx.command_list->SetGraphicsRoot32BitConstants(0, root_constant_count, root_constants, 0);
 }
 
-static D3D12_RECT get_viewport_rect() {
-	D3D12_RECT r;
-	if (backEnd.projection2D) {
-		r.left = 0.0f;
-		r.top = 0.0f;
-		r.right = glConfig.vidWidth;
-		r.bottom = glConfig.vidHeight;
-	} else {
-		r.left = backEnd.viewParms.viewportX;
-		r.top = glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight);
-		r.right = r.left + backEnd.viewParms.viewportWidth;
-		r.bottom = r.top + backEnd.viewParms.viewportHeight;
-	}
-	return r;
-}
-
-static D3D12_VIEWPORT get_viewport(Vk_Depth_Range depth_range) {
-	D3D12_RECT r = get_viewport_rect();
-
-	D3D12_VIEWPORT viewport;
-	viewport.TopLeftX = (float)r.left;
-	viewport.TopLeftY = (float)r.top;
-	viewport.Width = (float)(r.right - r.left);
-	viewport.Height = (float)(r.bottom - r.top);
-
-	if (depth_range == Vk_Depth_Range::force_zero) {
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 0.0f;
-	} else if (depth_range == Vk_Depth_Range::force_one) {
-		viewport.MinDepth = 1.0f;
-		viewport.MaxDepth = 1.0f;
-	} else if (depth_range == Vk_Depth_Range::weapon) {
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 0.3f;
-	} else {
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 1.0f;
-	}
-	return viewport;
-}
-
-static D3D12_RECT get_scissor_rect() {
-	D3D12_RECT r = get_viewport_rect();
-
-	if (r.left < 0)
-		r.left = 0;
-	if (r.top < 0)
-		r.top = 0;
-
-	if (r.right > glConfig.vidWidth)
-		r.right = glConfig.vidWidth;
-	if (r.bottom > glConfig.vidHeight)
-		r.bottom = glConfig.vidHeight;
-
-	return r;
-}
-
 void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, Vk_Depth_Range depth_range, bool indexed) {
 	// color
 	{
@@ -1110,17 +1134,13 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 	D3D12_VIEWPORT viewport = get_viewport(depth_range);
 	dx.command_list->RSSetViewports(1, &viewport);
 
-	/*if (tess.shader->polygonOffset) {
-		vkCmdSetDepthBias(vk.command_buffer, r_offsetUnits->value, 0.0f, r_offsetFactor->value);
-	}*/
-
 	// issue draw call
 	if (indexed)
 		dx.command_list->DrawIndexedInstanced(tess.numIndexes, 1, 0, 0, 0);
 	else
 		dx.command_list->DrawInstanced(tess.numVertexes, 1, 0, 0);
 
-	vk_world.dirty_depth_attachment = true;
+	//dx_world.dirty_depth_attachment = true;
 }
 
 void dx_begin_frame() {
@@ -1137,11 +1157,11 @@ void dx_begin_frame() {
 	// Set necessary state.
 	dx.command_list->SetGraphicsRootSignature(dx.root_signature);
 
-	CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(glConfig.vidWidth), static_cast<float>(glConfig.vidHeight));
+	/*CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(glConfig.vidWidth), static_cast<float>(glConfig.vidHeight));
 	dx.command_list->RSSetViewports(1, &viewport);
 
 	CD3DX12_RECT scissorRect(0, 0, static_cast<LONG>(glConfig.vidWidth), static_cast<LONG>(glConfig.vidHeight));
-	dx.command_list->RSSetScissorRects(1, &scissorRect);
+	dx.command_list->RSSetScissorRects(1, &scissorRect);*/
 
 	ID3D12DescriptorHeap* heaps[] = { dx.srv_heap, dx.sampler_heap };
 	dx.command_list->SetDescriptorHeaps(_countof(heaps), heaps);

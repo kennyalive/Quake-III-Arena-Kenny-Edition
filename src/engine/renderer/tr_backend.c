@@ -444,6 +444,9 @@ void RB_BeginDrawingView (void) {
 	// VULKAN
 	vk_clear_attachments(vk_world.dirty_depth_attachment, fast_sky, fast_sky_color);
 
+	// DX12
+	dx_clear_attachments(vk_world.dirty_depth_attachment, fast_sky, fast_sky_color);
+
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{
 		RB_Hyperspace();

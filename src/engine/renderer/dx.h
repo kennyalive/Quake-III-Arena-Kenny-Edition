@@ -54,6 +54,7 @@ ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def);
 //
 // Rendering setup.
 //
+void dx_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color);
 void dx_bind_geometry();
 void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, Vk_Depth_Range depth_range, bool indexed = true);
 void dx_begin_frame();
