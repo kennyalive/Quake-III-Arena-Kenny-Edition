@@ -82,19 +82,50 @@ Multi_Texture_PS_Data multi_texture_clipping_plane_vs(
 }
 
 float4 single_texture_ps(Single_Texture_PS_Data data) : SV_TARGET {
-    return data.color * texture0.Sample(sampler0, data.uv0);
+    float4 out_color = data.color * texture0.Sample(sampler0, data.uv0);
+
+#if defined(ALPHA_TEST_GT0)
+    if (out_color.a == 0.0f) discard;
+#elif defined(ALPHA_TEST_LT80)
+    if (out_color.a >= 0.5f) discard;
+#elif defined(ALPHA_TEST_GE80)
+    if (out_color.a < 0.5f) discard;
+#endif
+
+    return out_color;
 }
 
 float4 multi_texture_mul_ps(Multi_Texture_PS_Data data) : SV_TARGET {
-    return data.color * texture0.Sample(sampler0, data.uv0) * texture1.Sample(sampler1, data.uv1);
+    float4 out_color = data.color * texture0.Sample(sampler0, data.uv0) * texture1.Sample(sampler1, data.uv1);
+
+#if defined(ALPHA_TEST_GT0)
+    if (out_color.a == 0.0f) discard;
+#elif defined(ALPHA_TEST_LT80)
+    if (out_color.a >= 0.5f) discard;
+#elif defined(ALPHA_TEST_GE80)
+    if (out_color.a < 0.5f) discard;
+#endif
+
+    return out_color;
 }
 
 float4 multi_texture_add_ps(Multi_Texture_PS_Data data) : SV_TARGET {
     float4 color_a = data.color * texture0.Sample(sampler0, data.uv0);
     float4 color_b = texture1.Sample(sampler1, data.uv1);
-    return float4(
+    
+    float4 out_color = float4(
         color_a.r + color_b.r,
         color_a.g + color_b.g,
         color_a.b + color_b.b,
         color_a.a * color_b.a);
+
+#if defined(ALPHA_TEST_GT0)
+    if (out_color.a == 0.0f) discard;
+#elif defined(ALPHA_TEST_LT80)
+    if (out_color.a >= 0.5f) discard;
+#elif defined(ALPHA_TEST_GE80)
+    if (out_color.a < 0.5f) discard;
+#endif
+
+    return out_color;
 }

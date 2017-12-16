@@ -585,26 +585,70 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mi
 }
 
 static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
+	// single texture VS
 	extern unsigned char single_texture_vs[];
 	extern long long single_texture_vs_size;
 
 	extern unsigned char single_texture_clipping_plane_vs[];
 	extern long long single_texture_clipping_plane_vs_size;
 
+	// multi texture VS
 	extern unsigned char multi_texture_vs[];
 	extern long long multi_texture_vs_size;
 
 	extern unsigned char multi_texture_clipping_plane_vs[];
 	extern long long multi_texture_clipping_plane_vs_size;
 
+	// single texture PS
 	extern unsigned char single_texture_ps[];
 	extern long long single_texture_ps_size;
 
+	extern unsigned char single_texture_gt0_ps[];
+	extern long long single_texture_gt0_ps_size;
+
+	extern unsigned char single_texture_lt80_ps[];
+	extern long long single_texture_lt80_ps_size;
+
+	extern unsigned char single_texture_ge80_ps[];
+	extern long long single_texture_ge80_ps_size;
+
+	// multi texture mul PS
 	extern unsigned char multi_texture_mul_ps[];
 	extern long long multi_texture_mul_ps_size;
 
+	extern unsigned char multi_texture_mul_gt0_ps[];
+	extern long long multi_texture_mul_gt0_ps_size;
+
+	extern unsigned char multi_texture_mul_lt80_ps[];
+	extern long long multi_texture_mul_lt80_ps_size;
+
+	extern unsigned char multi_texture_mul_ge80_ps[];
+	extern long long multi_texture_mul_ge80_ps_size;
+
+	// multi texture add PS
 	extern unsigned char multi_texture_add_ps[];
 	extern long long multi_texture_add_ps_size;
+
+	extern unsigned char multi_texture_add_gt0_ps[];
+	extern long long multi_texture_add_gt0_ps_size;
+
+	extern unsigned char multi_texture_add_lt80_ps[];
+	extern long long multi_texture_add_lt80_ps_size;
+
+	extern unsigned char multi_texture_add_ge80_ps[];
+	extern long long multi_texture_add_ge80_ps_size;
+
+#define GET_PS_BYTECODE(base_name) \
+	if ((def.state_bits & GLS_ATEST_BITS) == 0) \
+		ps_bytecode = CD3DX12_SHADER_BYTECODE(base_name##_ps, base_name##_ps_size); \
+	else if (def.state_bits & GLS_ATEST_GT_0) \
+		ps_bytecode = CD3DX12_SHADER_BYTECODE(base_name##_gt0_ps, base_name##_gt0_ps_size); \
+	else if (def.state_bits & GLS_ATEST_LT_80) \
+		ps_bytecode = CD3DX12_SHADER_BYTECODE(base_name##_lt80_ps, base_name##_lt80_ps_size); \
+	else if (def.state_bits & GLS_ATEST_GE_80) \
+		ps_bytecode = CD3DX12_SHADER_BYTECODE(base_name##_ge80_ps, base_name##_ge80_ps_size); \
+	else \
+		ri.Error(ERR_DROP, "create_pipeline: invalid alpha test state bits\n");
 
 	D3D12_SHADER_BYTECODE vs_bytecode;
 	D3D12_SHADER_BYTECODE ps_bytecode;
@@ -614,22 +658,24 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 		} else {
 			vs_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
 		}
-		ps_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_ps, single_texture_ps_size);
+		GET_PS_BYTECODE(single_texture)
 	} else if (def.shader_type == Vk_Shader_Type::multi_texture_mul) {
 		if (def.clipping_plane) {
 			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_clipping_plane_vs, multi_texture_clipping_plane_vs_size);
 		} else {
 			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
 		}
-		ps_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_mul_ps, multi_texture_mul_ps_size);
+		GET_PS_BYTECODE(multi_texture_mul)
 	} else if (def.shader_type == Vk_Shader_Type::multi_texture_add) {
 		if (def.clipping_plane) {
 			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
 		} else {
 			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
 		}
-		ps_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_add_ps, multi_texture_add_ps_size);
+		GET_PS_BYTECODE(multi_texture_add)
 	}
+
+#undef GET_PS_BYTECODE
 
 	// Vertex elements.
 	D3D12_INPUT_ELEMENT_DESC input_element_desc[] =
