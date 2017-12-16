@@ -588,8 +588,14 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	extern unsigned char single_texture_vs[];
 	extern long long single_texture_vs_size;
 
+	extern unsigned char single_texture_clipping_plane_vs[];
+	extern long long single_texture_clipping_plane_vs_size;
+
 	extern unsigned char multi_texture_vs[];
 	extern long long multi_texture_vs_size;
+
+	extern unsigned char multi_texture_clipping_plane_vs[];
+	extern long long multi_texture_clipping_plane_vs_size;
 
 	extern unsigned char single_texture_ps[];
 	extern long long single_texture_ps_size;
@@ -604,14 +610,14 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	D3D12_SHADER_BYTECODE ps_bytecode;
 	if (def.shader_type == Vk_Shader_Type::single_texture) {
 		if (def.clipping_plane) {
-			vs_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_clipping_plane_vs, single_texture_clipping_plane_vs_size);
 		} else {
 			vs_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_vs, single_texture_vs_size);
 		}
 		ps_bytecode = CD3DX12_SHADER_BYTECODE(single_texture_ps, single_texture_ps_size);
 	} else if (def.shader_type == Vk_Shader_Type::multi_texture_mul) {
 		if (def.clipping_plane) {
-			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
+			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_clipping_plane_vs, multi_texture_clipping_plane_vs_size);
 		} else {
 			vs_bytecode = CD3DX12_SHADER_BYTECODE(multi_texture_vs, multi_texture_vs_size);
 		}

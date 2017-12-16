@@ -16,8 +16,16 @@ fxc.exe /nologo /T vs_4_0 /E single_texture_vs /Fo shader.bin shaders.hlsl
 %bin2hex% shader.bin single_texture_vs > hlsl_compiled/single_texture_vs.cpp
 del shader.bin
 
+fxc.exe /nologo /T vs_4_0 /E single_texture_clipping_plane_vs /Fo shader.bin shaders.hlsl
+%bin2hex% shader.bin single_texture_clipping_plane_vs > hlsl_compiled/single_texture_clipping_plane_vs.cpp
+del shader.bin
+
 fxc.exe /nologo /T vs_4_0 /E multi_texture_vs /Fo shader.bin shaders.hlsl
 %bin2hex% shader.bin multi_texture_vs > hlsl_compiled/multi_texture_vs.cpp
+del shader.bin
+
+fxc.exe /nologo /T vs_4_0 /E multi_texture_clipping_plane_vs /Fo shader.bin shaders.hlsl
+%bin2hex% shader.bin multi_texture_clipping_plane_vs > hlsl_compiled/multi_texture_clipping_plane_vs.cpp
 del shader.bin
 
 fxc.exe /nologo /T ps_4_0 /E single_texture_ps /Fo shader.bin shaders.hlsl

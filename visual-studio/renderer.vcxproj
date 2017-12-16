@@ -95,8 +95,10 @@
   <ItemGroup>
     <ClCompile Include="..\src\engine\renderer\dx.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\multi_texture_add_ps.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\multi_texture_clipping_plane_vs.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\multi_texture_mul_ps.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\multi_texture_vs.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_clipping_plane_vs.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_ps.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_vs.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_add_frag.cpp" />
