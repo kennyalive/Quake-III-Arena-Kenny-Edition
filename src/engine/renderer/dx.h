@@ -125,7 +125,7 @@ struct Dx_Instance {
 	ID3D12PipelineState* normals_debug_pipeline_state = nullptr;
 	ID3D12PipelineState* surface_debug_pipeline_state_solid = nullptr;
 	ID3D12PipelineState* surface_debug_pipeline_state_outline = nullptr;
-	ID3D12PipelineState* images_debug_pipeline_state;
+	ID3D12PipelineState* images_debug_pipeline_state = nullptr;
 };
 
 struct Dx_World {

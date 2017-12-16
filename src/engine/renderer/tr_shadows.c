@@ -114,8 +114,9 @@ static void R_GL_RenderShadowEdges() {
 }
 
 // VULKAN
-static void R_Vk_RenderShadowEdges(VkPipeline pipeline) {
-	if (!vk.active)
+// DX12
+static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineState* dx_pipeline_state) {
+	if (!vk.active && !dx.active)
 		return;
 
 	int i = 0;
@@ -143,8 +144,14 @@ static void R_Vk_RenderShadowEdges(VkPipeline pipeline) {
 			tess.svars.colors[k][3] = 255;
 		}
 
-		vk_bind_geometry();
-		vk_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
+		if (vk.active) {
+			vk_bind_geometry();
+			vk_shade_geometry(vk_pipeline, false, Vk_Depth_Range::normal);
+		}
+		if (dx.active) {
+			dx_bind_geometry();
+			dx_shade_geometry(dx_pipeline_state, false, Vk_Depth_Range::normal);
+		}
 
 		i += count;
 	}
@@ -244,8 +251,9 @@ void RB_ShadowTessEnd( void ) {
 		R_GL_RenderShadowEdges();
 
 		// VULKAN
-		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[0][1]);
-		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[1][1]);
+		// DX12
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][1], dx.shadow_volume_pipeline_states[0][1]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][1], dx.shadow_volume_pipeline_states[1][1]);
 	} else {
 		qglCullFace( GL_BACK );
 		qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
@@ -256,8 +264,9 @@ void RB_ShadowTessEnd( void ) {
 		R_GL_RenderShadowEdges();
 
 		// VULKAN
-		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[0][0]);
-		R_Vk_RenderShadowEdges(vk.shadow_volume_pipelines[1][0]);
+		// DX12
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][0], dx.shadow_volume_pipeline_states[0][0]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][0], dx.shadow_volume_pipeline_states[1][0]);
 	}
 
 	qglDisable(GL_STENCIL_TEST);
@@ -310,7 +319,8 @@ void RB_ShadowFinish( void ) {
 	qglPopMatrix();
 
 	// VULKAN
-	if (vk.active) {
+	// DX12
+	if (vk.active || dx.active) {
 		tess.indexes[0] = 0;
 		tess.indexes[1] = 1;
 		tess.indexes[2] = 2;
@@ -338,8 +348,14 @@ void RB_ShadowFinish( void ) {
 		vk_world.modelview_transform[10] = 1.0f;
 		vk_world.modelview_transform[15] = 1.0f;
 
-		vk_bind_geometry();
-		vk_shade_geometry(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
+		if (vk.active) {
+			vk_bind_geometry();
+			vk_shade_geometry(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
+		}
+		if (dx.active) {
+			dx_bind_geometry();
+			dx_shade_geometry(dx.shadow_finish_pipeline_state, false, Vk_Depth_Range::normal);
+		}
 
 		Com_Memcpy(vk_world.modelview_transform, tmp, 64);
 		tess.numIndexes = 0;

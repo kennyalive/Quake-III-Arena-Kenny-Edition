@@ -372,6 +372,41 @@ void dx_initialize() {
 	// Standard pipelines.
 	//
 
+	// Q3 stencil shadows
+	{
+		{
+			Vk_Pipeline_Def def;
+			def.polygon_offset = false;
+			def.state_bits = 0;
+			def.shader_type = Vk_Shader_Type::single_texture;
+			def.clipping_plane = false;
+			def.shadow_phase = Vk_Shadow_Phase::shadow_edges_rendering;
+
+			cullType_t cull_types[2] = {CT_FRONT_SIDED, CT_BACK_SIDED};
+			bool mirror_flags[2] = {false, true};
+
+			for (int i = 0; i < 2; i++) {
+				def.face_culling = cull_types[i];
+				for (int j = 0; j < 2; j++) {
+					def.mirror = mirror_flags[j];
+					dx.shadow_volume_pipeline_states[i][j] = create_pipeline(def);
+				}
+			}
+		}
+
+		{
+			Vk_Pipeline_Def def;
+			def.face_culling = CT_FRONT_SIDED;
+			def.polygon_offset = false;
+			def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
+			def.shader_type = Vk_Shader_Type::single_texture;
+			def.clipping_plane = false;
+			def.mirror = false;
+			def.shadow_phase = Vk_Shadow_Phase::fullscreen_quad_rendering;
+			dx.shadow_finish_pipeline_state = create_pipeline(def);
+		}
+	}
+
 	// fog and dlights
 		{
 			Vk_Pipeline_Def def;
@@ -413,12 +448,21 @@ void dx_initialize() {
 }
 
 void dx_shutdown() {
-	for (int i = 0; i < 2; i++)
+	dx.shadow_finish_pipeline_state->Release();
+
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			dx.shadow_volume_pipeline_states[i][j]->Release();
+		}
+	}
+
+	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 3; j++)
 			for (int k = 0; k < 2; k++) {
 				dx.fog_pipeline_states[i][j][k]->Release();
 				dx.dlight_pipeline_states[i][j][k]->Release();
 			}
+	}
 
 	dx.swapchain.Reset();
 
@@ -467,6 +511,8 @@ void dx_shutdown() {
 
 	dx.device->Release();
 	dx.device = nullptr;
+
+	Com_Memset(&dx, 0, sizeof(dx));
 }
 
 void dx_release_resources() {
@@ -821,7 +867,7 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 		depth_stencil_state.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 		depth_stencil_state.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 		depth_stencil_state.FrontFace.StencilPassOp = (def.face_culling == CT_FRONT_SIDED) ? D3D12_STENCIL_OP_INCR_SAT : D3D12_STENCIL_OP_DECR_SAT;
-		depth_stencil_state.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NOT_EQUAL;
+		depth_stencil_state.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
 		depth_stencil_state.BackFace = depth_stencil_state.FrontFace;
 	} else if (def.shadow_phase == Vk_Shadow_Phase::fullscreen_quad_rendering) {
@@ -1259,12 +1305,6 @@ void dx_begin_frame() {
 	// Set necessary state.
 	dx.command_list->SetGraphicsRootSignature(dx.root_signature);
 
-	/*CD3DX12_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(glConfig.vidWidth), static_cast<float>(glConfig.vidHeight));
-	dx.command_list->RSSetViewports(1, &viewport);
-
-	CD3DX12_RECT scissorRect(0, 0, static_cast<LONG>(glConfig.vidWidth), static_cast<LONG>(glConfig.vidHeight));
-	dx.command_list->RSSetScissorRects(1, &scissorRect);*/
-
 	ID3D12DescriptorHeap* heaps[] = { dx.srv_heap, dx.sampler_heap };
 	dx.command_list->SetDescriptorHeaps(_countof(heaps), heaps);
 
@@ -1281,8 +1321,10 @@ void dx_begin_frame() {
 	dx.command_list->ClearRenderTargetView(rtv_handle, clearColor, 0, nullptr);
 	dx.command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	dx.command_list->ClearDepthStencilView(dx.dsv_heap->GetCPUDescriptorHandleForHeapStart(),
-		D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	D3D12_CLEAR_FLAGS flags = D3D12_CLEAR_FLAG_DEPTH;
+		if (r_shadows->integer == 2)
+			flags |= D3D12_CLEAR_FLAG_STENCIL;
+	dx.command_list->ClearDepthStencilView(dsv_handle, flags, 1.0f, 0, 0, nullptr);
 
 	dx.xyz_elements = 0;
 	dx.color_st_elements = 0;
