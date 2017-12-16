@@ -451,7 +451,8 @@ static void DrawSkyBox( shader_t *shader )
 					 sky_maxs_subd );
 
 		// VULKAN: draw skybox side
-		if (vk.active) {
+		// DX12
+		if (vk.active || dx.active) {
 			GL_Bind(shader->sky.outerbox[sky_texorder[i]]);
 
 			tess.numVertexes = 0;
@@ -494,8 +495,14 @@ static void DrawSkyBox( shader_t *shader )
 
 			Com_Memset( tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
 
-			vk_bind_geometry();
-			vk_shade_geometry(vk.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
+			if (vk.active) {
+				vk_bind_geometry();
+				vk_shade_geometry(vk.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
+			}
+			if (dx.active) {
+				dx_bind_geometry();
+				dx_shade_geometry(dx.skybox_pipeline_state, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
+			}
 		}
 	}
 

@@ -372,6 +372,18 @@ void dx_initialize() {
 	// Standard pipelines.
 	//
 
+	// skybox
+	{
+		Vk_Pipeline_Def def;
+		def.shader_type = Vk_Shader_Type::single_texture;
+		def.state_bits = 0;
+		def.face_culling = CT_FRONT_SIDED;
+		def.polygon_offset = false;
+		def.clipping_plane = false;
+		def.mirror = false;
+		dx.skybox_pipeline_state = create_pipeline(def);
+	}
+
 	// Q3 stencil shadows
 	{
 		{
@@ -448,6 +460,7 @@ void dx_initialize() {
 }
 
 void dx_shutdown() {
+	dx.skybox_pipeline_state->Release();
 	dx.shadow_finish_pipeline_state->Release();
 
 	for (int i = 0; i < 2; i++) {
