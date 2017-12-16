@@ -202,6 +202,7 @@ static void InitRenderAPI( void )
 		}
 
 		// VULKAN
+		// DX12
 		if (r_renderAPI->integer != 0 || r_twinMode->integer) {
 			vk_imp_init();
 			vk_initialize();

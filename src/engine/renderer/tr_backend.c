@@ -68,7 +68,7 @@ void GL_Bind( image_t *image ) {
 			VkDescriptorSet set = vk_world.images[final_image->index].descriptor_set;
 			vk_world.current_descriptor_sets[glState.currenttmu] = set;
 		}
-		// D3D
+		// DX12
 		if (dx.active) {
 			dx_world.current_image_indices[glState.currenttmu] = final_image->index;
 		}
@@ -386,6 +386,9 @@ static void RB_Hyperspace( void ) {
 	// VULKAN
 	float color[4] = { c, c, c, 1 };
 	vk_clear_attachments(false, true, color);
+
+	// DX12
+	dx_clear_attachments(false, true, color);
 
 	backEnd.isHyperspace = qtrue;
 }
@@ -726,7 +729,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			image = vk_create_image(cols, rows, VK_FORMAT_R8G8B8A8_UNORM, 1, false);
 			vk_upload_image_data(image.handle, cols, rows, false, data, 4);
 		}
-		// D3D
+		// DX12
 		if (dx.active) {
 			int image_index = tr.scratchImage[client]->index;
 			Dx_Image& image = dx_world.images[image_index];
@@ -745,7 +748,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 				const Vk_Image& image = vk_world.images[tr.scratchImage[client]->index];
 				vk_upload_image_data(image.handle, cols, rows, 1, data, 4);
 			}
-			// D3D
+			// DX12
 			if (dx.active) {
 				const Dx_Image& image = dx_world.images[tr.scratchImage[client]->index];
 				dx_upload_image_data(image.texture, cols, rows, 1, data, 4);
@@ -890,6 +893,8 @@ const void	*RB_DrawBuffer( const void *data ) {
 
 	// VULKAN
 	vk_begin_frame();
+
+	// DX12
 	dx_begin_frame();
 
 	// clear screen for debugging
@@ -901,6 +906,9 @@ const void	*RB_DrawBuffer( const void *data ) {
 		RB_SetGL2D(); // to ensure we have viewport that occupies entire window
 		float color[4] = {1, 0, 0.5, 1};
 		vk_clear_attachments(false, true, color);
+
+		// DX12
+		dx_clear_attachments(false, true, color);
 	}
 
 	return (const void *)(cmd + 1);
@@ -1068,6 +1076,8 @@ const void	*RB_SwapBuffers( const void *data ) {
 
 	// VULKAN
 	vk_end_frame();
+
+	// DX12
 	dx_end_frame();
 
 	return (const void *)(cmd + 1);
