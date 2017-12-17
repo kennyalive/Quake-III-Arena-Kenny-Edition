@@ -1406,6 +1406,7 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	qglDepthRange( 0, 1 );
 
 	// VULKAN
+	// DX12
 	if (numPoints < 3 || numPoints >= SHADER_MAX_VERTEXES/2)
 		return;
 
@@ -1461,6 +1462,9 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	vk_bind_geometry();
 	vk_shade_geometry(vk.surface_debug_pipeline_solid, false, Vk_Depth_Range::normal);
 
+	dx_bind_geometry();
+	dx_shade_geometry(dx.surface_debug_pipeline_state_solid, false, Vk_Depth_Range::normal, true, false);
+
 	// Outline.
 	Com_Memset(tess.svars.colors, tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
 
@@ -1473,6 +1477,9 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 
 	vk_bind_geometry();
 	vk_shade_geometry(vk.surface_debug_pipeline_outline, false, Vk_Depth_Range::force_zero, false);
+
+	dx_bind_geometry();
+	dx_shade_geometry(dx.surface_debug_pipeline_state_outline, false, Vk_Depth_Range::force_zero, false, true);
 
 	tess.numVertexes = 0;
 }
