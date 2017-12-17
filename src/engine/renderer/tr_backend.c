@@ -978,8 +978,9 @@ void RB_ShowImages( void ) {
 }
 
 // VULKAN
-void RB_ShowVkImages() {
-	if (!vk.active) {
+// DX12
+void RB_Show_Vk_Dx_Images() {
+	if (!vk.active && !dx.active) {
 		return;
 	}
 
@@ -988,7 +989,13 @@ void RB_ShowVkImages() {
 	}
 
 	float black[4] = {0, 0, 0, 1};
-	vk_clear_attachments(false, true, black);
+
+	if (vk.active)
+		vk_clear_attachments(false, true, black);
+
+	if (dx.active)
+		dx_clear_attachments(false, true, black);
+
 
 	for (int i = 0 ; i < tr.numImages ; i++) {
 		auto image = tr.images[i];
@@ -1038,8 +1045,14 @@ void RB_ShowVkImages() {
 		tess.svars.texcoords[0][3][0] = 0;
 		tess.svars.texcoords[0][3][1] = 1;
 
-		vk_bind_geometry();
-		vk_shade_geometry(vk.images_debug_pipeline, false, Vk_Depth_Range::normal);
+		if (vk.active) {
+			vk_bind_geometry();
+			vk_shade_geometry(vk.images_debug_pipeline, false, Vk_Depth_Range::normal);
+		}
+		if (dx.active) {
+			dx_bind_geometry();
+			dx_shade_geometry(dx.images_debug_pipeline_state, false, Vk_Depth_Range::normal, true, false);
+		}
 	}
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -1063,7 +1076,7 @@ const void	*RB_SwapBuffers( const void *data ) {
 	// texture swapping test
 	if ( r_showImages->integer ) {
 		RB_ShowImages();
-		RB_ShowVkImages();
+		RB_Show_Vk_Dx_Images();
 	}
 
 	cmd = (const swapBuffersCommand_t *)data;
