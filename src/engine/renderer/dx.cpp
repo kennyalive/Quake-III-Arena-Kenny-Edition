@@ -371,55 +371,55 @@ void dx_initialize() {
 	//
 	// Standard pipelines.
 	//
-
-	// skybox
 	{
-		Vk_Pipeline_Def def;
-		def.shader_type = Vk_Shader_Type::single_texture;
-		def.state_bits = 0;
-		def.face_culling = CT_FRONT_SIDED;
-		def.polygon_offset = false;
-		def.clipping_plane = false;
-		def.mirror = false;
-		dx.skybox_pipeline_state = create_pipeline(def);
-	}
-
-	// Q3 stencil shadows
-	{
+		// skybox
 		{
 			Vk_Pipeline_Def def;
-			def.polygon_offset = false;
-			def.state_bits = 0;
 			def.shader_type = Vk_Shader_Type::single_texture;
+			def.state_bits = 0;
+			def.face_culling = CT_FRONT_SIDED;
+			def.polygon_offset = false;
 			def.clipping_plane = false;
-			def.shadow_phase = Vk_Shadow_Phase::shadow_edges_rendering;
+			def.mirror = false;
+			dx.skybox_pipeline_state = create_pipeline(def);
+		}
 
-			cullType_t cull_types[2] = {CT_FRONT_SIDED, CT_BACK_SIDED};
-			bool mirror_flags[2] = {false, true};
+		// Q3 stencil shadows
+		{
+			{
+				Vk_Pipeline_Def def;
+				def.polygon_offset = false;
+				def.state_bits = 0;
+				def.shader_type = Vk_Shader_Type::single_texture;
+				def.clipping_plane = false;
+				def.shadow_phase = Vk_Shadow_Phase::shadow_edges_rendering;
 
-			for (int i = 0; i < 2; i++) {
-				def.face_culling = cull_types[i];
-				for (int j = 0; j < 2; j++) {
-					def.mirror = mirror_flags[j];
-					dx.shadow_volume_pipeline_states[i][j] = create_pipeline(def);
+				cullType_t cull_types[2] = {CT_FRONT_SIDED, CT_BACK_SIDED};
+				bool mirror_flags[2] = {false, true};
+
+				for (int i = 0; i < 2; i++) {
+					def.face_culling = cull_types[i];
+					for (int j = 0; j < 2; j++) {
+						def.mirror = mirror_flags[j];
+						dx.shadow_volume_pipeline_states[i][j] = create_pipeline(def);
+					}
 				}
+			}
+
+			{
+				Vk_Pipeline_Def def;
+				def.face_culling = CT_FRONT_SIDED;
+				def.polygon_offset = false;
+				def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
+				def.shader_type = Vk_Shader_Type::single_texture;
+				def.clipping_plane = false;
+				def.mirror = false;
+				def.shadow_phase = Vk_Shadow_Phase::fullscreen_quad_rendering;
+				dx.shadow_finish_pipeline_state = create_pipeline(def);
 			}
 		}
 
-		{
-			Vk_Pipeline_Def def;
-			def.face_culling = CT_FRONT_SIDED;
-			def.polygon_offset = false;
-			def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
-			def.shader_type = Vk_Shader_Type::single_texture;
-			def.clipping_plane = false;
-			def.mirror = false;
-			def.shadow_phase = Vk_Shadow_Phase::fullscreen_quad_rendering;
-			dx.shadow_finish_pipeline_state = create_pipeline(def);
-		}
-	}
-
-	// fog and dlights
+		// fog and dlights
 		{
 			Vk_Pipeline_Def def;
 			def.shader_type = Vk_Shader_Type::single_texture;
@@ -456,6 +456,42 @@ void dx_initialize() {
 			}
 		}
 
+		// debug pipelines
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
+			dx.tris_debug_pipeline_state = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
+			def.face_culling = CT_BACK_SIDED;
+			dx.tris_mirror_debug_pipeline_state = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_DEPTHMASK_TRUE;
+			def.line_primitives = true;
+			dx.normals_debug_pipeline_state = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
+			dx.surface_debug_pipeline_state_solid = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
+			def.line_primitives = true;
+			dx.surface_debug_pipeline_state_outline = create_pipeline(def);
+		}
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
+			dx.images_debug_pipeline_state = create_pipeline(def);
+		}
+	}
+
 	dx.active = true;
 }
 
@@ -476,6 +512,13 @@ void dx_shutdown() {
 				dx.dlight_pipeline_states[i][j][k]->Release();
 			}
 	}
+
+	dx.tris_debug_pipeline_state->Release();
+	dx.tris_mirror_debug_pipeline_state->Release();
+	dx.normals_debug_pipeline_state->Release();
+	dx.surface_debug_pipeline_state_solid->Release();
+	dx.surface_debug_pipeline_state_outline->Release();
+	dx.images_debug_pipeline_state->Release();
 
 	dx.swapchain.Reset();
 
@@ -906,7 +949,7 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	pipeline_desc.SampleMask = UINT_MAX;
 	pipeline_desc.RasterizerState = rasterization_state;
 	pipeline_desc.DepthStencilState = depth_stencil_state;
-	pipeline_desc.InputLayout = { input_element_desc, _countof(input_element_desc) };
+	pipeline_desc.InputLayout = { input_element_desc, def.shader_type == Vk_Shader_Type::single_texture ? 3u : 4u };
 	pipeline_desc.PrimitiveTopologyType = def.line_primitives ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE : D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipeline_desc.NumRenderTargets = 1;
 	pipeline_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -1216,7 +1259,7 @@ void dx_bind_geometry() {
 	dx.command_list->SetGraphicsRoot32BitConstants(0, root_constant_count, root_constants, 0);
 }
 
-void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, Vk_Depth_Range depth_range, bool indexed) {
+void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, Vk_Depth_Range depth_range, bool indexed, bool lines) {
 	// color
 	{
 		if ((dx.color_st_elements + tess.numVertexes) * sizeof(color4ub_t) > COLOR_SIZE)
@@ -1287,6 +1330,8 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 
 	// bind pipeline
 	dx.command_list->SetPipelineState(pipeline_state);
+
+	dx.command_list->IASetPrimitiveTopology(lines ? D3D10_PRIMITIVE_TOPOLOGY_LINELIST : D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// configure pipeline's dynamic state
 	D3D12_RECT scissor_rect = get_scissor_rect();

@@ -121,6 +121,13 @@ static void DrawTris (shaderCommands_t *input) {
 		auto pipeline = backEnd.viewParms.isMirror ? vk.tris_mirror_debug_pipeline : vk.tris_debug_pipeline;
 		vk_shade_geometry(pipeline, false, Vk_Depth_Range::force_zero);
 	}
+
+	// DX12
+	if (dx.active) {
+		Com_Memset(tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+		auto pipeline_state = backEnd.viewParms.isMirror ? dx.tris_mirror_debug_pipeline_state : dx.tris_debug_pipeline_state;
+		dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::force_zero, true, false);
+	}
 }
 
 
@@ -151,7 +158,8 @@ static void DrawNormals (shaderCommands_t *input) {
 	qglDepthRange( 0, 1 );
 
 	// VULKAN
-	if (vk.active) {
+	// DX12
+	if (vk.active || dx.active) {
 		vec4_t xyz[SHADER_MAX_VERTEXES];
 		Com_Memcpy(xyz, tess.xyz, tess.numVertexes * sizeof(vec4_t));
 		Com_Memset(tess.svars.colors, tr.identityLightByte, SHADER_MAX_VERTEXES * sizeof(color4ub_t));
@@ -170,8 +178,14 @@ static void DrawNormals (shaderCommands_t *input) {
 			tess.numVertexes = 2 * count;
 			tess.numIndexes = 0;
 
-			vk_bind_geometry();
-			vk_shade_geometry(vk.normals_debug_pipeline, false, Vk_Depth_Range::force_zero, false);
+			if (vk.active) {
+				vk_bind_geometry();
+				vk_shade_geometry(vk.normals_debug_pipeline, false, Vk_Depth_Range::force_zero, false);
+			}
+			if (dx.active) {
+				dx_bind_geometry();
+				dx_shade_geometry(dx.normals_debug_pipeline_state, false, Vk_Depth_Range::force_zero, false, true);
+			}
 
 			i += count;
 		}
@@ -402,7 +416,7 @@ static void ProjectDlightTexture( void ) {
 		// DX12
 		if (dx.active) {
 			auto pipeline_state = dx.dlight_pipeline_states[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
-			dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal);
+			dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal, true, false);
 		}
 	}
 }
@@ -454,7 +468,7 @@ static void RB_FogPass( void ) {
 	if (dx.active) {
 		assert(tess.shader->fogPass > 0);
 		auto pipeline_state = dx.fog_pipeline_states[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
-		dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal);
+		dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal, true, false);
 	}
 }
 
@@ -850,7 +864,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 				depth_range = Vk_Depth_Range::weapon;
 			}
 
-			dx_shade_geometry(pipeline_state, multitexture, depth_range);
+			dx_shade_geometry(pipeline_state, multitexture, depth_range, true, false);
 		}
 
 		// allow skipping out to show just lightmaps during development

@@ -150,7 +150,7 @@ static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineStat
 		}
 		if (dx.active) {
 			dx_bind_geometry();
-			dx_shade_geometry(dx_pipeline_state, false, Vk_Depth_Range::normal);
+			dx_shade_geometry(dx_pipeline_state, false, Vk_Depth_Range::normal, true, false);
 		}
 
 		i += count;
@@ -354,7 +354,7 @@ void RB_ShadowFinish( void ) {
 		}
 		if (dx.active) {
 			dx_bind_geometry();
-			dx_shade_geometry(dx.shadow_finish_pipeline_state, false, Vk_Depth_Range::normal);
+			dx_shade_geometry(dx.shadow_finish_pipeline_state, false, Vk_Depth_Range::normal, true, false);
 		}
 
 		Com_Memcpy(vk_world.modelview_transform, tmp, 64);

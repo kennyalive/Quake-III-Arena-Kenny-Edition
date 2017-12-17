@@ -501,7 +501,7 @@ static void DrawSkyBox( shader_t *shader )
 			}
 			if (dx.active) {
 				dx_bind_geometry();
-				dx_shade_geometry(dx.skybox_pipeline_state, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
+				dx_shade_geometry(dx.skybox_pipeline_state, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one, true, false);
 			}
 		}
 	}
