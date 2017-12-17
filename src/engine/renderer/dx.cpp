@@ -1390,6 +1390,9 @@ void dx_begin_frame() {
 }
 
 void dx_end_frame() {
+	if (!dx.active)
+		return;
+
 	dx.command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dx.render_targets[dx.frame_index],
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
