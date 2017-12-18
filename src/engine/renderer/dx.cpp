@@ -60,37 +60,13 @@ static void get_hardware_adapter(IDXGIFactory4* p_factory, IDXGIAdapter1** pp_ad
 	*pp_adapter = adapter.Detach();
 }
 
-void wait_for_previous_frame()
-{
-	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-	// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
-	// sample illustrates how to use fences for efficient resource usage and to
-	// maximize GPU utilization.
-
-	// Signal and increment the fence value.
-	const UINT64 fence = dx.fence_value;
-	DX_CHECK(dx.command_queue->Signal(dx.fence, fence));
-	dx.fence_value++;
-
-	// Wait until the previous frame is finished.
-	if (dx.fence->GetCompletedValue() < fence)
-	{
-		DX_CHECK(dx.fence->SetEventOnCompletion(fence, dx.fence_event));
-		WaitForSingleObject(dx.fence_event, INFINITE);
-	}
-
-	dx.frame_index = dx.swapchain->GetCurrentBackBufferIndex();
-}
-
 static void wait_for_queue_idle(ID3D12CommandQueue* command_queue) {
-	const UINT64 fence = dx.fence_value;
-	DX_CHECK(command_queue->Signal(dx.fence, fence));
-	dx.fence_value++;
-
-	if (dx.fence->GetCompletedValue() < fence) {
-		DX_CHECK(dx.fence->SetEventOnCompletion(fence, dx.fence_event));
-		WaitForSingleObject(dx.fence_event, INFINITE);
+	if (dx.fence->GetCompletedValue() == dx.fence_value) {
+		dx.fence_value++;
+		DX_CHECK(command_queue->Signal(dx.fence, dx.fence_value));
 	}
+	DX_CHECK(dx.fence->SetEventOnCompletion(dx.fence_value, dx.fence_event));
+	WaitForSingleObject(dx.fence_event, INFINITE);
 }
 
 static void record_and_run_commands(ID3D12CommandQueue* command_queue, std::function<void(ID3D12GraphicsCommandList*)> recorder) {
@@ -329,7 +305,7 @@ void dx_initialize() {
 	// Create synchronization objects.
 	{
 		DX_CHECK(dx.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&dx.fence)));
-		dx.fence_value = 1;
+		dx.fence_value = 0;
 
 		// Create an event handle to use for frame synchronization.
 		dx.fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -341,7 +317,7 @@ void dx_initialize() {
 		// Wait for the command list to execute; we are reusing the same command 
 		// list in our main loop but for now, we just want to wait for setup to 
 		// complete before continuing.
-		wait_for_previous_frame();
+		wait_for_queue_idle(dx.command_queue);
 	}
 
 	//
@@ -1350,6 +1326,13 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 }
 
 void dx_begin_frame() {
+	if (dx.fence->GetCompletedValue() < dx.fence_value) {
+		DX_CHECK(dx.fence->SetEventOnCompletion(dx.fence_value, dx.fence_event));
+		WaitForSingleObject(dx.fence_event, INFINITE);
+	}
+
+	dx.frame_index = dx.swapchain->GetCurrentBackBufferIndex();
+
 	// Command list allocators can only be reset when the associated 
 	// command lists have finished execution on the GPU; apps should use 
 	// fences to determine GPU execution progress.
@@ -1398,12 +1381,11 @@ void dx_end_frame() {
 
 	DX_CHECK(dx.command_list->Close());
 
-	// Execute the command list.
-	ID3D12CommandList* ppCommandLists[] = { dx.command_list };
-	dx.command_queue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	ID3D12CommandList* command_list = dx.command_list;
+	dx.command_queue->ExecuteCommandLists(1, &command_list);
 
-	// Present the frame.
-	DX_CHECK(dx.swapchain->Present(1, 0));
+	dx.fence_value++;
+	DX_CHECK(dx.command_queue->Signal(dx.fence, dx.fence_value));
 
-	wait_for_previous_frame();
+	DX_CHECK(dx.swapchain->Present(0, 0));
 }
