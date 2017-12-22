@@ -1333,17 +1333,9 @@ void dx_begin_frame() {
 
 	dx.frame_index = dx.swapchain->GetCurrentBackBufferIndex();
 
-	// Command list allocators can only be reset when the associated 
-	// command lists have finished execution on the GPU; apps should use 
-	// fences to determine GPU execution progress.
 	DX_CHECK(dx.command_allocator->Reset());
-
-	// However, when ExecuteCommandList() is called on a particular command 
-	// list, that command list can then be reset at any time and must be before 
-	// re-recording.
 	DX_CHECK(dx.command_list->Reset(dx.command_allocator, nullptr));
 
-	// Set necessary state.
 	dx.command_list->SetGraphicsRootSignature(dx.root_signature);
 
 	ID3D12DescriptorHeap* heaps[] = { dx.srv_heap, dx.sampler_heap };
@@ -1357,14 +1349,10 @@ void dx_begin_frame() {
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(dx.rtv_heap->GetCPUDescriptorHandleForHeapStart(), dx.frame_index, dx.rtv_descriptor_size);
 	dx.command_list->OMSetRenderTargets(1, &rtv_handle, FALSE, &dsv_handle);
 
-	// Record commands.
-	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-	dx.command_list->ClearRenderTargetView(rtv_handle, clearColor, 0, nullptr);
-	dx.command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
 	D3D12_CLEAR_FLAGS flags = D3D12_CLEAR_FLAG_DEPTH;
-		if (r_shadows->integer == 2)
-			flags |= D3D12_CLEAR_FLAG_STENCIL;
+	if (r_shadows->integer == 2)
+		flags |= D3D12_CLEAR_FLAG_STENCIL;
+
 	dx.command_list->ClearDepthStencilView(dsv_handle, flags, 1.0f, 0, 0, nullptr);
 
 	dx.xyz_elements = 0;
