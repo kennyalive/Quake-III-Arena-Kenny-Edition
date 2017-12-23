@@ -514,26 +514,20 @@ static HWND create_twin_window(int width, int height, int render_api)
 			
 	}
 
-    // adjust window coordinates if necessary 
-    // so that the window is completely on screen
-    if ( x < 0 )
-        x = 0;
-    if ( y < 0 )
-        y = 0;
-
-    int desktop_width = GetDesktopWidth();
+	int desktop_width = GetDesktopWidth();
     int desktop_height = GetDesktopHeight();
 
-    if (w < desktop_width && h < desktop_height)
-    {
-        if ( x + w > desktop_width )
-            x = ( desktop_width - w );
-        if ( y + h > desktop_height )
-            y = ( desktop_height - h );
-    }
+    if (x < 0)
+        x = 0;
+	else if (x >= desktop_width - 20)
+		x = desktop_width - 20;
 
-    char window_name[1024];
-
+    if (y < 0)
+        y = 0;
+	else if (y >= desktop_height - 20)
+		y = desktop_height - 20;
+	
+	char window_name[1024];
 	const char* api_name = "invalid-render-api";
 	if (render_api == 0)
 		api_name = "OpenGL";
@@ -541,8 +535,7 @@ static HWND create_twin_window(int width, int height, int render_api)
 		api_name = "Vulkan";
 	else if (render_api == 2)
 		api_name = "DX12";
-
-    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
+	sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
 
     HWND hwnd = CreateWindowEx(
         0, 
