@@ -622,40 +622,83 @@ Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_leve
 }
 
 void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel) {
-	const UINT64 upload_buffer_size = GetRequiredIntermediateSize(texture, 0, mip_levels);
+	//
+	// Initialize subresource layouts int the upload texture.
+	//
+	auto align =[](size_t value, size_t alignment) {
+		return (value + alignment - 1) & ~(alignment - 1);
+	};
 
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT regions[16];
+	UINT64 buffer_size = 0;
+
+	int w = width;
+	int h = height;
+	for (int i = 0; i < mip_levels; i++) {
+		regions[i].Offset = buffer_size;
+		regions[i].Footprint.Format = texture->GetDesc().Format;
+		regions[i].Footprint.Width = w;
+		regions[i].Footprint.Height = h;
+		regions[i].Footprint.Depth = 1;
+		regions[i].Footprint.RowPitch = static_cast<UINT>(align(w * bytes_per_pixel, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT));
+		buffer_size += align(regions[i].Footprint.RowPitch * h, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+		w >>= 1;
+		if (w < 1) w = 1;
+		h >>= 1;
+		if (h < 1) h = 1;
+	}
+
+	//
+	// Create upload upload texture.
+	//
 	ComPtr<ID3D12Resource> upload_texture;
 	DX_CHECK(dx.device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size),
+			&CD3DX12_RESOURCE_DESC::Buffer(buffer_size),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&upload_texture)));
 
-	D3D12_SUBRESOURCE_DATA texture_data[16];
-	
+	byte* upload_texture_data;
+	DX_CHECK(upload_texture->Map(0, nullptr, reinterpret_cast<void**>(&upload_texture_data)));
+	w = width;
+	h = height;
 	for (int i = 0; i < mip_levels; i++) {
-		texture_data[i].pData = pixels;
-		texture_data[i].RowPitch = width * bytes_per_pixel;
-		texture_data[i].SlicePitch = texture_data[i].RowPitch * height;
-		
-		pixels += texture_data[i].SlicePitch;
-
-		width >>= 1;
-		if (width < 1) width = 1;
-
-		height >>= 1;
-		if (height < 1) height = 1;
+		byte* upload_subresource_base = upload_texture_data + regions[i].Offset;
+		for (int y = 0; y < h; y++) {
+			Com_Memcpy(upload_subresource_base + regions[i].Footprint.RowPitch * y, pixels, w * bytes_per_pixel);
+			pixels += w * bytes_per_pixel;
+		}
+		w >>= 1;
+		if (w < 1) w = 1;
+		h >>= 1;
+		if (h < 1) h = 1;
 	}
+	upload_texture->Unmap(0, nullptr);
 
-	record_and_run_commands(dx.command_queue, [&texture, &upload_texture, &texture_data, &mip_levels]
+	//
+	// Copy data from upload texture to destination texture.
+	//
+	record_and_run_commands(dx.command_queue, [&texture, &upload_texture, &regions, &mip_levels]
 		(ID3D12GraphicsCommandList* command_list)
 	{
 		command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
-		UpdateSubresources(command_list, texture, upload_texture.Get(), 0, 0, mip_levels, texture_data);
+		for (UINT i = 0; i < mip_levels; ++i) {
+			D3D12_TEXTURE_COPY_LOCATION  dst;
+			dst.pResource = texture;
+			dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+			dst.SubresourceIndex = i;
+
+			D3D12_TEXTURE_COPY_LOCATION src;
+			src.pResource = upload_texture.Get();
+			src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+			src.PlacedFootprint = regions[i];
+
+			command_list->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+		}
 
 		command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
 			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
