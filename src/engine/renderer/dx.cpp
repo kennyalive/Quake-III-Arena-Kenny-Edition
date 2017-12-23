@@ -1,14 +1,12 @@
 #include "tr_local.h"
+#include "../../engine/platform/win_local.h"
 
 #include <chrono>
 #include <functional>
 
 #include "D3d12.h"
-#include "D3d12SDKLayers.h"
 #include "DXGI1_4.h"
-#include "wrl.h"
 #include "d3dx12.h"
-#include <DirectXMath.h>
 
 const int VERTEX_CHUNK_SIZE = 512 * 1024;
 
@@ -25,6 +23,12 @@ const int ST1_OFFSET    = ST0_OFFSET + ST0_SIZE;
 static const int VERTEX_BUFFER_SIZE = XYZ_SIZE + COLOR_SIZE + ST0_SIZE + ST1_SIZE;
 static const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
 
+#define DX_CHECK(function_call) { \
+	HRESULT hr = function_call; \
+	if (FAILED(hr)) \
+		ri.Error(ERR_FATAL, "Direct3D: error returned by %s", #function_call); \
+}
+
 static DXGI_FORMAT get_depth_format() {
 	if (r_stencilbits->integer > 0) {
 		glConfig.stencilBits = 8;
@@ -35,29 +39,22 @@ static DXGI_FORMAT get_depth_format() {
 	}
 }
 
-// Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
-// If no such adapter can be found, *ppAdapter will be set to nullptr.
-static void get_hardware_adapter(IDXGIFactory4* p_factory, IDXGIAdapter1** pp_adapter) {
-	ComPtr<IDXGIAdapter1> adapter;
-	*pp_adapter = nullptr;
-
-	for (UINT adapter_index = 0; DXGI_ERROR_NOT_FOUND != p_factory->EnumAdapters1(adapter_index, &adapter); ++adapter_index) {
-		DXGI_ADAPTER_DESC1 desc;
-		adapter->GetDesc1(&desc);
+static void get_hardware_adapter(IDXGIFactory4* factory, IDXGIAdapter1** adapter) {
+	DXGI_ADAPTER_DESC1 desc;
+	UINT adapter_index = 0;
+	while (factory->EnumAdapters1(adapter_index, adapter) != DXGI_ERROR_NOT_FOUND) {
+		(*adapter)->GetDesc1(&desc);
+		adapter_index++;
 
 		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-			// Don't select the Basic Render Driver adapter.
-			// If you want a software adapter, pass in "/warp" on the command line.
 			continue;
 		}
-
-		// Check to see if the adapter supports Direct3D 12, but don't create the
-		// actual device yet.
-		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
-			break;
+		// check for 11_0 feature level support
+		if (SUCCEEDED(D3D12CreateDevice(*adapter, D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
+			return;
 		}
 	}
-	*pp_adapter = adapter.Detach();
+	*adapter = nullptr;
 }
 
 static void wait_for_queue_idle(ID3D12CommandQueue* command_queue) {
@@ -88,22 +85,24 @@ static void record_and_run_commands(ID3D12CommandQueue* command_queue, std::func
 ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def);
 
 void dx_initialize() {
+	// enable validation in debug configuration
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer
-	{
-		ComPtr<ID3D12Debug> debug_controller;
-		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_controller)))) {
-			debug_controller->EnableDebugLayer();
-		}
+	ID3D12Debug* debug_controller;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_controller)))) {
+		debug_controller->EnableDebugLayer();
+		debug_controller->Release();
 	}
 #endif
 
-	ComPtr<IDXGIFactory4> factory;
+	IDXGIFactory4* factory;
     DX_CHECK(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
 
-	ComPtr<IDXGIAdapter1> hardware_adapter;
-	get_hardware_adapter(factory.Get(), &hardware_adapter);
-	DX_CHECK(D3D12CreateDevice(hardware_adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dx.device)));
+	IDXGIAdapter1* hardware_adapter;
+	get_hardware_adapter(factory, &hardware_adapter);
+	DX_CHECK(D3D12CreateDevice(hardware_adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dx.device)));
+
+	hardware_adapter->Release();
+	hardware_adapter = nullptr;
 
 	// Describe and create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -114,7 +113,7 @@ void dx_initialize() {
 
 	// Describe and create the swap chain.
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.BufferCount = D3D_FRAME_COUNT;
+    swapChainDesc.BufferCount = SWAPCHAIN_BUFFER_COUNT;
     swapChainDesc.Width = glConfig.vidWidth;
     swapChainDesc.Height = glConfig.vidHeight;
     swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -122,9 +121,9 @@ void dx_initialize() {
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapChainDesc.SampleDesc.Count = 1;
 
-	ComPtr<IDXGISwapChain1> swapchain;
+	IDXGISwapChain1* swapchain;
     DX_CHECK(factory->CreateSwapChainForHwnd(
-        dx.command_queue,        // Swap chain needs the queue so that it can force a flush on it.
+        dx.command_queue,
 		g_wv.hWnd_dx,
         &swapChainDesc,
 		nullptr,
@@ -132,17 +131,20 @@ void dx_initialize() {
         &swapchain
         ));
 
-	// This sample does not support fullscreen transitions.
 	DX_CHECK(factory->MakeWindowAssociation(g_wv.hWnd_dx, DXGI_MWA_NO_ALT_ENTER));
-	DX_CHECK(swapchain.As(&dx.swapchain));
+	swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&dx.swapchain);
+	swapchain->Release();
 	dx.frame_index = dx.swapchain->GetCurrentBackBufferIndex();
+
+	factory->Release();
+	factory = nullptr;
 
 	// Create descriptor heaps.
 	{
 		// RTV heap.
 		{
 			D3D12_DESCRIPTOR_HEAP_DESC heap_desc;
-			heap_desc.NumDescriptors = D3D_FRAME_COUNT;
+			heap_desc.NumDescriptors = SWAPCHAIN_BUFFER_COUNT;
 			heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 			heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			heap_desc.NodeMask = 0;
@@ -180,7 +182,7 @@ void dx_initialize() {
 		// RTV descriptors.
 		{
 			CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(dx.rtv_heap->GetCPUDescriptorHandleForHeapStart());
-			for (UINT i = 0; i < D3D_FRAME_COUNT; i++)
+			for (UINT i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++)
 			{
 				DX_CHECK(dx.swapchain->GetBuffer(i, IID_PPV_ARGS(&dx.render_targets[i])));
 				dx.device->CreateRenderTargetView(dx.render_targets[i], nullptr, rtv_handle);
@@ -288,11 +290,17 @@ void dx_initialize() {
 		root_signature_desc.Init(_countof(root_parameters), root_parameters, 0, nullptr,
 			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		ComPtr<ID3DBlob> signature, error;
+		ID3DBlob* signature;
+		ID3DBlob* error;
 		DX_CHECK(D3D12SerializeRootSignature(&root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1,
 			&signature, &error));
 		DX_CHECK(dx.device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
 			IID_PPV_ARGS(&dx.root_signature)));
+
+		if (signature != nullptr)
+			signature->Release();
+		if (error != nullptr)
+			error->Release();
 	}
 
 	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.command_allocator, nullptr,
@@ -496,7 +504,8 @@ void dx_shutdown() {
 	dx.surface_debug_pipeline_state_outline->Release();
 	dx.images_debug_pipeline_state->Release();
 
-	dx.swapchain.Reset();
+	dx.swapchain->Release();
+	dx.swapchain = nullptr;
 
 	dx.command_allocator->Release();
 	dx.command_allocator = nullptr;
@@ -504,7 +513,7 @@ void dx_shutdown() {
 	dx.helper_command_allocator->Release();
 	dx.helper_command_allocator = nullptr;
 
-	for (int i = 0; i < D3D_FRAME_COUNT; i++) {
+	for (int i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++) {
 		dx.render_targets[i]->Release();
 	}
 
@@ -571,8 +580,18 @@ void dx_wait_device_idle() {
 	wait_for_queue_idle(dx.command_queue);
 }
 
-Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_levels,  bool repeat_texture, int image_index) {
+Dx_Image dx_create_image(int width, int height, Dx_Image_Format format, int mip_levels,  bool repeat_texture, int image_index) {
 	Dx_Image image;
+
+	DXGI_FORMAT dx_format;
+	if (format == IMAGE_FORMAT_RGBA8)
+		dx_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	else if (format == IMAGE_FORMAT_BGRA4)
+		dx_format = DXGI_FORMAT_B4G4R4A4_UNORM;
+	else {
+		assert(format == IMAGE_FORMAT_BGR5A1);
+		dx_format = DXGI_FORMAT_B5G5R5A1_UNORM;
+	}
 
 	// create texture
 	{
@@ -583,7 +602,7 @@ Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_leve
 		desc.Height = height;
 		desc.DepthOrArraySize = 1;
 		desc.MipLevels = mip_levels;
-		desc.Format = format;
+		desc.Format = dx_format;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -601,7 +620,7 @@ Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_leve
 	// create texture descriptor
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
-		srv_desc.Format = format;
+		srv_desc.Format = dx_format;
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srv_desc.Texture2D.MipLevels = mip_levels;
@@ -651,7 +670,7 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mi
 	//
 	// Create upload upload texture.
 	//
-	ComPtr<ID3D12Resource> upload_texture;
+	ID3D12Resource* upload_texture;
 	DX_CHECK(dx.device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
@@ -693,7 +712,7 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mi
 			dst.SubresourceIndex = i;
 
 			D3D12_TEXTURE_COPY_LOCATION src;
-			src.pResource = upload_texture.Get();
+			src.pResource = upload_texture;
 			src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 			src.PlacedFootprint = regions[i];
 
@@ -703,6 +722,8 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mi
 		command_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
 			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	});
+
+	upload_texture->Release();
 }
 
 static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {

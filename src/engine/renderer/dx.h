@@ -1,24 +1,17 @@
 #pragma once
 
-#include "D3d12.h"
-#include "D3d12SDKLayers.h"
-#include "DXGI1_4.h"
-#include "wrl.h"
-#include "d3dx12.h"
-#include "D3Dcompiler.h"
-#include <DirectXMath.h>
-#include "../../engine/platform/win_local.h"
+struct ID3D12CommandAllocator;
+struct ID3D12GraphicsCommandList;
+struct ID3D12CommandQueue;
+struct ID3D12Device;
+struct ID3D12DescriptorHeap;
+struct ID3D12Fence;
+struct ID3D12PipelineState;
+struct ID3D12Resource;
+struct ID3D12RootSignature;
+struct IDXGISwapChain3;
 
-using Microsoft::WRL::ComPtr;
-using namespace DirectX;
-
-const int D3D_FRAME_COUNT = 2;
-
-#define DX_CHECK(function_call) { \
-	HRESULT hr = function_call; \
-	if (FAILED(hr)) \
-		ri.Error(ERR_FATAL, "Direct3D: error returned by %s", #function_call); \
-}
+constexpr int SWAPCHAIN_BUFFER_COUNT = 2;
 
 enum Dx_Sampler_Index {
 	SAMPLER_MIP_REPEAT,
@@ -26,6 +19,12 @@ enum Dx_Sampler_Index {
 	SAMPLER_NOMIP_REPEAT,
 	SAMPLER_NOMIP_CLAMP,
 	SAMPLER_COUNT
+};
+
+enum Dx_Image_Format {
+	IMAGE_FORMAT_RGBA8,
+	IMAGE_FORMAT_BGRA4,
+	IMAGE_FORMAT_BGR5A1
 };
 
 struct Dx_Image {
@@ -46,7 +45,7 @@ void dx_wait_device_idle();
 //
 // Resources allocation.
 //
-Dx_Image dx_create_image(int width, int height, DXGI_FORMAT format, int mip_levels,  bool repeat_texture, int image_index);
+Dx_Image dx_create_image(int width, int height, Dx_Image_Format format, int mip_levels,  bool repeat_texture, int image_index);
 void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel);
 void dx_create_sampler_descriptor(const Vk_Sampler_Def& def, Dx_Sampler_Index sampler_index);
 ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def);
@@ -65,12 +64,12 @@ struct Dx_Instance {
 
 	ID3D12Device* device = nullptr;
 	ID3D12CommandQueue* command_queue = nullptr;
-	ComPtr<IDXGISwapChain3> swapchain;
+	IDXGISwapChain3* swapchain = nullptr;
 
 	ID3D12DescriptorHeap* rtv_heap = nullptr;
 	UINT rtv_descriptor_size = 0;
 
-	ID3D12Resource* render_targets[D3D_FRAME_COUNT];
+	ID3D12Resource* render_targets[SWAPCHAIN_BUFFER_COUNT];
 	ID3D12RootSignature* root_signature = nullptr;
 	ID3D12CommandAllocator* command_allocator = nullptr;
 	ID3D12CommandAllocator* helper_command_allocator = nullptr;

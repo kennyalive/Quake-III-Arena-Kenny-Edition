@@ -21,6 +21,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "tr_local.h"
 
+// DX12
+#include "d3d12.h"
+
 backEndData_t	*backEndData[SMP_FRAMES];
 backEndState_t	backEnd;
 
@@ -734,7 +737,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			int image_index = tr.scratchImage[client]->index;
 			Dx_Image& image = dx_world.images[image_index];
 			image.texture->Release();
-			image = dx_create_image(cols, rows, DXGI_FORMAT_R8G8B8A8_UNORM, 1, false, image_index);
+			image = dx_create_image(cols, rows, IMAGE_FORMAT_RGBA8, 1, false, image_index);
 			dx_upload_image_data(image.texture, cols, rows, 1, data, 4);
 		}
 	} else {

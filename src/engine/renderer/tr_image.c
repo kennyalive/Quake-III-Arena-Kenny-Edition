@@ -715,16 +715,16 @@ static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repea
 	}
 
 	byte* buffer = upload_data.buffer;
-	DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	Dx_Image_Format format = IMAGE_FORMAT_RGBA8;
 	int bytes_per_pixel = 4;
 
 	if (r_texturebits->integer <= 16) {
 		buffer = (byte*) ri.Hunk_AllocateTempMemory( upload_data.buffer_size / 2 );
-		format = has_alpha ? DXGI_FORMAT_B4G4R4A4_UNORM : DXGI_FORMAT_B5G5R5A1_UNORM;
+		format = has_alpha ? IMAGE_FORMAT_BGRA4 : IMAGE_FORMAT_BGR5A1;
 		bytes_per_pixel = 2;
 	}
 
-	if (format == DXGI_FORMAT_B5G5R5A1_UNORM) {
+	if (format == IMAGE_FORMAT_BGR5A1) {
 		auto p = (uint16_t*)buffer;
 		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
 			byte r = upload_data.buffer[i+0];
@@ -736,7 +736,7 @@ static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repea
 				 (uint32_t((r/255.0) * 31.0 + 0.5) << 10) |
 				 (1 << 15);
 		}
-	} else if (format == DXGI_FORMAT_B4G4R4A4_UNORM) {
+	} else if (format == IMAGE_FORMAT_BGRA4) {
 		auto p = (uint16_t*)buffer;
 		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
 			byte r = upload_data.buffer[i+0];
