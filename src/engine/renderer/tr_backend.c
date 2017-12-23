@@ -451,7 +451,7 @@ void RB_BeginDrawingView (void) {
 	vk_clear_attachments(vk_world.dirty_depth_attachment, fast_sky, fast_sky_color);
 
 	// DX12
-	dx_clear_attachments(vk_world.dirty_depth_attachment, fast_sky, fast_sky_color);
+	dx_clear_attachments(true, fast_sky, fast_sky_color);
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{
@@ -586,6 +586,9 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 			// VULKAN
 			Com_Memcpy(vk_world.modelview_transform, backEnd.or.modelMatrix, 64);
 
+			// DX12
+			Com_Memcpy(dx_world.modelview_transform, backEnd.or.modelMatrix, 64);
+
 			//
 			// change depthrange if needed
 			//
@@ -617,6 +620,9 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 
 	// VULKAN
 	Com_Memcpy(vk_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
+
+	// DX12
+	Com_Memcpy(dx_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
 
 	if ( depthRange ) {
 		qglDepthRange (0, 1);

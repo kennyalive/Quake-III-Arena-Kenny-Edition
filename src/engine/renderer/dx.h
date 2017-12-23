@@ -142,4 +142,5 @@ struct Dx_World {
 	// State.
 	//
 	int current_image_indices[2];
+	float modelview_transform[16];
 };

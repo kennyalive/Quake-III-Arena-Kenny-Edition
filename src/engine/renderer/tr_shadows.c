@@ -339,25 +339,38 @@ void RB_ShadowFinish( void ) {
 		}
 		tess.numVertexes = 4;
 
-		// set backEnd.or.modelMatrix to identity matrix
-		float tmp[16];
-		Com_Memcpy(tmp, vk_world.modelview_transform, 64);
-		Com_Memset(vk_world.modelview_transform, 0, 64);
-		vk_world.modelview_transform[0] = 1.0f;
-		vk_world.modelview_transform[5] = 1.0f;
-		vk_world.modelview_transform[10] = 1.0f;
-		vk_world.modelview_transform[15] = 1.0f;
-
 		if (vk.active) {
+			// set backEnd.or.modelMatrix to identity matrix
+			float tmp[16];
+			Com_Memcpy(tmp, vk_world.modelview_transform, 64);
+			Com_Memset(vk_world.modelview_transform, 0, 64);
+			vk_world.modelview_transform[0] = 1.0f;
+			vk_world.modelview_transform[5] = 1.0f;
+			vk_world.modelview_transform[10] = 1.0f;
+			vk_world.modelview_transform[15] = 1.0f;
+
 			vk_bind_geometry();
 			vk_shade_geometry(vk.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
-		}
-		if (dx.active) {
-			dx_bind_geometry();
-			dx_shade_geometry(dx.shadow_finish_pipeline_state, false, Vk_Depth_Range::normal, true, false);
+
+			Com_Memcpy(vk_world.modelview_transform, tmp, 64);
 		}
 
-		Com_Memcpy(vk_world.modelview_transform, tmp, 64);
+		if (dx.active) {
+			// set backEnd.or.modelMatrix to identity matrix
+			float tmp[16];
+			Com_Memcpy(tmp, dx_world.modelview_transform, 64);
+			Com_Memset(dx_world.modelview_transform, 0, 64);
+			dx_world.modelview_transform[0] = 1.0f;
+			dx_world.modelview_transform[5] = 1.0f;
+			dx_world.modelview_transform[10] = 1.0f;
+			dx_world.modelview_transform[15] = 1.0f;
+
+			dx_bind_geometry();
+			dx_shade_geometry(dx.shadow_finish_pipeline_state, false, Vk_Depth_Range::normal, true, false);
+
+			Com_Memcpy(dx_world.modelview_transform, tmp, 64);
+		}
+
 		tess.numIndexes = 0;
 		tess.numVertexes = 0;
 	}

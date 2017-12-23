@@ -1189,7 +1189,7 @@ static void get_mvp_transform(float* mvp) {
 			p[12], p[13], P14,  p[15]
 		};
 
-		myGlMultMatrix(vk_world.modelview_transform, proj, mvp);
+		myGlMultMatrix(dx_world.modelview_transform, proj, mvp);
 	}
 }
 
@@ -1444,11 +1444,12 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 		dx.command_list->DrawIndexedInstanced(tess.numIndexes, 1, 0, 0, 0);
 	else
 		dx.command_list->DrawInstanced(tess.numVertexes, 1, 0, 0);
-
-	//dx_world.dirty_depth_attachment = true;
 }
 
 void dx_begin_frame() {
+	if (!dx.active)
+		return;
+
 	if (dx.fence->GetCompletedValue() < dx.fence_value) {
 		DX_CHECK(dx.fence->SetEventOnCompletion(dx.fence_value, dx.fence_event));
 		WaitForSingleObject(dx.fence_event, INFINITE);
@@ -1464,7 +1465,6 @@ void dx_begin_frame() {
 	ID3D12DescriptorHeap* heaps[] = { dx.srv_heap, dx.sampler_heap };
 	dx.command_list->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	// Indicate that the back buffer will be used as a render target.
 	dx.command_list->ResourceBarrier(1, &get_transition_barrier(dx.render_targets[dx.frame_index],
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
@@ -1474,12 +1474,6 @@ void dx_begin_frame() {
 	rtv_handle.ptr += dx.frame_index * dx.rtv_descriptor_size;
 
 	dx.command_list->OMSetRenderTargets(1, &rtv_handle, FALSE, &dsv_handle);
-
-	D3D12_CLEAR_FLAGS flags = D3D12_CLEAR_FLAG_DEPTH;
-	if (r_shadows->integer == 2)
-		flags |= D3D12_CLEAR_FLAG_STENCIL;
-
-	dx.command_list->ClearDepthStencilView(dsv_handle, flags, 1.0f, 0, 0, nullptr);
 
 	dx.xyz_elements = 0;
 	dx.color_st_elements = 0;
