@@ -949,11 +949,16 @@ extern Dx_World		dx_world;		// this data is cleared during ref re-init
 //
 // cvars
 //
-extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan.
+extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan, 2 - DX12
 
-extern cvar_t	*r_twinMode;			// If enabled, renderer creates two separate windows.
-										// The first window uses rendering API specified by r_renderAPI,
-										// the second window uses rendering API corresponding to (1 - r_renderAPI).
+extern cvar_t	*r_twinMode;			// Allows to render the same frame in different windows using different graphics APIs.
+										// This cvar specifies a bitmask that determines which APIs.
+										// 0 - regular rendering with single window using the graphics API specified by r_renderAPI.
+										// bit 0 - enables OpenGL backend
+										// bit 1 - enables Vulkan backend
+										// bit 2 - enables DX12 backend
+										// Combinations of the above values are allowed, for example, r_twinMode=7 creates three diffent
+										// windows using all the supported APIs.
 
 extern cvar_t	*r_railWidth;
 extern cvar_t	*r_railCoreWidth;
@@ -1203,6 +1208,9 @@ void		GLimp_WakeRenderer( void *data );
 void vk_imp_init();
 void vk_imp_shutdown();
 void vk_imp_create_surface();
+
+void dx_imp_init();
+void dx_imp_shutdown();
 
 // NOTE TTimo linux works with float gamma value, not the gamma table
 //   the params won't be used, getting the r_gamma cvar directly

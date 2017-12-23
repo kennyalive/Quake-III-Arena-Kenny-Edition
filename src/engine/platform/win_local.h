@@ -75,7 +75,7 @@ typedef struct
 	HINSTANCE		reflib_library;		// Handle to refresh DLL 
 	qboolean		reflib_active;
 
-	HWND			hWnd; // main window, refers either to hWnd_opengl or to hWnd_vulkan
+	HWND			hWnd; // main window, refers to one of the hWnd_XXX listed below
 
     HWND            hWnd_opengl;
     HWND            hWnd_vulkan;

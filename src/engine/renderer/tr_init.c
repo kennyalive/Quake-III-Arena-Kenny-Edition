@@ -191,7 +191,7 @@ static void InitRenderAPI( void )
 	if ( glConfig.vidWidth == 0 )
 	{
 		// OpenGL
-		if (r_renderAPI->integer == 0 || r_twinMode->integer) {
+		if (r_renderAPI->integer == 0 || (r_twinMode->integer&1)) {
 			GLimp_Init();
 
 			GLint temp;
@@ -202,10 +202,14 @@ static void InitRenderAPI( void )
 		}
 
 		// VULKAN
-		// DX12
-		if (r_renderAPI->integer != 0 || r_twinMode->integer) {
+		if (r_renderAPI->integer == 1 || (r_twinMode->integer&2)) {
 			vk_imp_init();
 			vk_initialize();
+		}
+
+		// DX12
+		if (r_renderAPI->integer == 2 || (r_twinMode->integer&4)) {
+			dx_imp_init();
 			dx_initialize();
 		}
 	}
@@ -373,9 +377,9 @@ void RB_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
 
 	if (r_renderAPI->integer == 0) {
 		qglReadPixels( x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer+18 ); 
-	} else {
-		// VULKAN
+	} else if (r_renderAPI->integer == 1) { // VULKAN
 		byte* buffer2 = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);
+
 		vk_read_pixels(buffer2);
 
 		byte* buffer_ptr = buffer + 18;
@@ -418,8 +422,7 @@ void RB_TakeScreenshotJPEG( int x, int y, int width, int height, char *fileName 
 
 	if (r_renderAPI->integer == 0) {
 		qglReadPixels( x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer ); 
-	} else {
-		// VULKAN
+	} else if (r_renderAPI->integer == 1) { // VULKAN
 		vk_read_pixels(buffer);
 	}
 
@@ -557,8 +560,7 @@ void R_LevelShot( void ) {
 
 	if (r_renderAPI->integer == 0) {
 		qglReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, GL_RGB, GL_UNSIGNED_BYTE, source ); 
-	} else {
-		// VULKAN
+	} else if (r_renderAPI->integer == 1) { // VULKAN
 		byte* buffer2 = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);
 		vk_read_pixels(buffer2);
 
@@ -1121,13 +1123,19 @@ void RE_Shutdown( qboolean destroyWindow ) {
 
 	// VULKAN
 	if (vk.active) {
-		dx_release_resources();
 		vk_release_resources();
 		if (destroyWindow) {
-			dx_shutdown();
-
 			vk_shutdown();
 			vk_imp_shutdown();
+		}
+	}
+
+	// DX12
+	if (dx.active) {
+		dx_release_resources();
+		if (destroyWindow) {
+			dx_shutdown();
+			dx_imp_shutdown();
 		}
 	}
 

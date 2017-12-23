@@ -409,10 +409,24 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
 		}
 	}
 
+	char window_name[1024];
+	if (r_twinMode->integer == 0) {
+		strcpy(window_name, MAIN_WINDOW_CLASS_NAME);
+	} else {
+		const char* api_name = "invalid-render-api";
+		if (r_renderAPI->integer == 0)
+			api_name = "OpenGL";
+		else if (r_renderAPI->integer == 1)
+			api_name = "Vulkan";
+		else if (r_renderAPI->integer == 2)
+			api_name = "DX12";
+		sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
+	}
+
 	HWND hwnd = CreateWindowEx(
 			0, 
 			MAIN_WINDOW_CLASS_NAME,
-			"Quake 3: Arena",
+			window_name,
 			stylebits,
 			x, y, w, h,
 			NULL,
@@ -431,7 +445,7 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
     return hwnd;
 }
 
-static HWND create_twin_window(int width, int height, bool dx_window)
+static HWND create_twin_window(int width, int height, int render_api)
 {
     //
     // register the window class if necessary
@@ -478,8 +492,27 @@ static HWND create_twin_window(int width, int height, bool dx_window)
 
     cvar_t* vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
     cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
-    int x = vid_xpos->integer + width + 5; // offset to the right of the main window
-    int y = vid_ypos->integer;
+	int x, y;
+
+	bool show_three_windows = (r_twinMode->integer | (1 << r_renderAPI->integer)) == 7;
+
+	if (!show_three_windows) { // two windows
+		x = vid_xpos->integer + width + 5; // offset to the right of the main window
+		y = vid_ypos->integer;
+	} else { // three windows
+		bool first_twin_window =
+			(r_renderAPI->integer > 0 && render_api == 0) ||
+			(r_renderAPI->integer == 0 && render_api == 1);
+
+		if (first_twin_window) {
+			x = vid_xpos->integer + width + 5;
+			y = vid_ypos->integer;
+		}  else {
+			x = vid_xpos->integer + 2*width + 10;
+			y = vid_ypos->integer;
+		}
+			
+	}
 
     // adjust window coordinates if necessary 
     // so that the window is completely on screen
@@ -499,10 +532,17 @@ static HWND create_twin_window(int width, int height, bool dx_window)
             y = ( desktop_height - h );
     }
 
-    // If r_renderAPI = 0 (OpenGL) then twin window uses Vulkan API.
-    // If r_renderAPI = 1 (Vulkan) then twin window uses OpenGL API.
     char window_name[1024];
-    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, dx_window ? "DX12" : (r_renderAPI->integer == 0 ? "Vulkan" : "OpenGL"));
+
+	const char* api_name = "invalid-render-api";
+	if (render_api == 0)
+		api_name = "OpenGL";
+	else if (render_api == 1)
+		api_name = "Vulkan";
+	else if (render_api == 2)
+		api_name = "DX12";
+
+    sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
 
     HWND hwnd = CreateWindowEx(
         0, 
@@ -726,7 +766,7 @@ void GLimp_Init( void )
 		SetFocus(g_wv.hWnd);
 		WG_CheckHardwareGamma();
 	} else {
-		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, false);
+		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, 0);
 	}
 
 	if (!GLW_InitDriver(g_wv.hWnd_opengl)) {
@@ -831,16 +871,14 @@ void vk_imp_init() {
 	// Create window.
 	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
 
-	if (r_renderAPI->integer != 0) {
+	if (r_renderAPI->integer == 1) {
 		g_wv.hWnd_vulkan = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_vulkan;
 		SetForegroundWindow(g_wv.hWnd);
 		SetFocus(g_wv.hWnd);
 		WG_CheckHardwareGamma();
-
-		g_wv.hWnd_dx = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, true);
 	} else {
-		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, false);
+		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, 1);
 	}
 }
 
@@ -863,16 +901,6 @@ void vk_imp_shutdown() {
 		vk_library_handle = NULL;
 	}
 	vkGetInstanceProcAddr = nullptr;
-
-	if (g_wv.hWnd_dx) {
-		ri.Printf(PRINT_ALL, "...destroying DX12 window\n");
-		DestroyWindow(g_wv.hWnd_dx);
-
-		if (g_wv.hWnd == g_wv.hWnd_dx) {
-			g_wv.hWnd_dx = NULL;
-		}
-		g_wv.hWnd_dx = NULL;
-	}
 
 	// For vulkan mode we still have qgl pointers initialized with placeholder values.
 	// Reset them the same way as we do in opengl mode.
@@ -897,6 +925,58 @@ void vk_imp_create_surface() {
 	desc.hinstance = ::GetModuleHandle(nullptr);
 	desc.hwnd = g_wv.hWnd_vulkan;
 	VK_CHECK(vkCreateWin32SurfaceKHR(vk.instance, &desc, nullptr, &vk.surface));
+}
+
+void dx_imp_init() {
+	ri.Printf(PRINT_ALL, "Initializing DX12 subsystem\n");
+
+	// This will set qgl pointers to no-op placeholders.
+	if (!gl_active) {
+		QGL_Init(nullptr);
+		qglActiveTextureARB = [] (GLenum)  {};
+		qglClientActiveTextureARB = [](GLenum) {};
+	}
+
+	// Create window.
+	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
+
+	if (r_renderAPI->integer == 2) {
+		g_wv.hWnd_dx = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
+		g_wv.hWnd = g_wv.hWnd_dx;
+		SetForegroundWindow(g_wv.hWnd);
+		SetFocus(g_wv.hWnd);
+		WG_CheckHardwareGamma();
+	} else {
+		g_wv.hWnd_dx = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, 2);
+	}
+}
+
+void dx_imp_shutdown() {
+	ri.Printf(PRINT_ALL, "Shutting down DX12 subsystem\n");
+
+	if (g_wv.hWnd_dx) {
+		ri.Printf(PRINT_ALL, "...destroying DX12 window\n");
+		DestroyWindow(g_wv.hWnd_dx);
+
+		if (g_wv.hWnd == g_wv.hWnd_dx) {
+			g_wv.hWnd = NULL;
+		}
+		g_wv.hWnd_dx = NULL;
+	}
+
+	// For DX12 mode we still have qgl pointers initialized with placeholder values.
+	// Reset them the same way as we do in opengl mode.
+	QGL_Shutdown();
+
+	WG_RestoreGamma();
+
+	memset(&glConfig, 0, sizeof(glConfig));
+	memset(&glState, 0, sizeof(glState));
+
+	if (log_fp) {
+		fclose(log_fp);
+		log_fp = 0;
+	}
 }
 
 /*
