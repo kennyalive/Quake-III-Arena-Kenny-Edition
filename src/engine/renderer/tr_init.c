@@ -31,7 +31,7 @@ glstate_t	glState;
 Vk_Instance vk;
 Vk_World	vk_world;
 
-// D3D
+// DX12
 Dx_Instance dx;
 Dx_World	dx_world;
 

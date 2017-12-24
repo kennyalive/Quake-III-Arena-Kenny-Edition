@@ -402,10 +402,9 @@ void dx_initialize() {
         DX_CHECK(dx.geometry_buffer->Map(0, &read_range, &p_data));
 
 		dx.vertex_buffer_ptr = static_cast<byte*>(p_data);
-		assert(((size_t)dx.vertex_buffer_ptr & 0xffff) == 0);
 
+		assert((VERTEX_BUFFER_SIZE & 0xffff) == 0); // index buffer offset should be 64K aligned.
 		dx.index_buffer_ptr = static_cast<byte*>(p_data) + VERTEX_BUFFER_SIZE;
-		assert(((size_t)dx.index_buffer_ptr & 0xffff) == 0);
 	}
 
 	//
@@ -613,6 +612,8 @@ void dx_shutdown() {
 }
 
 void dx_release_resources() {
+	dx_wait_device_idle();
+
 	dx_world.pipeline_create_time = 0.0f;
 	for (int i = 0; i < dx_world.num_pipeline_states; i++) {
 		dx_world.pipeline_states[i]->Release();
