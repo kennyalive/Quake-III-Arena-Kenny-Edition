@@ -54,7 +54,7 @@ static void get_hardware_adapter(IDXGIFactory4* factory, IDXGIAdapter1** adapter
 	*adapter = nullptr;
 }
 
-static void record_and_run_commands(ID3D12CommandQueue* command_queue, std::function<void(ID3D12GraphicsCommandList*)> recorder) {
+static void record_and_run_commands(std::function<void(ID3D12GraphicsCommandList*)> recorder) {
 	ID3D12GraphicsCommandList* command_list;
 	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.helper_command_allocator,
 		nullptr, IID_PPV_ARGS(&command_list)));
@@ -63,8 +63,9 @@ static void record_and_run_commands(ID3D12CommandQueue* command_queue, std::func
 	DX_CHECK(command_list->Close());
 
 	ID3D12CommandList* command_lists[] = { command_list };
-	command_queue->ExecuteCommandLists(1, command_lists);
+	dx.command_queue->ExecuteCommandLists(1, command_lists);
 	dx_wait_device_idle();
+	
 	command_list->Release();
 	dx.helper_command_allocator->Reset();
 }
@@ -607,10 +608,8 @@ void dx_release_resources() {
 }
 
 void dx_wait_device_idle() {
-	if (dx.fence->GetCompletedValue() == dx.fence_value) {
-		dx.fence_value++;
-		DX_CHECK(dx.command_queue->Signal(dx.fence, dx.fence_value));
-	}
+	dx.fence_value++;
+	DX_CHECK(dx.command_queue->Signal(dx.fence, dx.fence_value));
 	DX_CHECK(dx.fence->SetEventOnCompletion(dx.fence_value, dx.fence_event));
 	WaitForSingleObject(dx.fence_event, INFINITE);
 }
@@ -734,7 +733,7 @@ void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mi
 	//
 	// Copy data from upload texture to destination texture.
 	//
-	record_and_run_commands(dx.command_queue, [&texture, &upload_texture, &regions, &mip_levels]
+	record_and_run_commands([texture, upload_texture, &regions, mip_levels]
 		(ID3D12GraphicsCommandList* command_list)
 	{
 		command_list->ResourceBarrier(1, &get_transition_barrier(texture,
