@@ -19,8 +19,8 @@ const int COLOR_OFFSET  = XYZ_OFFSET + XYZ_SIZE;
 const int ST0_OFFSET    = COLOR_OFFSET + COLOR_SIZE;
 const int ST1_OFFSET    = ST0_OFFSET + ST0_SIZE;
 
-static const int VERTEX_BUFFER_SIZE = XYZ_SIZE + COLOR_SIZE + ST0_SIZE + ST1_SIZE;
-static const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
+const int VERTEX_BUFFER_SIZE = XYZ_SIZE + COLOR_SIZE + ST0_SIZE + ST1_SIZE;
+const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
 
 #define DX_CHECK(function_call) { \
 	HRESULT hr = function_call; \
@@ -41,10 +41,8 @@ static DXGI_FORMAT get_depth_format() {
 static void get_hardware_adapter(IDXGIFactory4* factory, IDXGIAdapter1** adapter) {
 	DXGI_ADAPTER_DESC1 desc;
 	UINT adapter_index = 0;
-	while (factory->EnumAdapters1(adapter_index, adapter) != DXGI_ERROR_NOT_FOUND) {
+	while (factory->EnumAdapters1(adapter_index++, adapter) != DXGI_ERROR_NOT_FOUND) {
 		(*adapter)->GetDesc1(&desc);
-		adapter_index++;
-
 		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
 			continue;
 		}
@@ -56,18 +54,7 @@ static void get_hardware_adapter(IDXGIFactory4* factory, IDXGIAdapter1** adapter
 	*adapter = nullptr;
 }
 
-static void wait_for_queue_idle(ID3D12CommandQueue* command_queue) {
-	if (dx.fence->GetCompletedValue() == dx.fence_value) {
-		dx.fence_value++;
-		DX_CHECK(command_queue->Signal(dx.fence, dx.fence_value));
-	}
-	DX_CHECK(dx.fence->SetEventOnCompletion(dx.fence_value, dx.fence_event));
-	WaitForSingleObject(dx.fence_event, INFINITE);
-}
-
 static void record_and_run_commands(ID3D12CommandQueue* command_queue, std::function<void(ID3D12GraphicsCommandList*)> recorder) {
-	dx.helper_command_allocator->Reset();
-
 	ID3D12GraphicsCommandList* command_list;
 	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.helper_command_allocator,
 		nullptr, IID_PPV_ARGS(&command_list)));
@@ -77,11 +64,16 @@ static void record_and_run_commands(ID3D12CommandQueue* command_queue, std::func
 
 	ID3D12CommandList* command_lists[] = { command_list };
 	command_queue->ExecuteCommandLists(1, command_lists);
-	wait_for_queue_idle(command_queue);
+	dx_wait_device_idle();
 	command_list->Release();
+	dx.helper_command_allocator->Reset();
 }
 
-static D3D12_RESOURCE_BARRIER get_transition_barrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after) {
+static D3D12_RESOURCE_BARRIER get_transition_barrier(
+	ID3D12Resource* resource,
+	D3D12_RESOURCE_STATES state_before,
+	D3D12_RESOURCE_STATES state_after)
+{
 	D3D12_RESOURCE_BARRIER barrier;
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -131,51 +123,85 @@ void dx_initialize() {
 #endif
 
 	IDXGIFactory4* factory;
-    DX_CHECK(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	DX_CHECK(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
 
-	IDXGIAdapter1* hardware_adapter;
-	get_hardware_adapter(factory, &hardware_adapter);
-	DX_CHECK(D3D12CreateDevice(hardware_adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dx.device)));
+	// Create device.
+	{
+		IDXGIAdapter1* hardware_adapter;
+		get_hardware_adapter(factory, &hardware_adapter);
+		DX_CHECK(D3D12CreateDevice(hardware_adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dx.device)));
+		hardware_adapter->Release();
+	}
 
-	hardware_adapter->Release();
-	hardware_adapter = nullptr;
+	// Create command queue.
+	{
+		D3D12_COMMAND_QUEUE_DESC queue_desc{};
+		queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		queue_desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		DX_CHECK(dx.device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&dx.command_queue)));
+	}
 
-	// Describe and create the command queue.
-	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	//
+	// Create swap chain.
+	//
+	{
+		DXGI_SWAP_CHAIN_DESC1 swap_chain_desc{};
+		swap_chain_desc.BufferCount = SWAPCHAIN_BUFFER_COUNT;
+		swap_chain_desc.Width = glConfig.vidWidth;
+		swap_chain_desc.Height = glConfig.vidHeight;
+		swap_chain_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		swap_chain_desc.SampleDesc.Count = 1;
 
-	DX_CHECK(dx.device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&dx.command_queue)));
+		IDXGISwapChain1* swapchain;
+		DX_CHECK(factory->CreateSwapChainForHwnd(
+			dx.command_queue,
+			g_wv.hWnd_dx,
+			&swap_chain_desc,
+			nullptr,
+			nullptr,
+			&swapchain
+			));
 
-	// Describe and create the swap chain.
-    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.BufferCount = SWAPCHAIN_BUFFER_COUNT;
-    swapChainDesc.Width = glConfig.vidWidth;
-    swapChainDesc.Height = glConfig.vidHeight;
-    swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    swapChainDesc.SampleDesc.Count = 1;
+		DX_CHECK(factory->MakeWindowAssociation(g_wv.hWnd_dx, DXGI_MWA_NO_ALT_ENTER));
+		swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&dx.swapchain);
+		swapchain->Release();
 
-	IDXGISwapChain1* swapchain;
-    DX_CHECK(factory->CreateSwapChainForHwnd(
-        dx.command_queue,
-		g_wv.hWnd_dx,
-        &swapChainDesc,
-		nullptr,
-		nullptr,
-        &swapchain
-        ));
-
-	DX_CHECK(factory->MakeWindowAssociation(g_wv.hWnd_dx, DXGI_MWA_NO_ALT_ENTER));
-	swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&dx.swapchain);
-	swapchain->Release();
-	dx.frame_index = dx.swapchain->GetCurrentBackBufferIndex();
+		for (int i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++) {
+			DX_CHECK(dx.swapchain->GetBuffer(i, IID_PPV_ARGS(&dx.render_targets[i])));
+		}
+	}
 
 	factory->Release();
 	factory = nullptr;
 
+	//
+	// Create command allocators and command list.
+	//
+	{
+		DX_CHECK(dx.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+			IID_PPV_ARGS(&dx.command_allocator)));
+
+		DX_CHECK(dx.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+			IID_PPV_ARGS(&dx.helper_command_allocator)));
+
+		DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.command_allocator, nullptr,
+			IID_PPV_ARGS(&dx.command_list)));
+		DX_CHECK(dx.command_list->Close());
+	}
+
+	//
+	// Create synchronization objects.
+	//
+	{
+		DX_CHECK(dx.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&dx.fence)));
+		dx.fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	}
+
+	//
 	// Create descriptor heaps.
+	//
 	{
 		// RTV heap.
 		{
@@ -186,6 +212,16 @@ void dx_initialize() {
 			heap_desc.NodeMask = 0;
 			DX_CHECK(dx.device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&dx.rtv_heap)));
 			dx.rtv_descriptor_size = dx.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		}
+
+		// DSV heap.
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC heap_desc;
+			heap_desc.NumDescriptors = 1;
+			heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+			heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			heap_desc.NodeMask = 0;
+			DX_CHECK(dx.device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&dx.dsv_heap)));
 		}
 
 		// SRV heap.
@@ -219,7 +255,6 @@ void dx_initialize() {
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = dx.rtv_heap->GetCPUDescriptorHandleForHeapStart();
 			for (int i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++) {
-				DX_CHECK(dx.swapchain->GetBuffer(i, IID_PPV_ARGS(&dx.render_targets[i])));
 				dx.device->CreateRenderTargetView(dx.render_targets[i], nullptr, rtv_handle);
 				rtv_handle.ptr += dx.rtv_descriptor_size;
 			}
@@ -258,7 +293,9 @@ void dx_initialize() {
 		}
 	}
 
+	//
 	// Create depth buffer resources.
+	//
 	{
 		D3D12_RESOURCE_DESC depth_desc{};
 		depth_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -273,7 +310,7 @@ void dx_initialize() {
 		depth_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		depth_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-		D3D12_CLEAR_VALUE optimized_clear_value = {};
+		D3D12_CLEAR_VALUE optimized_clear_value{};
 		optimized_clear_value.Format = get_depth_format();
 		optimized_clear_value.DepthStencil.Depth = 1.0f;
 		optimized_clear_value.DepthStencil.Stencil = 0;
@@ -286,13 +323,7 @@ void dx_initialize() {
 			&optimized_clear_value,
 			IID_PPV_ARGS(&dx.depth_stencil_buffer)));
 
-		D3D12_DESCRIPTOR_HEAP_DESC ds_heap_desc = {};
-		ds_heap_desc.NumDescriptors = 1;
-		ds_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		ds_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		DX_CHECK(dx.device->CreateDescriptorHeap(&ds_heap_desc, IID_PPV_ARGS(&dx.dsv_heap)));
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC view_desc = {};
+		D3D12_DEPTH_STENCIL_VIEW_DESC view_desc{};
 		view_desc.Format = get_depth_format();
 		view_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 		view_desc.Flags = D3D12_DSV_FLAG_NONE;
@@ -300,9 +331,6 @@ void dx_initialize() {
 		dx.device->CreateDepthStencilView(dx.depth_stencil_buffer, &view_desc,
 			dx.dsv_heap->GetCPUDescriptorHandleForHeapStart());
 	}
-
-	DX_CHECK(dx.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&dx.command_allocator)));
-	DX_CHECK(dx.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&dx.helper_command_allocator)));
 
 	//
 	// Create root signature.
@@ -325,7 +353,7 @@ void dx_initialize() {
 		ranges[3].NumDescriptors = 1;
 		ranges[3].BaseShaderRegister = 1;
 
-		D3D12_ROOT_PARAMETER root_parameters[5] = {};
+		D3D12_ROOT_PARAMETER root_parameters[5] {};
 
 		root_parameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		root_parameters[0].Constants.ShaderRegister = 0;
@@ -357,31 +385,6 @@ void dx_initialize() {
 			signature->Release();
 		if (error != nullptr)
 			error->Release();
-	}
-
-	DX_CHECK(dx.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, dx.command_allocator, nullptr,
-		IID_PPV_ARGS(&dx.command_list)));
-
-	// Command lists are created in the recording state, but there is nothing
-	// to record yet. The main loop expects it to be closed, so close it now.
-	DX_CHECK(dx.command_list->Close());
-
-	// Create synchronization objects.
-	{
-		DX_CHECK(dx.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&dx.fence)));
-		dx.fence_value = 0;
-
-		// Create an event handle to use for frame synchronization.
-		dx.fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		if (dx.fence_event == NULL)
-		{
-			DX_CHECK(HRESULT_FROM_WIN32(GetLastError()));
-		}
-
-		// Wait for the command list to execute; we are reusing the same command 
-		// list in our main loop but for now, we just want to wait for setup to 
-		// complete before continuing.
-		wait_for_queue_idle(dx.command_queue);
 	}
 
 	//
@@ -535,23 +538,40 @@ void dx_initialize() {
 }
 
 void dx_shutdown() {
-	dx.skybox_pipeline_state->Release();
-	dx.shadow_finish_pipeline_state->Release();
+	::CloseHandle(dx.fence_event);
 
+	for (int i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++) {
+		dx.render_targets[i]->Release();
+	}
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 2; j++) {
 			dx.shadow_volume_pipeline_states[i][j]->Release();
 		}
 	}
-
 	for (int i = 0; i < 2; i++) {
-		for (int j = 0; j < 3; j++)
+		for (int j = 0; j < 3; j++) {
 			for (int k = 0; k < 2; k++) {
 				dx.fog_pipeline_states[i][j][k]->Release();
 				dx.dlight_pipeline_states[i][j][k]->Release();
 			}
+		}
 	}
 
+	dx.swapchain->Release();
+	dx.command_allocator->Release();
+	dx.helper_command_allocator->Release();
+	dx.rtv_heap->Release();
+	dx.srv_heap->Release();
+	dx.sampler_heap->Release();
+	dx.root_signature->Release();
+	dx.command_queue->Release();
+	dx.command_list->Release();
+	dx.fence->Release();
+	dx.depth_stencil_buffer->Release();
+	dx.dsv_heap->Release();
+	dx.geometry_buffer->Release();
+	dx.skybox_pipeline_state->Release();
+	dx.shadow_finish_pipeline_state->Release();
 	dx.tris_debug_pipeline_state->Release();
 	dx.tris_mirror_debug_pipeline_state->Release();
 	dx.normals_debug_pipeline_state->Release();
@@ -559,54 +579,7 @@ void dx_shutdown() {
 	dx.surface_debug_pipeline_state_outline->Release();
 	dx.images_debug_pipeline_state->Release();
 
-	dx.swapchain->Release();
-	dx.swapchain = nullptr;
-
-	dx.command_allocator->Release();
-	dx.command_allocator = nullptr;
-
-	dx.helper_command_allocator->Release();
-	dx.helper_command_allocator = nullptr;
-
-	for (int i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++) {
-		dx.render_targets[i]->Release();
-	}
-
-	dx.rtv_heap->Release();
-	dx.rtv_heap = nullptr;
-
-	dx.srv_heap->Release();
-	dx.srv_heap = nullptr;
-
-
-	dx.sampler_heap->Release();
-	dx.sampler_heap = nullptr;
-
-	dx.root_signature->Release();
-	dx.root_signature = nullptr;
-
-	dx.command_queue->Release();
-	dx.command_queue = nullptr;
-
-	dx.command_list->Release();
-	dx.command_list = nullptr;
-
-	dx.fence->Release();
-	dx.fence = nullptr;
-
-	::CloseHandle(dx.fence_event);
-	dx.fence_event = NULL;
-
-	dx.depth_stencil_buffer->Release();
-	dx.depth_stencil_buffer = nullptr;
-	dx.dsv_heap->Release();
-	dx.dsv_heap = nullptr;
-
-	dx.geometry_buffer->Release();
-	dx.geometry_buffer = nullptr;
-
 	dx.device->Release();
-	dx.device = nullptr;
 
 	Com_Memset(&dx, 0, sizeof(dx));
 }
@@ -634,7 +607,12 @@ void dx_release_resources() {
 }
 
 void dx_wait_device_idle() {
-	wait_for_queue_idle(dx.command_queue);
+	if (dx.fence->GetCompletedValue() == dx.fence_value) {
+		dx.fence_value++;
+		DX_CHECK(dx.command_queue->Signal(dx.fence, dx.fence_value));
+	}
+	DX_CHECK(dx.fence->SetEventOnCompletion(dx.fence_value, dx.fence_event));
+	WaitForSingleObject(dx.fence_event, INFINITE);
 }
 
 Dx_Image dx_create_image(int width, int height, Dx_Image_Format format, int mip_levels,  bool repeat_texture, int image_index) {
