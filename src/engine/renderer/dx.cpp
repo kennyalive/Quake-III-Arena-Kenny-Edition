@@ -1363,7 +1363,9 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 		Com_Memcpy(dst, tess.svars.texcoords[1], tess.numVertexes * sizeof(vec2_t));
 	}
 
-	// configure vertex data stream
+	//
+	// Configure vertex data stream.
+	//
 	D3D12_VERTEX_BUFFER_VIEW color_st_views[3];
 	color_st_views[0].BufferLocation = dx.geometry_buffer->GetGPUVirtualAddress() + COLOR_OFFSET + dx.color_st_elements * sizeof(color4ub_t);
 	color_st_views[0].SizeInBytes = static_cast<UINT>(tess.numVertexes * sizeof(color4ub_t));
@@ -1378,7 +1380,6 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 	color_st_views[2].StrideInBytes = static_cast<UINT>(sizeof(vec2_t));
 
 	dx.command_list->IASetVertexBuffers(1, multitexture ? 3 : 2, color_st_views);
-
 	dx.color_st_elements += tess.numVertexes;
 
 	//
@@ -1406,19 +1407,21 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 		dx.command_list->SetGraphicsRootDescriptorTable(4, sampler_handle);
 	}
 
-	// bind pipeline
+	//
+	// Configure pipeline.
+	//
 	dx.command_list->SetPipelineState(pipeline_state);
-
 	dx.command_list->IASetPrimitiveTopology(lines ? D3D10_PRIMITIVE_TOPOLOGY_LINELIST : D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// configure pipeline's dynamic state
 	D3D12_RECT scissor_rect = get_scissor_rect();
 	dx.command_list->RSSetScissorRects(1, &scissor_rect);
 
 	D3D12_VIEWPORT viewport = get_viewport(depth_range);
 	dx.command_list->RSSetViewports(1, &viewport);
 
-	// issue draw call
+	//
+	// Draw.
+	//
 	if (indexed)
 		dx.command_list->DrawIndexedInstanced(tess.numIndexes, 1, 0, 0, 0);
 	else
