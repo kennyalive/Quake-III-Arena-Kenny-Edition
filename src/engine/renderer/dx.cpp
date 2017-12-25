@@ -854,6 +854,7 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	}
 
 #undef GET_PS_BYTECODE
+#undef BYTECODE
 
 	// Vertex elements.
 	D3D12_INPUT_ELEMENT_DESC input_element_desc[] =
