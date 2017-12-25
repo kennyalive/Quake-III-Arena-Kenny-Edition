@@ -1,5 +1,8 @@
 #pragma once
 
+// Uncomment the following line to disable DX12 backend
+//#define DISABLE_DX12
+
 struct ID3D12CommandAllocator;
 struct ID3D12GraphicsCommandList;
 struct ID3D12CommandQueue;

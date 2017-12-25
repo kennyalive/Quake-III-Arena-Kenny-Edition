@@ -414,11 +414,11 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
 		strcpy(window_name, MAIN_WINDOW_CLASS_NAME);
 	} else {
 		const char* api_name = "invalid-render-api";
-		if (r_renderAPI->integer == 0)
+		if (get_render_api() == RENDER_API_GL)
 			api_name = "OpenGL";
-		else if (r_renderAPI->integer == 1)
+		else if (get_render_api() == RENDER_API_VK)
 			api_name = "Vulkan";
-		else if (r_renderAPI->integer == 2)
+		else if (get_render_api() == RENDER_API_DX)
 			api_name = "DX12";
 		sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
 	}
@@ -445,7 +445,7 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
     return hwnd;
 }
 
-static HWND create_twin_window(int width, int height, int render_api)
+static HWND create_twin_window(int width, int height, RenderApi render_api)
 {
     //
     // register the window class if necessary
@@ -494,15 +494,15 @@ static HWND create_twin_window(int width, int height, int render_api)
     cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
 	int x, y;
 
-	bool show_three_windows = (r_twinMode->integer | (1 << r_renderAPI->integer)) == 7;
+	bool show_three_windows = (r_twinMode->integer | (1 << get_render_api())) == 7;
 
 	if (!show_three_windows) { // two windows
 		x = vid_xpos->integer + width + 5; // offset to the right of the main window
 		y = vid_ypos->integer;
 	} else { // three windows
 		bool first_twin_window =
-			(r_renderAPI->integer > 0 && render_api == 0) ||
-			(r_renderAPI->integer == 0 && render_api == 1);
+			(get_render_api() != RENDER_API_GL && render_api == RENDER_API_GL) ||
+			(get_render_api() == RENDER_API_GL && render_api == RENDER_API_VK);
 
 		if (first_twin_window) {
 			x = vid_xpos->integer + width + 5;
@@ -529,11 +529,11 @@ static HWND create_twin_window(int width, int height, int render_api)
 	
 	char window_name[1024];
 	const char* api_name = "invalid-render-api";
-	if (render_api == 0)
+	if (render_api == RENDER_API_GL)
 		api_name = "OpenGL";
-	else if (render_api == 1)
+	else if (render_api == RENDER_API_VK)
 		api_name = "Vulkan";
-	else if (render_api == 2)
+	else if (render_api == RENDER_API_DX)
 		api_name = "DX12";
 	sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
 
@@ -752,14 +752,14 @@ void GLimp_Init( void )
 
 	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
 
-	if (r_renderAPI->integer == 0) {
+	if (get_render_api() == RENDER_API_GL) {
 		g_wv.hWnd_opengl = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_opengl;
 		SetForegroundWindow(g_wv.hWnd);
 		SetFocus(g_wv.hWnd);
 		WG_CheckHardwareGamma();
 	} else {
-		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, 0);
+		g_wv.hWnd_opengl = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, RENDER_API_GL);
 	}
 
 	if (!GLW_InitDriver(g_wv.hWnd_opengl)) {
@@ -864,14 +864,14 @@ void vk_imp_init() {
 	// Create window.
 	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
 
-	if (r_renderAPI->integer == 1) {
+	if (get_render_api() == RENDER_API_VK) {
 		g_wv.hWnd_vulkan = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_vulkan;
 		SetForegroundWindow(g_wv.hWnd);
 		SetFocus(g_wv.hWnd);
 		WG_CheckHardwareGamma();
 	} else {
-		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, 1);
+		g_wv.hWnd_vulkan = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, RENDER_API_VK);
 	}
 }
 
@@ -933,14 +933,14 @@ void dx_imp_init() {
 	// Create window.
 	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
 
-	if (r_renderAPI->integer == 2) {
+	if (get_render_api() == RENDER_API_DX) {
 		g_wv.hWnd_dx = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
 		g_wv.hWnd = g_wv.hWnd_dx;
 		SetForegroundWindow(g_wv.hWnd);
 		SetFocus(g_wv.hWnd);
 		WG_CheckHardwareGamma();
 	} else {
-		g_wv.hWnd_dx = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, 2);
+		g_wv.hWnd_dx = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, RENDER_API_DX);
 	}
 }
 

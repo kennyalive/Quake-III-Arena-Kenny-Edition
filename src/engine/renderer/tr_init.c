@@ -171,6 +171,20 @@ static void AssertCvarRange( cvar_t *cv, float minVal, float maxVal, qboolean sh
 	}
 }
 
+RenderApi get_render_api() {
+	if (r_renderAPI->integer == 0)
+		return RENDER_API_GL;
+	else if (r_renderAPI->integer == 1)
+		return RENDER_API_VK;
+	else if (r_renderAPI->integer == 2)
+#ifndef DISABLE_DX12
+		return RENDER_API_DX;
+#else
+		return RENDER_API_GL; // use default (GL) if dx12 is disabled
+#endif
+	else
+		return RENDER_API_GL; // use default (GL) if invalid r_renderAPI value is specified
+}
 
 /*
 ** This function is responsible for initializing a valid OpenGL/Vulkan subsystem.
@@ -190,8 +204,14 @@ static void InitRenderAPI( void )
 	//
 	if ( glConfig.vidWidth == 0 )
 	{
+#ifdef DISABLE_DX12
+		if (r_renderAPI->integer == 2) {
+			ri.Printf(PRINT_WARNING, "DirectX 12 backend is disabled (code was compiled with DISABLE_DX12). OpenGL backend will be used instead.\n");
+		}
+#endif
+
 		// OpenGL
-		if (r_renderAPI->integer == 0 || (r_twinMode->integer&1)) {
+		if (get_render_api() == RENDER_API_GL || (r_twinMode->integer&1)) {
 			GLimp_Init();
 
 			GLint temp;
@@ -202,16 +222,18 @@ static void InitRenderAPI( void )
 		}
 
 		// VULKAN
-		if (r_renderAPI->integer == 1 || (r_twinMode->integer&2)) {
+		if (get_render_api() == RENDER_API_VK || (r_twinMode->integer&2)) {
 			vk_imp_init();
 			vk_initialize();
 		}
 
 		// DX12
-		if (r_renderAPI->integer == 2 || (r_twinMode->integer&4)) {
+#ifndef DISABLE_DX12
+		if (get_render_api() == RENDER_API_DX || (r_twinMode->integer&4)) {
 			dx_imp_init();
 			dx_initialize();
 		}
+#endif
 	}
 
 	// init command buffers and SMP
@@ -375,9 +397,9 @@ void RB_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
 	buffer[15] = height >> 8;
 	buffer[16] = 24;	// pixel size
 
-	if (r_renderAPI->integer == 0) {
+	if (get_render_api() == RENDER_API_GL) {
 		qglReadPixels( x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer+18 ); 
-	} else if (r_renderAPI->integer == 1) { // VULKAN
+	} else if (get_render_api() == RENDER_API_VK) { // VULKAN
 		byte* buffer2 = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);
 
 		vk_read_pixels(buffer2);
@@ -392,7 +414,7 @@ void RB_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
 			buffer2_ptr += 4;
 		}
 		ri.Hunk_FreeTempMemory(buffer2);
-	} else if (r_renderAPI->integer == 2) { // DX12
+	} else if (get_render_api() == RENDER_API_DX) { // DX12
 		ri.Printf(PRINT_WARNING, "RT_TakeScreenshot is not implemented for DX12");
 	}
 
@@ -422,11 +444,11 @@ RB_TakeScreenshotJPEG
 void RB_TakeScreenshotJPEG( int x, int y, int width, int height, char *fileName ) {
 	byte* buffer = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);;
 
-	if (r_renderAPI->integer == 0) {
+	if (get_render_api() == RENDER_API_GL) {
 		qglReadPixels( x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer ); 
-	} else if (r_renderAPI->integer == 1) { // VULKAN
+	} else if (get_render_api() == RENDER_API_VK) { // VULKAN
 		vk_read_pixels(buffer);
-	} else if (r_renderAPI->integer == 2) { // DX12
+	} else if (get_render_api() == RENDER_API_DX) { // DX12
 		ri.Printf(PRINT_WARNING, "RT_TakeScreenshotJPEG is not implemented for DX12");
 	}
 
@@ -562,9 +584,9 @@ void R_LevelShot( void ) {
 	buffer[14] = 128;
 	buffer[16] = 24;	// pixel size
 
-	if (r_renderAPI->integer == 0) {
+	if (get_render_api() == RENDER_API_GL) {
 		qglReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, GL_RGB, GL_UNSIGNED_BYTE, source ); 
-	} else if (r_renderAPI->integer == 1) { // VULKAN
+	} else if (get_render_api() == RENDER_API_VK) { // VULKAN
 		byte* buffer2 = (byte*) ri.Hunk_AllocateTempMemory(glConfig.vidWidth*glConfig.vidHeight*4);
 		vk_read_pixels(buffer2);
 
@@ -578,7 +600,7 @@ void R_LevelShot( void ) {
 			buffer2_ptr += 4;
 		}
 		ri.Hunk_FreeTempMemory(buffer2);
-	} else if (r_renderAPI->integer == 2) { // DX12
+	} else if (get_render_api() == RENDER_API_DX) { // DX12
 		ri.Printf(PRINT_WARNING, "R_LevelShot is not implemented for DX12");
 	}
 

@@ -945,6 +945,13 @@ extern Vk_World		vk_world;		// this data is cleared during ref re-init
 extern Dx_Instance	dx;				// shouldn't be cleared during ref re-init
 extern Dx_World		dx_world;		// this data is cleared during ref re-init
 
+enum RenderApi {
+	RENDER_API_GL,
+	RENDER_API_VK,
+	RENDER_API_DX
+};
+
+RenderApi get_render_api();
 
 //
 // cvars

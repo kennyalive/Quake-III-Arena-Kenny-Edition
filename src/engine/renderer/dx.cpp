@@ -4,8 +4,13 @@
 #include <chrono>
 #include <functional>
 
+#ifndef DISABLE_DX12
+
 #include "D3d12.h"
 #include "DXGI1_4.h"
+
+#pragma comment (lib, "D3d12.lib")
+#pragma comment (lib, "DXGI.lib")
 
 const int VERTEX_CHUNK_SIZE = 512 * 1024;
 
@@ -1479,3 +1484,23 @@ void dx_end_frame() {
 
 	DX_CHECK(dx.swapchain->Present(0, 0));
 }
+
+#else // DISABLE_DX12
+
+void dx_initialize() {}
+void dx_shutdown() {}
+void dx_release_resources() {}
+void dx_wait_device_idle() {}
+
+Dx_Image dx_create_image(int width, int height, Dx_Image_Format format, int mip_levels,  bool repeat_texture, int image_index) { return Dx_Image{}; }
+void dx_upload_image_data(ID3D12Resource* texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel) {}
+void dx_create_sampler_descriptor(const Vk_Sampler_Def& def, Dx_Sampler_Index sampler_index) {}
+ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) { return nullptr; }
+
+void dx_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color) {}
+void dx_bind_geometry() {}
+void dx_shade_geometry(ID3D12PipelineState* pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed, bool lines) {}
+void dx_begin_frame() {}
+void dx_end_frame() {}
+
+#endif  // DISABLE_DX12
