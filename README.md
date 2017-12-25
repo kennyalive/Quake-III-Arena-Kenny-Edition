@@ -10,22 +10,25 @@ The general direction is to simplify the things. The codebase should be easy to 
 * Build `visual-studio/quake3.sln` solution.
 * Copy `quake3-ke.exe` to your local Quake-III-Arena installation folder.
 
-## Vulkan support
+## Vulkan and DX12 support 
 Vulkan backend provides the same graphics features as original OpenGL-based one including customization via r_xxx cvars and debug visualization.
 
-Make sure that the latest AMD/NVIDIA drivers are installed. Vulkan backend was tested on AMD and NVIDIA hardware. Unfortunately no guarantees for Intel GPUs - there is no vulkan support for my 4790K Haswell processor.
+Initially DirectX 12 backend was an exercise to learn this graphics API. It turned out the implementation is quite concise, so it was merged into the main branch.
+
 
 #### New cvars:
-* **r_renderAPI** - 3D API to use: 0 - OpenGL, 1 - Vulkan. Requires vid_restart.
+* **r_renderAPI** - 3D API to use: 0 - OpenGL, 1 - Vulkan, 2 - DX12. Requires vid_restart.
 
-* **r_twinMode** - Debug feature to compare rendering output between OpenGL and Vulkan APIs.
-    If enabled, renderer uses both APIs and renders current frame to two side-by-side windows.
-    Requires vid_restart.
+* **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs.
+    If enabled, renderer uses multiple APIs and renders current frame to two or three side-by-side windows. Requires vid_restart.
+
+*r_twinMode* is a bitmask. The following values can be combined to enable different graphics backends: 1 - OpenGL, 2 - Vulkan, 4 - DX12. For example: r_twinMode=7 (1+2+4) - enables all backends and renders to 3 windows. r_twinMode=3 (1+2) - enables OpenGL and Vulkan backends and renders to 2 windows.
+  
     
 #### Additional information:
 * Q: How to start game with vulkan support? A: `quake3-ke.exe +set r_renderAPI 1`.
 * Q: How to enable vulkan support from Q3 console? A: `\r_renderAPI 1` then `\vid_restart`.
-* Q: How to enable twin mode from Q3 console? A: `\r_twinMode 1` then `\vid_restart`.
+* Q: How to enable twin mode from Q3 console? A: `\r_twinMode 7` then `\vid_restart`.
 * Q: How to check that Vulkan backend is really active? A: `gfxinfo` console command reports information about active rendering backend.
 
 ## Visual Studio
