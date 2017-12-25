@@ -125,8 +125,8 @@ static void DrawTris (shaderCommands_t *input) {
 	// DX12
 	if (dx.active) {
 		Com_Memset(tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
-		auto pipeline_state = backEnd.viewParms.isMirror ? dx.tris_mirror_debug_pipeline_state : dx.tris_debug_pipeline_state;
-		dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::force_zero, true, false);
+		auto pipeline = backEnd.viewParms.isMirror ? dx.tris_mirror_debug_pipeline : dx.tris_debug_pipeline;
+		dx_shade_geometry(pipeline, false, Vk_Depth_Range::force_zero, true, false);
 	}
 }
 
@@ -184,7 +184,7 @@ static void DrawNormals (shaderCommands_t *input) {
 			}
 			if (dx.active) {
 				dx_bind_geometry();
-				dx_shade_geometry(dx.normals_debug_pipeline_state, false, Vk_Depth_Range::force_zero, false, true);
+				dx_shade_geometry(dx.normals_debug_pipeline, false, Vk_Depth_Range::force_zero, false, true);
 			}
 
 			i += count;
@@ -415,8 +415,8 @@ static void ProjectDlightTexture( void ) {
 
 		// DX12
 		if (dx.active) {
-			auto pipeline_state = dx.dlight_pipeline_states[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
-			dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal, true, false);
+			auto pipeline = dx.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+			dx_shade_geometry(pipeline, false, Vk_Depth_Range::normal, true, false);
 		}
 	}
 }
@@ -467,8 +467,8 @@ static void RB_FogPass( void ) {
 	// DX12
 	if (dx.active) {
 		assert(tess.shader->fogPass > 0);
-		auto pipeline_state = dx.fog_pipeline_states[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
-		dx_shade_geometry(pipeline_state, false, Vk_Depth_Range::normal, true, false);
+		auto pipeline = dx.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+		dx_shade_geometry(pipeline, false, Vk_Depth_Range::normal, true, false);
 	}
 }
 
@@ -849,11 +849,11 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 
 		// DX12
 		if (dx.active) {
-			ID3D12PipelineState* pipeline_state = pStage->dx_pipeline_state;
+			ID3D12PipelineState* pipeline = pStage->dx_pipeline;
 			if (backEnd.viewParms.isMirror)
-				pipeline_state = pStage->dx_mirror_pipeline_state;
+				pipeline = pStage->dx_mirror_pipeline;
 			else if (backEnd.viewParms.isPortal)
-				pipeline_state = pStage->dx_portal_pipeline_state;
+				pipeline = pStage->dx_portal_pipeline;
 
 			Vk_Depth_Range depth_range = Vk_Depth_Range::normal;
 			if (input->shader->isSky) {
@@ -864,7 +864,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 				depth_range = Vk_Depth_Range::weapon;
 			}
 
-			dx_shade_geometry(pipeline_state, multitexture, depth_range, true, false);
+			dx_shade_geometry(pipeline, multitexture, depth_range, true, false);
 		}
 
 		// allow skipping out to show just lightmaps during development

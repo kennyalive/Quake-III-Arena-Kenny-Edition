@@ -424,7 +424,7 @@ void dx_initialize() {
 			def.polygon_offset = false;
 			def.clipping_plane = false;
 			def.mirror = false;
-			dx.skybox_pipeline_state = create_pipeline(def);
+			dx.skybox_pipeline = create_pipeline(def);
 		}
 
 		// Q3 stencil shadows
@@ -444,7 +444,7 @@ void dx_initialize() {
 					def.face_culling = cull_types[i];
 					for (int j = 0; j < 2; j++) {
 						def.mirror = mirror_flags[j];
-						dx.shadow_volume_pipeline_states[i][j] = create_pipeline(def);
+						dx.shadow_volume_pipelines[i][j] = create_pipeline(def);
 					}
 				}
 			}
@@ -458,7 +458,7 @@ void dx_initialize() {
 				def.clipping_plane = false;
 				def.mirror = false;
 				def.shadow_phase = Vk_Shadow_Phase::fullscreen_quad_rendering;
-				dx.shadow_finish_pipeline_state = create_pipeline(def);
+				dx.shadow_finish_pipeline = create_pipeline(def);
 			}
 		}
 
@@ -490,10 +490,10 @@ void dx_initialize() {
 						def.polygon_offset = polygon_offset[k];
 
 						def.state_bits = fog_state;
-						dx.fog_pipeline_states[i][j][k] = create_pipeline(def);
+						dx.fog_pipelines[i][j][k] = create_pipeline(def);
 
 						def.state_bits = dlight_state;
-						dx.dlight_pipeline_states[i][j][k] = create_pipeline(def);
+						dx.dlight_pipelines[i][j][k] = create_pipeline(def);
 					}
 				}
 			}
@@ -503,35 +503,35 @@ void dx_initialize() {
 		{
 			Vk_Pipeline_Def def;
 			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
-			dx.tris_debug_pipeline_state = create_pipeline(def);
+			dx.tris_debug_pipeline = create_pipeline(def);
 		}
 		{
 			Vk_Pipeline_Def def;
 			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE;
 			def.face_culling = CT_BACK_SIDED;
-			dx.tris_mirror_debug_pipeline_state = create_pipeline(def);
+			dx.tris_mirror_debug_pipeline = create_pipeline(def);
 		}
 		{
 			Vk_Pipeline_Def def;
 			def.state_bits = GLS_DEPTHMASK_TRUE;
 			def.line_primitives = true;
-			dx.normals_debug_pipeline_state = create_pipeline(def);
+			dx.normals_debug_pipeline = create_pipeline(def);
 		}
 		{
 			Vk_Pipeline_Def def;
 			def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
-			dx.surface_debug_pipeline_state_solid = create_pipeline(def);
+			dx.surface_debug_pipeline_solid = create_pipeline(def);
 		}
 		{
 			Vk_Pipeline_Def def;
 			def.state_bits = GLS_POLYMODE_LINE | GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE;
 			def.line_primitives = true;
-			dx.surface_debug_pipeline_state_outline = create_pipeline(def);
+			dx.surface_debug_pipeline_outline = create_pipeline(def);
 		}
 		{
 			Vk_Pipeline_Def def;
 			def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
-			dx.images_debug_pipeline_state = create_pipeline(def);
+			dx.images_debug_pipeline = create_pipeline(def);
 		}
 	}
 
@@ -546,14 +546,14 @@ void dx_shutdown() {
 	}
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 2; j++) {
-			dx.shadow_volume_pipeline_states[i][j]->Release();
+			dx.shadow_volume_pipelines[i][j]->Release();
 		}
 	}
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 3; j++) {
 			for (int k = 0; k < 2; k++) {
-				dx.fog_pipeline_states[i][j][k]->Release();
-				dx.dlight_pipeline_states[i][j][k]->Release();
+				dx.fog_pipelines[i][j][k]->Release();
+				dx.dlight_pipelines[i][j][k]->Release();
 			}
 		}
 	}
@@ -571,14 +571,14 @@ void dx_shutdown() {
 	dx.depth_stencil_buffer->Release();
 	dx.dsv_heap->Release();
 	dx.geometry_buffer->Release();
-	dx.skybox_pipeline_state->Release();
-	dx.shadow_finish_pipeline_state->Release();
-	dx.tris_debug_pipeline_state->Release();
-	dx.tris_mirror_debug_pipeline_state->Release();
-	dx.normals_debug_pipeline_state->Release();
-	dx.surface_debug_pipeline_state_solid->Release();
-	dx.surface_debug_pipeline_state_outline->Release();
-	dx.images_debug_pipeline_state->Release();
+	dx.skybox_pipeline->Release();
+	dx.shadow_finish_pipeline->Release();
+	dx.tris_debug_pipeline->Release();
+	dx.tris_mirror_debug_pipeline->Release();
+	dx.normals_debug_pipeline->Release();
+	dx.surface_debug_pipeline_solid->Release();
+	dx.surface_debug_pipeline_outline->Release();
+	dx.images_debug_pipeline->Release();
 
 	dx.device->Release();
 
@@ -589,8 +589,8 @@ void dx_release_resources() {
 	dx_wait_device_idle();
 
 	dx_world.pipeline_create_time = 0.0f;
-	for (int i = 0; i < dx_world.num_pipeline_states; i++) {
-		dx_world.pipeline_states[i]->Release();
+	for (int i = 0; i < dx_world.num_pipelines; i++) {
+		dx_world.pipelines[i]->Release();
 	}
 
 	for (int i = 0; i < MAX_VK_IMAGES; i++) {
@@ -1034,9 +1034,9 @@ static ID3D12PipelineState* create_pipeline(const Vk_Pipeline_Def& def) {
 	pipeline_desc.SampleDesc.Count = 1;
 	pipeline_desc.SampleDesc.Quality = 0;
 
-	ID3D12PipelineState* pipeline_state;
-	DX_CHECK(dx.device->CreateGraphicsPipelineState(&pipeline_desc, IID_PPV_ARGS(&pipeline_state)));
-	return pipeline_state;
+	ID3D12PipelineState* pipeline;
+	DX_CHECK(dx.device->CreateGraphicsPipelineState(&pipeline_desc, IID_PPV_ARGS(&pipeline)));
+	return pipeline;
 }
 
 struct Timer {
@@ -1112,7 +1112,7 @@ void dx_create_sampler_descriptor(const Vk_Sampler_Def& def, Dx_Sampler_Index sa
 }
 
 ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) {
-	for (int i = 0; i < dx_world.num_pipeline_states; i++) {
+	for (int i = 0; i < dx_world.num_pipelines; i++) {
 		const auto& cur_def = dx_world.pipeline_defs[i];
 
 		if (cur_def.shader_type == def.shader_type &&
@@ -1124,22 +1124,22 @@ ID3D12PipelineState* dx_find_pipeline(const Vk_Pipeline_Def& def) {
 			cur_def.line_primitives == def.line_primitives &&
 			cur_def.shadow_phase == def.shadow_phase)
 		{
-			return dx_world.pipeline_states[i];
+			return dx_world.pipelines[i];
 		}
 	}
 
-	if (dx_world.num_pipeline_states >= MAX_VK_PIPELINES) {
+	if (dx_world.num_pipelines >= MAX_VK_PIPELINES) {
 		ri.Error(ERR_DROP, "dx_find_pipeline: MAX_VK_PIPELINES hit\n");
 	}
 
 	Timer t;
-	ID3D12PipelineState* pipeline_state = create_pipeline(def);
+	ID3D12PipelineState* pipeline = create_pipeline(def);
 	dx_world.pipeline_create_time += t.elapsed_seconds();
 
-	dx_world.pipeline_defs[dx_world.num_pipeline_states] = def;
-	dx_world.pipeline_states[dx_world.num_pipeline_states] = pipeline_state;
-	dx_world.num_pipeline_states++;
-	return pipeline_state;
+	dx_world.pipeline_defs[dx_world.num_pipelines] = def;
+	dx_world.pipelines[dx_world.num_pipelines] = pipeline;
+	dx_world.num_pipelines++;
+	return pipeline;
 }
 
 static void get_mvp_transform(float* mvp) {
@@ -1337,7 +1337,7 @@ void dx_bind_geometry() {
 	dx.command_list->SetGraphicsRoot32BitConstants(0, root_constant_count, root_constants, 0);
 }
 
-void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, Vk_Depth_Range depth_range, bool indexed, bool lines) {
+void dx_shade_geometry(ID3D12PipelineState* pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed, bool lines) {
 	// color
 	{
 		if ((dx.color_st_elements + tess.numVertexes) * sizeof(color4ub_t) > COLOR_SIZE)
@@ -1410,7 +1410,7 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline_state, bool multitexture, V
 	//
 	// Configure pipeline.
 	//
-	dx.command_list->SetPipelineState(pipeline_state);
+	dx.command_list->SetPipelineState(pipeline);
 	dx.command_list->IASetPrimitiveTopology(lines ? D3D10_PRIMITIVE_TOPOLOGY_LINELIST : D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	D3D12_RECT scissor_rect = get_scissor_rect();

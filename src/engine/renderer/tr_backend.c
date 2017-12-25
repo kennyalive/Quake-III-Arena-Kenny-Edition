@@ -908,16 +908,22 @@ const void	*RB_DrawBuffer( const void *data ) {
 
 	// clear screen for debugging
 	if ( r_clear->integer ) {
-		qglClearColor( 1, 0, 0.5, 1 );
+		float color[4] = {1, 0, 0.5, 1};
+
+		qglClearColor( color[0], color[1], color[2], color[3] );
 		qglClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 		// VULKAN
-		RB_SetGL2D(); // to ensure we have viewport that occupies entire window
-		float color[4] = {1, 0, 0.5, 1};
-		vk_clear_attachments(false, true, color);
+		if (vk.active) {
+			RB_SetGL2D(); // to ensure we have viewport that occupies entire window
+			vk_clear_attachments(false, true, color);
+		}
 
 		// DX12
-		dx_clear_attachments(false, true, color);
+		if (dx.active) {
+			RB_SetGL2D(); // to ensure we have viewport that occupies entire window
+			dx_clear_attachments(false, true, color);
+		}
 	}
 
 	return (const void *)(cmd + 1);
@@ -1060,7 +1066,7 @@ void RB_Show_Vk_Dx_Images() {
 		}
 		if (dx.active) {
 			dx_bind_geometry();
-			dx_shade_geometry(dx.images_debug_pipeline_state, false, Vk_Depth_Range::normal, true, false);
+			dx_shade_geometry(dx.images_debug_pipeline, false, Vk_Depth_Range::normal, true, false);
 		}
 	}
 	tess.numIndexes = 0;

@@ -2185,21 +2185,21 @@ static shader_t *FinishShader( void ) {
 			if (vk.active)
 				pStage->vk_pipeline = vk_find_pipeline(def);
 			if (dx.active)
-				pStage->dx_pipeline_state = dx_find_pipeline(def);
+				pStage->dx_pipeline = dx_find_pipeline(def);
 
 			def.clipping_plane = true;
 			def.mirror = false;
 			if (vk.active)
 				pStage->vk_portal_pipeline = vk_find_pipeline(def);
 			if (dx.active)
-				pStage->dx_portal_pipeline_state = dx_find_pipeline(def);
+				pStage->dx_portal_pipeline = dx_find_pipeline(def);
 
 			def.clipping_plane = true;
 			def.mirror = true;
 			if (vk.active)
 				pStage->vk_mirror_pipeline = vk_find_pipeline(def);
 			if (dx.active)
-				pStage->dx_mirror_pipeline_state = dx_find_pipeline(def);
+				pStage->dx_mirror_pipeline = dx_find_pipeline(def);
 		}
 	}
 

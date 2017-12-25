@@ -115,7 +115,7 @@ static void R_GL_RenderShadowEdges() {
 
 // VULKAN
 // DX12
-static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineState* dx_pipeline_state) {
+static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineState* dx_pipeline) {
 	if (!vk.active && !dx.active)
 		return;
 
@@ -150,7 +150,7 @@ static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineStat
 		}
 		if (dx.active) {
 			dx_bind_geometry();
-			dx_shade_geometry(dx_pipeline_state, false, Vk_Depth_Range::normal, true, false);
+			dx_shade_geometry(dx_pipeline, false, Vk_Depth_Range::normal, true, false);
 		}
 
 		i += count;
@@ -252,8 +252,8 @@ void RB_ShadowTessEnd( void ) {
 
 		// VULKAN
 		// DX12
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][1], dx.shadow_volume_pipeline_states[0][1]);
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][1], dx.shadow_volume_pipeline_states[1][1]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][1], dx.shadow_volume_pipelines[0][1]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][1], dx.shadow_volume_pipelines[1][1]);
 	} else {
 		qglCullFace( GL_BACK );
 		qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
@@ -265,8 +265,8 @@ void RB_ShadowTessEnd( void ) {
 
 		// VULKAN
 		// DX12
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][0], dx.shadow_volume_pipeline_states[0][0]);
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][0], dx.shadow_volume_pipeline_states[1][0]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][0], dx.shadow_volume_pipelines[0][0]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][0], dx.shadow_volume_pipelines[1][0]);
 	}
 
 	qglDisable(GL_STENCIL_TEST);
@@ -366,7 +366,7 @@ void RB_ShadowFinish( void ) {
 			dx_world.modelview_transform[15] = 1.0f;
 
 			dx_bind_geometry();
-			dx_shade_geometry(dx.shadow_finish_pipeline_state, false, Vk_Depth_Range::normal, true, false);
+			dx_shade_geometry(dx.shadow_finish_pipeline, false, Vk_Depth_Range::normal, true, false);
 
 			Com_Memcpy(dx_world.modelview_transform, tmp, 64);
 		}

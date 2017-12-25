@@ -1465,7 +1465,7 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	vk_shade_geometry(vk.surface_debug_pipeline_solid, false, Vk_Depth_Range::normal);
 
 	dx_bind_geometry();
-	dx_shade_geometry(dx.surface_debug_pipeline_state_solid, false, Vk_Depth_Range::normal, true, false);
+	dx_shade_geometry(dx.surface_debug_pipeline_solid, false, Vk_Depth_Range::normal, true, false);
 
 	// Outline.
 	Com_Memset(tess.svars.colors, tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
@@ -1481,7 +1481,7 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	vk_shade_geometry(vk.surface_debug_pipeline_outline, false, Vk_Depth_Range::force_zero, false);
 
 	dx_bind_geometry();
-	dx_shade_geometry(dx.surface_debug_pipeline_state_outline, false, Vk_Depth_Range::force_zero, false, true);
+	dx_shade_geometry(dx.surface_debug_pipeline_outline, false, Vk_Depth_Range::force_zero, false, true);
 
 	tess.numVertexes = 0;
 }
