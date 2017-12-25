@@ -392,6 +392,8 @@ void RB_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
 			buffer2_ptr += 4;
 		}
 		ri.Hunk_FreeTempMemory(buffer2);
+	} else if (r_renderAPI->integer == 2) { // DX12
+		ri.Printf(PRINT_WARNING, "RT_TakeScreenshot is not implemented for DX12");
 	}
 
 	// swap rgb to bgr
@@ -424,6 +426,8 @@ void RB_TakeScreenshotJPEG( int x, int y, int width, int height, char *fileName 
 		qglReadPixels( x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer ); 
 	} else if (r_renderAPI->integer == 1) { // VULKAN
 		vk_read_pixels(buffer);
+	} else if (r_renderAPI->integer == 2) { // DX12
+		ri.Printf(PRINT_WARNING, "RT_TakeScreenshotJPEG is not implemented for DX12");
 	}
 
 	// gamma correct
@@ -574,6 +578,8 @@ void R_LevelShot( void ) {
 			buffer2_ptr += 4;
 		}
 		ri.Hunk_FreeTempMemory(buffer2);
+	} else if (r_renderAPI->integer == 2) { // DX12
+		ri.Printf(PRINT_WARNING, "R_LevelShot is not implemented for DX12");
 	}
 
 	// resample from source
@@ -842,6 +848,11 @@ void GfxInfo_f( void )
 		ri.Printf(PRINT_ALL, "Vk device id: 0x%X\n", props.deviceID);
 		ri.Printf(PRINT_ALL, "Vk device type: %s\n", device_type);
 		ri.Printf(PRINT_ALL, "Vk device name: %s\n", props.deviceName);
+	}
+
+	// DX12
+	if (dx.active) {
+		ri.Printf( PRINT_ALL, "\nActive 3D API: DirectX 12\n" );
 	}
 
 	//
@@ -1159,6 +1170,11 @@ void RE_EndRegistration( void ) {
 	// VULKAN
 	if (vk.active) {
 		ri.Printf(PRINT_ALL, "Vulkan: pipelines create time %d msec\n", (int)(vk_world.pipeline_create_time * 1000));
+	}
+
+	// DX12
+	if (dx.active) {
+		ri.Printf(PRINT_ALL, "DX12: pipelines create time %d msec\n", (int)(dx_world.pipeline_create_time * 1000));
 	}
 }
 

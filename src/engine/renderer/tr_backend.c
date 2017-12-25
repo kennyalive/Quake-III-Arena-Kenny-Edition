@@ -386,8 +386,9 @@ static void RB_Hyperspace( void ) {
 	qglClearColor( c, c, c, 1 );
 	qglClear( GL_COLOR_BUFFER_BIT );
 
-	// VULKAN
 	float color[4] = { c, c, c, 1 };
+
+	// VULKAN
 	vk_clear_attachments(false, true, color);
 
 	// DX12

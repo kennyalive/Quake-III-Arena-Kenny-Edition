@@ -701,65 +701,6 @@ static int upload_gl_image(const Image_Upload_Data& upload_data, int texture_add
 	return internal_format;
 }
 
-// DX12
-static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repeat_texture, int image_index) {
-	int w = upload_data.base_level_width;
-	int h = upload_data.base_level_height;
-
-	bool has_alpha = false;
-	for (int i = 0; i < w * h; i++) {
-		if (upload_data.buffer[i*4 + 3] != 255)  {
-			has_alpha = true;
-			break;
-		}
-	}
-
-	byte* buffer = upload_data.buffer;
-	Dx_Image_Format format = IMAGE_FORMAT_RGBA8;
-	int bytes_per_pixel = 4;
-
-	if (r_texturebits->integer <= 16) {
-		buffer = (byte*) ri.Hunk_AllocateTempMemory( upload_data.buffer_size / 2 );
-		format = has_alpha ? IMAGE_FORMAT_BGRA4 : IMAGE_FORMAT_BGR5A1;
-		bytes_per_pixel = 2;
-	}
-
-	if (format == IMAGE_FORMAT_BGR5A1) {
-		auto p = (uint16_t*)buffer;
-		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
-			byte r = upload_data.buffer[i+0];
-			byte g = upload_data.buffer[i+1];
-			byte b = upload_data.buffer[i+2];
-
-			*p = (uint32_t((b/255.0) * 31.0 + 0.5) << 0)  |
-				 (uint32_t((g/255.0) * 31.0 + 0.5) << 5)  |
-				 (uint32_t((r/255.0) * 31.0 + 0.5) << 10) |
-				 (1 << 15);
-		}
-	} else if (format == IMAGE_FORMAT_BGRA4) {
-		auto p = (uint16_t*)buffer;
-		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
-			byte r = upload_data.buffer[i+0];
-			byte g = upload_data.buffer[i+1];
-			byte b = upload_data.buffer[i+2];
-			byte a = upload_data.buffer[i+3];
-
-			*p =(uint32_t((b/255.0) * 15.0 + 0.5) << 0) |
-				(uint32_t((g/255.0) * 15.0 + 0.5) << 4) |
-				(uint32_t((r/255.0) * 15.0 + 0.5) << 8) |
-				(uint32_t((a/255.0) * 15.0 + 0.5) << 12);
-		}
-	}
-
-	Dx_Image image = dx_create_image(w, h, format, upload_data.mip_levels, repeat_texture, image_index);
-	dx_upload_image_data(image.texture, w, h, upload_data.mip_levels, buffer, bytes_per_pixel);
-
-	if (bytes_per_pixel == 2)
-		ri.Hunk_FreeTempMemory(buffer);
-
-	return image;
-}
-
 // VULKAN
 static Vk_Image upload_vk_image(const Image_Upload_Data& upload_data, bool repeat_texture) {
 	int w = upload_data.base_level_width;
@@ -812,6 +753,65 @@ static Vk_Image upload_vk_image(const Image_Upload_Data& upload_data, bool repea
 
 	Vk_Image image = vk_create_image(w, h, format, upload_data.mip_levels, repeat_texture);
 	vk_upload_image_data(image.handle, w, h, upload_data.mip_levels > 1, buffer, bytes_per_pixel);
+
+	if (bytes_per_pixel == 2)
+		ri.Hunk_FreeTempMemory(buffer);
+
+	return image;
+}
+
+// DX12
+static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repeat_texture, int image_index) {
+	int w = upload_data.base_level_width;
+	int h = upload_data.base_level_height;
+
+	bool has_alpha = false;
+	for (int i = 0; i < w * h; i++) {
+		if (upload_data.buffer[i*4 + 3] != 255)  {
+			has_alpha = true;
+			break;
+		}
+	}
+
+	byte* buffer = upload_data.buffer;
+	Dx_Image_Format format = IMAGE_FORMAT_RGBA8;
+	int bytes_per_pixel = 4;
+
+	if (r_texturebits->integer <= 16) {
+		buffer = (byte*) ri.Hunk_AllocateTempMemory( upload_data.buffer_size / 2 );
+		format = has_alpha ? IMAGE_FORMAT_BGRA4 : IMAGE_FORMAT_BGR5A1;
+		bytes_per_pixel = 2;
+	}
+
+	if (format == IMAGE_FORMAT_BGR5A1) {
+		auto p = (uint16_t*)buffer;
+		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
+			byte r = upload_data.buffer[i+0];
+			byte g = upload_data.buffer[i+1];
+			byte b = upload_data.buffer[i+2];
+
+			*p = (uint32_t((b/255.0) * 31.0 + 0.5) << 0)  |
+				 (uint32_t((g/255.0) * 31.0 + 0.5) << 5)  |
+				 (uint32_t((r/255.0) * 31.0 + 0.5) << 10) |
+				 (1 << 15);
+		}
+	} else if (format == IMAGE_FORMAT_BGRA4) {
+		auto p = (uint16_t*)buffer;
+		for (int i = 0; i < upload_data.buffer_size; i += 4, p++) {
+			byte r = upload_data.buffer[i+0];
+			byte g = upload_data.buffer[i+1];
+			byte b = upload_data.buffer[i+2];
+			byte a = upload_data.buffer[i+3];
+
+			*p =(uint32_t((b/255.0) * 15.0 + 0.5) << 0) |
+				(uint32_t((g/255.0) * 15.0 + 0.5) << 4) |
+				(uint32_t((r/255.0) * 15.0 + 0.5) << 8) |
+				(uint32_t((a/255.0) * 15.0 + 0.5) << 12);
+		}
+	}
+
+	Dx_Image image = dx_create_image(w, h, format, upload_data.mip_levels, repeat_texture, image_index);
+	dx_upload_image_data(image.texture, w, h, upload_data.mip_levels, buffer, bytes_per_pixel);
 
 	if (bytes_per_pixel == 2)
 		ri.Hunk_FreeTempMemory(buffer);

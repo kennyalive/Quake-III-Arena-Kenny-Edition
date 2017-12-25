@@ -825,12 +825,19 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		}
 
 		// VULKAN
-		if (vk.active) {
-			VkPipeline pipeline = pStage->vk_pipeline;
-			if (backEnd.viewParms.isMirror)
-				pipeline = pStage->vk_mirror_pipeline;
-			else if (backEnd.viewParms.isPortal)
-				pipeline = pStage->vk_portal_pipeline;
+		// DX12
+		if (vk.active || dx.active) {
+			VkPipeline vk_pipeline = pStage->vk_pipeline;
+			ID3D12PipelineState* dx_pipeline = pStage->dx_pipeline;
+
+			if (backEnd.viewParms.isMirror) {
+				vk_pipeline = pStage->vk_mirror_pipeline;
+				dx_pipeline = pStage->dx_mirror_pipeline;
+			}
+			else if (backEnd.viewParms.isPortal) {
+				vk_pipeline = pStage->vk_portal_pipeline;
+				dx_pipeline = pStage->dx_portal_pipeline;
+			}
 
 			Vk_Depth_Range depth_range = Vk_Depth_Range::normal;
 			if (input->shader->isSky) {
@@ -844,28 +851,11 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			if (r_lightmap->integer && multitexture)
 				GL_Bind(tr.whiteImage); // replace diffuse texture with a white one thus effectively render only lightmap
 
-            vk_shade_geometry(pipeline, multitexture, depth_range);
+			if (vk.active)
+				vk_shade_geometry(vk_pipeline, multitexture, depth_range);
+			if (dx.active)
+				dx_shade_geometry(dx_pipeline, multitexture, depth_range, true, false);
         }
-
-		// DX12
-		if (dx.active) {
-			ID3D12PipelineState* pipeline = pStage->dx_pipeline;
-			if (backEnd.viewParms.isMirror)
-				pipeline = pStage->dx_mirror_pipeline;
-			else if (backEnd.viewParms.isPortal)
-				pipeline = pStage->dx_portal_pipeline;
-
-			Vk_Depth_Range depth_range = Vk_Depth_Range::normal;
-			if (input->shader->isSky) {
-				depth_range = Vk_Depth_Range::force_one;
-				if (r_showsky->integer)
-					depth_range = Vk_Depth_Range::force_zero;
-			} else if (backEnd.currentEntity->e.renderfx & RF_DEPTHHACK) {
-				depth_range = Vk_Depth_Range::weapon;
-			}
-
-			dx_shade_geometry(pipeline, multitexture, depth_range, true, false);
-		}
 
 		// allow skipping out to show just lightmaps during development
 		if ( r_lightmap->integer && ( pStage->bundle[0].isLightmap || pStage->bundle[1].isLightmap ) )
