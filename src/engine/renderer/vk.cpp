@@ -44,6 +44,8 @@ PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR	vkGetPhysicalDeviceSurfaceCapabili
 PFN_vkGetPhysicalDeviceSurfaceFormatsKHR		vkGetPhysicalDeviceSurfaceFormatsKHR;
 PFN_vkGetPhysicalDeviceSurfacePresentModesKHR	vkGetPhysicalDeviceSurfacePresentModesKHR;
 PFN_vkGetPhysicalDeviceSurfaceSupportKHR		vkGetPhysicalDeviceSurfaceSupportKHR;
+PFN_vkCreateDebugReportCallbackEXT				vkCreateDebugReportCallbackEXT;
+PFN_vkDestroyDebugReportCallbackEXT				vkDestroyDebugReportCallbackEXT;
 
 PFN_vkAllocateCommandBuffers					vkAllocateCommandBuffers;
 PFN_vkAllocateDescriptorSets					vkAllocateDescriptorSets;
@@ -441,40 +443,58 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 	vk_world.staging_buffer_ptr = (byte*)data;
 }
 
+static VkBool32 debug_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT object_type, uint64_t object, size_t location,
+	int32_t message_code, const char* layer_prefix, const char* message, void* user_data) {
+	
+	OutputDebugString(message);
+	OutputDebugString("\n");
+	DebugBreak();
+	return VK_FALSE;
+}
+
 static void create_instance() {
 	const char* instance_extensions[] = {
 		VK_KHR_SURFACE_EXTENSION_NAME,
-		VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+		VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+#ifndef NDEBUG
+		VK_EXT_DEBUG_REPORT_EXTENSION_NAME
+#endif
 	};
 
-	uint32_t count = 0;
-	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
-	std::vector<VkExtensionProperties> extension_properties(count);
-	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, extension_properties.data()));
+	// check extensions availability
+	{
+		uint32_t count = 0;
+		VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
+		std::vector<VkExtensionProperties> extension_properties(count);
+		VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, extension_properties.data()));
 
-	for (auto name : instance_extensions) {
-		bool supported = false;
-		for (const auto& property : extension_properties) {
-			if (!strcmp(property.extensionName, name)) {
-				supported = true;
-				break;
+		for (auto name : instance_extensions) {
+			bool supported = false;
+			for (const auto& property : extension_properties) {
+				if (!strcmp(property.extensionName, name)) {
+					supported = true;
+					break;
+				}
 			}
+			if (!supported)
+				ri.Error(ERR_FATAL, "Vulkan: required instance extension is not available: %s", name);
 		}
-		if (!supported)
-			ri.Error(ERR_FATAL, "Vulkan: required instance extension is not available: %s", name);
 	}
 
-	VkInstanceCreateInfo desc;
-	desc.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	desc.pNext = nullptr;
-	desc.flags = 0;
-	desc.pApplicationInfo = nullptr;
-	desc.enabledLayerCount = 0;
-	desc.ppEnabledLayerNames = nullptr;
-	desc.enabledExtensionCount = sizeof(instance_extensions)/sizeof(instance_extensions[0]);
-	desc.ppEnabledExtensionNames = instance_extensions;
+	// create instance
+	{
+		VkInstanceCreateInfo desc;
+		desc.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		desc.pNext = nullptr;
+		desc.flags = 0;
+		desc.pApplicationInfo = nullptr;
+		desc.enabledLayerCount = 0;
+		desc.ppEnabledLayerNames = nullptr;
+		desc.enabledExtensionCount = sizeof(instance_extensions)/sizeof(instance_extensions[0]);
+		desc.ppEnabledExtensionNames = instance_extensions;
 
-	VK_CHECK(vkCreateInstance(&desc, nullptr, &vk.instance));
+		VK_CHECK(vkCreateInstance(&desc, nullptr, &vk.instance));
+	}
 }
 
 static void create_device() {
@@ -616,6 +636,26 @@ static void init_vulkan_library() {
 	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR)
 	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR)
 	INIT_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR)
+	INIT_INSTANCE_FUNCTION(vkCreateDebugReportCallbackEXT)
+	INIT_INSTANCE_FUNCTION(vkDestroyDebugReportCallbackEXT)
+
+	//
+	// Create debug callback.
+	// 
+#ifndef NDEBUG
+	{
+		VkDebugReportCallbackCreateInfoEXT desc;
+		desc.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+		desc.pNext = nullptr;
+		desc.flags = VK_DEBUG_REPORT_WARNING_BIT_EXT |
+					 VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
+					 VK_DEBUG_REPORT_ERROR_BIT_EXT;
+		desc.pfnCallback = &debug_callback;
+		desc.pUserData = nullptr;
+
+		VK_CHECK(vkCreateDebugReportCallbackEXT(vk.instance, &desc, nullptr, &vk.debug_callback));
+	}
+#endif
 
 	//
 	// Get device level functions.
@@ -719,6 +759,10 @@ static void deinit_vulkan_library() {
 	vkGetPhysicalDeviceSurfaceFormatsKHR		= nullptr;
 	vkGetPhysicalDeviceSurfacePresentModesKHR	= nullptr;
 	vkGetPhysicalDeviceSurfaceSupportKHR		= nullptr;
+#ifndef NDEBUG
+	vkCreateDebugReportCallbackEXT				= nullptr;
+	vkDestroyDebugReportCallbackEXT				= nullptr;
+#endif
 
 	vkAllocateCommandBuffers					= nullptr;
 	vkAllocateDescriptorSets					= nullptr;
@@ -1332,6 +1376,11 @@ void vk_shutdown() {
 	vkDestroySwapchainKHR(vk.device, vk.swapchain, nullptr);
 	vkDestroyDevice(vk.device, nullptr);
 	vkDestroySurfaceKHR(vk.instance, vk.surface, nullptr);
+
+#ifndef NDEBUG
+	vkDestroyDebugReportCallbackEXT(vk.instance, vk.debug_callback, nullptr);
+#endif
+
 	vkDestroyInstance(vk.instance, nullptr);
 
 	Com_Memset(&vk, 0, sizeof(vk));
