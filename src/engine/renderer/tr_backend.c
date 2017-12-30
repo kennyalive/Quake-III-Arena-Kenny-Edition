@@ -756,7 +756,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			// VULKAN
 			if (vk.active) {
 				const Vk_Image& image = vk_world.images[tr.scratchImage[client]->index];
-				vk_upload_image_data(image.handle, cols, rows, 1, data, 4);
+				vk_upload_image_data(image.handle, cols, rows, false, data, 4);
 			}
 			// DX12
 			if (dx.active) {
