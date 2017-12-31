@@ -198,15 +198,13 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
 	if (mailbox_supported) {
 		present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
 		image_count = std::max(3u, surface_caps.minImageCount);
-		if (surface_caps.maxImageCount > 0) {
-			image_count = std::min(image_count, surface_caps.maxImageCount);
-		}
-	} else if (immediate_supported) {
-		present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-		image_count = surface_caps.minImageCount;
 	} else {
-		present_mode = VK_PRESENT_MODE_FIFO_KHR;
-		image_count = surface_caps.minImageCount;
+		present_mode = immediate_supported ? VK_PRESENT_MODE_IMMEDIATE_KHR : VK_PRESENT_MODE_FIFO_KHR;
+		image_count = std::max(2u, surface_caps.minImageCount);
+	}
+
+	if (surface_caps.maxImageCount > 0) {
+		image_count = std::min(image_count, surface_caps.maxImageCount);
 	}
 
 	// create swap chain
