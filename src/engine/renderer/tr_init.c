@@ -211,7 +211,10 @@ static void InitRenderAPI( void )
 #endif
 
 		// OpenGL
-		if (get_render_api() == RENDER_API_GL || (r_twinMode->integer&1)) {
+		if (get_render_api() == RENDER_API_GL ||
+			r_twinMode->integer == 1 && get_render_api() == RENDER_API_DX ||
+			r_twinMode->integer == 2)
+		{
 			GLimp_Init();
 
 			GLint temp;
@@ -222,14 +225,20 @@ static void InitRenderAPI( void )
 		}
 
 		// VULKAN
-		if (get_render_api() == RENDER_API_VK || (r_twinMode->integer&2)) {
+		if (get_render_api() == RENDER_API_VK ||
+			r_twinMode->integer == 1 && get_render_api() == RENDER_API_GL ||
+			r_twinMode->integer == 2)
+		{
 			vk_imp_init();
 			vk_initialize();
 		}
 
 		// DX12
 #ifndef DISABLE_DX12
-		if (get_render_api() == RENDER_API_DX || (r_twinMode->integer&4)) {
+		if (get_render_api() == RENDER_API_DX ||
+			r_twinMode->integer == 1 && get_render_api() == RENDER_API_VK ||
+			r_twinMode->integer == 2)
+		{
 			dx_imp_init();
 			dx_initialize();
 		}

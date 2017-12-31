@@ -494,9 +494,7 @@ static HWND create_twin_window(int width, int height, RenderApi render_api)
     cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
 	int x, y;
 
-	bool show_three_windows = (r_twinMode->integer | (1 << get_render_api())) == 7;
-
-	if (!show_three_windows) { // two windows
+	if (r_twinMode->integer == 1) { // two windows
 		x = vid_xpos->integer + width + 5; // offset to the right of the main window
 		y = vid_ypos->integer;
 	} else { // three windows

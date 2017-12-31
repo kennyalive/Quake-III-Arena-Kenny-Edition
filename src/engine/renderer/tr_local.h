@@ -958,14 +958,12 @@ RenderApi get_render_api();
 //
 extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan, 2 - DX12
 
-extern cvar_t	*r_twinMode;			// Allows to render the same frame in different windows using different graphics APIs.
-										// This cvar specifies a bitmask that determines which APIs.
-										// 0 - regular rendering with single window using the graphics API specified by r_renderAPI.
-										// bit 0 - enables OpenGL backend
-										// bit 1 - enables Vulkan backend
-										// bit 2 - enables DX12 backend
-										// Combinations of the above values are allowed, for example, r_twinMode=7 creates three diffent
-										// windows using all the supported APIs.
+extern cvar_t	*r_twinMode;			// Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs.
+										// Possible values:
+										//		r_twinMode=1 : one additional window is created. If the main window uses graphics API
+										//		defined by r_renderAPI then the additional window will use graphics API with index (r_renderAPI+1)%3
+										//
+										//		r_twinMode=2 : two additional windows are created and all 3 graphics APIs are active simultaneously.
 
 extern cvar_t	*r_railWidth;
 extern cvar_t	*r_railCoreWidth;
