@@ -17,13 +17,13 @@ Initially DirectX 12 backend was an exercise to learn this graphics API. It turn
 * **r_renderAPI** - 3D API to use: 0 - OpenGL, 1 - Vulkan, 2 - DX12. Requires vid_restart.
 
 * **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs. Requires vid_restart.
-  * r_twinMode=1 : one additional window is created. If the main window uses graphics API defined by r_renderAPI then the additional window will use graphics API with index (r_renderAPI+1)%3
+  * r_twinMode=1 : one additional window is created. If the main window uses graphics API defined by `r_renderAPI` then the additional window will use graphics API with index `(r_renderAPI+1)%3`
   * r_twinMode=2 : two additional windows are created and all 3 graphics APIs are active simultaneously.
 
 #### Additional information:
 * Q: How to start game with vulkan support? A: `quake3-ke.exe +set r_renderAPI 1`.
 * Q: How to enable vulkan support from Q3 console? A: `\r_renderAPI 1` then `\vid_restart`.
-* Q: How to enable twin mode from Q3 console? A: `\r_twinMode 7` then `\vid_restart`.
+* Q: How to enable twin mode from Q3 console? A: `\r_twinMode 1` or `\r_twinMode 2` then `\vid_restart`.
 * Q: How to check that Vulkan backend is really active? A: `gfxinfo` console command reports information about active rendering backend.
 
 ## Visual Studio
