@@ -2202,9 +2202,6 @@ void vk_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t col
 }
 
 void vk_bind_geometry() {
-	if (!vk.active) 
-		return;
-
 	// xyz stream
 	{
 		if ((vk.xyz_elements + tess.numVertexes) * sizeof(vec4_t) > XYZ_SIZE)

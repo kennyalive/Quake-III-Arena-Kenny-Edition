@@ -773,10 +773,12 @@ static void ComputeTexCoords( shaderStage_t *pStage ) {
 static void RB_IterateStagesGeneric( shaderCommands_t *input )
 {
 	// VULKAN
-	vk_bind_geometry();
+	if (vk.active)
+		vk_bind_geometry();
 
 	// DX12
-	dx_bind_geometry();
+	if (dx.active)
+		dx_bind_geometry();
 
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{

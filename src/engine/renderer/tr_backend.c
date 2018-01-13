@@ -915,14 +915,10 @@ const void	*RB_DrawBuffer( const void *data ) {
 		qglClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 		// VULKAN
-		if (vk.active) {
+		// DX12
+		if (vk.active || dx.active) {
 			RB_SetGL2D(); // to ensure we have viewport that occupies entire window
 			vk_clear_attachments(false, true, color);
-		}
-
-		// DX12
-		if (dx.active) {
-			RB_SetGL2D(); // to ensure we have viewport that occupies entire window
 			dx_clear_attachments(false, true, color);
 		}
 	}
@@ -1006,11 +1002,8 @@ void RB_Show_Vk_Dx_Images() {
 
 	float black[4] = {0, 0, 0, 1};
 
-	if (vk.active)
-		vk_clear_attachments(false, true, black);
-
-	if (dx.active)
-		dx_clear_attachments(false, true, black);
+	vk_clear_attachments(false, true, black);
+	dx_clear_attachments(false, true, black);
 
 
 	for (int i = 0 ; i < tr.numImages ; i++) {

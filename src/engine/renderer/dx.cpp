@@ -1260,9 +1260,6 @@ void dx_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t col
 }
 
 void dx_bind_geometry() {
-	if (!dx.active) 
-		return;
-
 	// xyz stream
 	{
 		if ((dx.xyz_elements + tess.numVertexes) * sizeof(vec4_t) > XYZ_SIZE)
