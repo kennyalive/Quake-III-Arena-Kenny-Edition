@@ -4,7 +4,7 @@
 #include <chrono>
 #include <functional>
 
-#ifndef DISABLE_DX12
+#ifdef ENABLE_DX12
 
 #include "D3d12.h"
 #include "DXGI1_4.h"
@@ -1485,7 +1485,7 @@ void dx_end_frame() {
 	DX_CHECK(dx.swapchain->Present(0, 0));
 }
 
-#else // DISABLE_DX12
+#else // ENABLE_DX12
 
 void dx_initialize() {}
 void dx_shutdown() {}
@@ -1503,4 +1503,4 @@ void dx_shade_geometry(ID3D12PipelineState* pipeline, bool multitexture, Vk_Dept
 void dx_begin_frame() {}
 void dx_end_frame() {}
 
-#endif  // DISABLE_DX12
+#endif  // ENABLE_DX12

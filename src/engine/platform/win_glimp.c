@@ -494,22 +494,16 @@ static HWND create_twin_window(int width, int height, RenderApi render_api)
     cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
 	int x, y;
 
-	if (r_twinMode->integer == 1) { // two windows
-		x = vid_xpos->integer + width + 5; // offset to the right of the main window
-		y = vid_ypos->integer;
-	} else { // three windows
-		bool first_twin_window =
+	bool first_twin_window =
 			(get_render_api() != RENDER_API_GL && render_api == RENDER_API_GL) ||
 			(get_render_api() == RENDER_API_GL && render_api == RENDER_API_VK);
 
-		if (first_twin_window) {
-			x = vid_xpos->integer + width + 5;
-			y = vid_ypos->integer;
-		}  else {
-			x = vid_xpos->integer + 2*width + 10;
-			y = vid_ypos->integer;
-		}
-			
+	if (first_twin_window) {
+		x = vid_xpos->integer + width + 5;
+		y = vid_ypos->integer;
+	}  else {
+		x = vid_xpos->integer + 2*width + 10;
+		y = vid_ypos->integer;
 	}
 
 	int desktop_width = GetDesktopWidth();

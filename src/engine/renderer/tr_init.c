@@ -177,7 +177,7 @@ RenderApi get_render_api() {
 	else if (r_renderAPI->integer == 1)
 		return RENDER_API_VK;
 	else if (r_renderAPI->integer == 2)
-#ifndef DISABLE_DX12
+#ifdef ENABLE_DX12
 		return RENDER_API_DX;
 #else
 		return RENDER_API_GL; // use default (GL) if dx12 is disabled
@@ -204,16 +204,14 @@ static void InitRenderAPI( void )
 	//
 	if ( glConfig.vidWidth == 0 )
 	{
-#ifdef DISABLE_DX12
+#ifndef ENABLE_DX12
 		if (r_renderAPI->integer == 2) {
-			ri.Printf(PRINT_WARNING, "DirectX 12 backend is disabled (code was compiled with DISABLE_DX12). OpenGL backend will be used instead.\n");
+			ri.Printf(PRINT_WARNING, "DirectX 12 backend is disabled (code was compiled without ENABLE_DX12). OpenGL backend will be used instead.\n");
 		}
 #endif
 
 		// OpenGL
-		if (get_render_api() == RENDER_API_GL ||
-			r_twinMode->integer == 1 && get_render_api() == RENDER_API_DX ||
-			r_twinMode->integer == 2)
+		if (get_render_api() == RENDER_API_GL || r_twinMode->integer)
 		{
 			GLimp_Init();
 
@@ -225,19 +223,15 @@ static void InitRenderAPI( void )
 		}
 
 		// VULKAN
-		if (get_render_api() == RENDER_API_VK ||
-			r_twinMode->integer == 1 && get_render_api() == RENDER_API_GL ||
-			r_twinMode->integer == 2)
+		if (get_render_api() == RENDER_API_VK || r_twinMode->integer)
 		{
 			vk_imp_init();
 			vk_initialize();
 		}
 
 		// DX12
-#ifndef DISABLE_DX12
-		if (get_render_api() == RENDER_API_DX ||
-			r_twinMode->integer == 1 && get_render_api() == RENDER_API_VK ||
-			r_twinMode->integer == 2)
+#ifdef ENABLE_DX12
+		if (get_render_api() == RENDER_API_DX || r_twinMode->integer)
 		{
 			dx_imp_init();
 			dx_initialize();
