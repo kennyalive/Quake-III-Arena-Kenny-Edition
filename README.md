@@ -11,14 +11,11 @@ This repository contains updated version of the original Q3 codebase with reorga
 ## Vulkan support 
 Vulkan backend provides the same graphics features as original OpenGL-based one including customization via r_xxx cvars and debug visualization.
 
-## DX12 support
-DirectX 12 backend implementation is provided mostly for educational purposes and is not included in the prebuild binaries. It can be enabled by uncommenting ENABLED_DX12 in dx.h header and recompiling the project. 
-
 #### New cvars:
 * **r_renderAPI** - 3D API to use. Requires vid_restart.
     * 0 - OpenGL
     * 1 - Vulkan
-    * 2 - DX12 (if enabled, see above).
+    * 2 - DX12 (if enabled, see below).
 
 * **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs. Requires vid_restart.
 
@@ -28,9 +25,12 @@ DirectX 12 backend implementation is provided mostly for educational purposes an
 * Q: How to enable twin mode from Q3 console? A: `\r_twinMode 1` or `\r_twinMode 1` then `\vid_restart`.
 * Q: How to check that Vulkan backend is really active? A: `gfxinfo` console command reports information about active rendering backend.
 
+## DX12 support
+DirectX 12 backend implementation is provided mostly for educational purposes and is not included in the prebuild binaries. It can be enabled by uncommenting `ENABLE_DX12` define in `dx.h` header and recompiling the project. 
+
 ## Visual Studio
 The project files are provided for Visual Studio 2017. Free community version is available online.
 
-`visual-studio/quake3.vcxproj.user.example` file is provided with example configuration options to start the game from visual studio and to enable vulkan validation layers.
+To start the game from visual studio in quake3 project's properties go to `Debugging->Command Arguments` and specify command line like the following with the path changed to actual game location: `+set fs_basepath e:/games/quake3`
 
 ![quake3-ke](https://user-images.githubusercontent.com/4964024/28160268-4f0707d4-67c8-11e7-9009-8540789aab0b.jpeg)
