@@ -441,7 +441,7 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 	vk_world.staging_buffer_ptr = (byte*)data;
 }
 
-static VkBool32 debug_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT object_type, uint64_t object, size_t location,
+static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT object_type, uint64_t object, size_t location,
 	int32_t message_code, const char* layer_prefix, const char* message, void* user_data) {
 	
 #ifdef _WIN32
