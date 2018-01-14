@@ -444,9 +444,11 @@ static void ensure_staging_buffer_allocation(VkDeviceSize size) {
 static VkBool32 debug_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT object_type, uint64_t object, size_t location,
 	int32_t message_code, const char* layer_prefix, const char* message, void* user_data) {
 	
+#ifdef _WIN32
 	OutputDebugString(message);
 	OutputDebugString("\n");
 	DebugBreak();
+#endif
 	return VK_FALSE;
 }
 
@@ -490,6 +492,12 @@ static void create_instance() {
 		desc.ppEnabledLayerNames = nullptr;
 		desc.enabledExtensionCount = sizeof(instance_extensions)/sizeof(instance_extensions[0]);
 		desc.ppEnabledExtensionNames = instance_extensions;
+
+#ifndef NDEBUG
+		const char* validation_layer_name = "VK_LAYER_LUNARG_standard_validation";
+		desc.enabledLayerCount = 1;
+		desc.ppEnabledLayerNames = &validation_layer_name;
+#endif
 
 		VK_CHECK(vkCreateInstance(&desc, nullptr, &vk.instance));
 	}
