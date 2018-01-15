@@ -19,6 +19,8 @@ Vulkan backend provides the same graphics features as original OpenGL-based one 
 
 * **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs. Requires vid_restart.
 
+![twin_mode](https://user-images.githubusercontent.com/4964024/34961607-48aae882-fa40-11e7-9bf0-d4400afdad34.jpg)
+
 #### Additional information:
 * Q: How to start game with vulkan support? A: `quake3-ke.exe +set r_renderAPI 1`.
 * Q: How to enable vulkan support from Q3 console? A: `\r_renderAPI 1` then `\vid_restart`.
