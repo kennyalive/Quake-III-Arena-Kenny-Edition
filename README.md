@@ -1,4 +1,4 @@
-# Welcome to the Quake 3 source code!
+# Welcome to Quake 3 source code!
 
 <img src="https://ci.appveyor.com/api/projects/status/github/kennyalive/Quake-III-Arena-Kenny-Edition?svg=true" alt="Project Badge">
 
@@ -15,7 +15,7 @@ Vulkan backend provides the same graphics features as original OpenGL-based one 
 * **r_renderAPI** - 3D API to use. Requires vid_restart.
     * 0 - OpenGL
     * 1 - Vulkan
-    * 2 - DX12 (if enabled, see below).
+    * 2 - DX12 (if enabled, see below)
 
 * **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs. Requires vid_restart.
 
@@ -31,6 +31,6 @@ DirectX 12 backend implementation is provided mostly for educational purposes an
 ## Visual Studio
 The project files are provided for Visual Studio 2017. Free community version is available online.
 
-To start the game from visual studio in quake3 project's properties go to `Debugging->Command Arguments` and specify command line like the following with the path changed to actual game location: `+set fs_basepath e:/games/quake3`
+To start the game from visual studio in quake3 project's properties go to `Debugging->Command Arguments` and specify command line in the form: `+set fs_basepath <quake3/installation/directory>`
 
 ![quake3-ke](https://user-images.githubusercontent.com/4964024/28160268-4f0707d4-67c8-11e7-9009-8540789aab0b.jpeg)
