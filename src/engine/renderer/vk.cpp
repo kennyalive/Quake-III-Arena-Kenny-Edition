@@ -2008,7 +2008,7 @@ VkSampler vk_find_sampler(const Vk_Sampler_Def& def) {
 	desc.addressModeV = address_mode;
 	desc.addressModeW = address_mode;
 	desc.mipLodBias = 0.0f;
-	desc.anisotropyEnable = VK_TRUE;
+	desc.anisotropyEnable = VK_FALSE;
 	desc.maxAnisotropy = 1;
 	desc.compareEnable = VK_FALSE;
 	desc.compareOp = VK_COMPARE_OP_ALWAYS;
