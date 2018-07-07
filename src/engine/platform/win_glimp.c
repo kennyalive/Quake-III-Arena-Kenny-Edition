@@ -734,13 +734,20 @@ void GLimp_Init( void )
 	ri.Printf( PRINT_ALL, "Initializing OpenGL subsystem\n" );
 
 	// load appropriate DLL and initialize subsystem
-    //
-    // load the driver and bind our function pointers to it
-    // 
-    if (!QGL_Init(r_glDriver->string))
-    {
-        ri.Error(ERR_FATAL, "QGL_Init - could not load OpenGL driver\n");
-    }
+	//
+	// load the driver and bind our function pointers to it
+	//
+	if (!QGL_Init(r_glDriver->string)) {
+		if (Q_stricmp(r_glDriver->string, OPENGL_DRIVER_NAME)) {
+			ri.Printf(PRINT_ALL, "...attempting to load default driver: %s\n", OPENGL_DRIVER_NAME);
+
+			if (!QGL_Init(OPENGL_DRIVER_NAME)) {
+			   ri.Error(ERR_FATAL, "QGL_Init - could not load OpenGL driver\n");
+			}
+			ri.Cvar_Set( "r_glDriver", OPENGL_DRIVER_NAME );
+			r_glDriver->modified = qfalse;
+		}
+	}
 
 	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
 
