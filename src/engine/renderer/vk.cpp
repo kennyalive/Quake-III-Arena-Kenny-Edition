@@ -494,7 +494,7 @@ static void create_instance() {
 		desc.ppEnabledExtensionNames = instance_extensions;
 
 #ifndef NDEBUG
-		const char* validation_layer_name = "VK_LAYER_LUNARG_standard_validation";
+		const char* validation_layer_name = "VK_LAYER_KHRONOS_validation";
 		desc.enabledLayerCount = 1;
 		desc.ppEnabledLayerNames = &validation_layer_name;
 #endif
