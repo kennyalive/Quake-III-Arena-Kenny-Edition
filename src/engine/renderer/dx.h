@@ -1,6 +1,9 @@
 #pragma once
 
-// Uncomment the following line to enable DX12 backend
+//
+// DirectX 12 backend implementation is provided mostly for educational purposes and is not included in the prebuild binaries.
+// It can be enabled by uncommenting the following line.
+//
 //#define ENABLE_DX12
 
 struct ID3D12CommandAllocator;
