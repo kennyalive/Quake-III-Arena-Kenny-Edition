@@ -5,7 +5,7 @@
 ## What's in this repository
 * This repository contains Quake 3 Arena source code which can be built with modern versions of Visual Studio.
 * Only Windows x64 platform is supported.
-* I don't try to fix bugs inherited from the original Q3 source code distribution - in this regard this project is Q3-bugs-friendly. Still I fix things if new version of the compiler complains about something or if some functionality shows its age which leads to application instability.
+* I don't try to fix bugs inherited from the original Q3 source code distribution - in this regard the project is Q3-bugs-friendly. Still I fix things if new version of the compiler complains about something or if some functionality shows its age which leads to application instability.
 * Some functionality related to ancient graphics hardware was removed. Also I removed compilation of qvm code to native instructions to simplify maintenance. This means all game code is run through QVM which is slower than native execution but fast enough for modern computers.
 * No changes in terms of visual appearence or gameplay. Provided Vulkan backend is a safe measure in case of poor OpenGL support in the future (hopefully not). It produces the same pixes as OpenGL backend.
 
@@ -34,6 +34,6 @@ Vulkan backend provides the same graphics features as original OpenGL-based one 
 * Q: How to check that Vulkan backend is really active? A: `gfxinfo` console command reports information about active rendering backend.
 
 ## DX12 support
-DirectX 12 backend implementation is provided mostly for educational purposes and is not included in the prebuild binaries. It can be enabled by uncommenting `ENABLE_DX12` define in `dx.h` header and recompiling the project. 
+DirectX 12 backend implementation is provided mostly for educational purposes and is not included in the prebuild binaries. It can be enabled by uncommenting `ENABLE_DX12` define in `dx.h` header and recompiling the project.
 
 ![quake3-ke](https://user-images.githubusercontent.com/4964024/28160268-4f0707d4-67c8-11e7-9009-8540789aab0b.jpeg)
