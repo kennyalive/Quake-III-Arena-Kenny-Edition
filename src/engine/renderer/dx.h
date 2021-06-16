@@ -69,6 +69,7 @@ struct Dx_Instance {
 	ID3D12Device* device = nullptr;
 	ID3D12CommandQueue* command_queue = nullptr;
 	IDXGISwapChain3* swapchain = nullptr;
+    BOOL present_allow_tearing = false;
 	UINT frame_index = 0;
 
 	ID3D12CommandAllocator* command_allocator = nullptr;

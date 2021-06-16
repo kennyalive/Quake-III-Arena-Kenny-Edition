@@ -7,7 +7,7 @@
 #ifdef ENABLE_DX12
 
 #include "D3d12.h"
-#include "DXGI1_4.h"
+#include "DXGI1_5.h"
 
 #pragma comment (lib, "D3d12.lib")
 #pragma comment (lib, "DXGI.lib")
@@ -128,7 +128,7 @@ void dx_initialize() {
 	}
 #endif
 
-	IDXGIFactory4* factory;
+	IDXGIFactory5* factory;
 	DX_CHECK(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
 
 	// Create device.
@@ -151,6 +151,8 @@ void dx_initialize() {
 	// Create swap chain.
 	//
 	{
+        DX_CHECK(factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &dx.present_allow_tearing, sizeof(dx.present_allow_tearing)));
+
 		DXGI_SWAP_CHAIN_DESC1 swap_chain_desc{};
 		swap_chain_desc.BufferCount = SWAPCHAIN_BUFFER_COUNT;
 		swap_chain_desc.Width = glConfig.vidWidth;
@@ -159,6 +161,7 @@ void dx_initialize() {
 		swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swap_chain_desc.SampleDesc.Count = 1;
+        swap_chain_desc.Flags = dx.present_allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
 		IDXGISwapChain1* swapchain;
 		DX_CHECK(factory->CreateSwapChainForHwnd(
@@ -1479,7 +1482,7 @@ void dx_end_frame() {
 	dx.fence_value++;
 	DX_CHECK(dx.command_queue->Signal(dx.fence, dx.fence_value));
 
-	DX_CHECK(dx.swapchain->Present(0, 0));
+	DX_CHECK(dx.swapchain->Present(0, dx.present_allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0));
 }
 
 #else // ENABLE_DX12
