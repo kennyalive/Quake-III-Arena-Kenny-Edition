@@ -322,14 +322,14 @@ typedef struct {
 	qboolean		isDetail;
 
 	// VULKAN
-	VkPipeline		vk_pipeline = VK_NULL_HANDLE;
-	VkPipeline		vk_portal_pipeline = VK_NULL_HANDLE;
-	VkPipeline		vk_mirror_pipeline = VK_NULL_HANDLE;
+	VkPipeline		vk_pipeline;
+	VkPipeline		vk_portal_pipeline;
+	VkPipeline		vk_mirror_pipeline;
 
 	// DX12
-	ID3D12PipelineState* dx_pipeline = nullptr;
-	ID3D12PipelineState* dx_portal_pipeline = nullptr;
-	ID3D12PipelineState* dx_mirror_pipeline = nullptr;
+	ID3D12PipelineState* dx_pipeline;
+	ID3D12PipelineState* dx_portal_pipeline;
+	ID3D12PipelineState* dx_mirror_pipeline;
 	
 } shaderStage_t;
 
