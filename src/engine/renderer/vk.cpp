@@ -2345,10 +2345,9 @@ void vk_begin_frame() {
 	if (!vk.active)
 		return;
 
-	VK_CHECK(vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vk.image_acquired, VK_NULL_HANDLE, &vk.swapchain_image_index));
-
 	VK_CHECK(vkWaitForFences(vk.device, 1, &vk.rendering_finished_fence, VK_FALSE, 1e9));
 	VK_CHECK(vkResetFences(vk.device, 1, &vk.rendering_finished_fence));
+	VK_CHECK(vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vk.image_acquired, VK_NULL_HANDLE, &vk.swapchain_image_index));
 
 	VkCommandBufferBeginInfo begin_info;
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
