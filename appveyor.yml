@@ -1,6 +1,6 @@
 version: '1.1.{build}'
 
-os: Visual Studio 2017
+os: Visual Studio 2022
 platform: x64
 clone_folder: C:\src
 clone_depth: 1
