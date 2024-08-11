@@ -1448,24 +1448,6 @@ void vk_release_resources() {
 	vk.index_buffer_offset = 0;
 }
 
-static void record_buffer_memory_barrier(VkCommandBuffer cb, VkBuffer buffer,
-		VkPipelineStageFlags src_stages, VkPipelineStageFlags dst_stages,
-		VkAccessFlags src_access, VkAccessFlags dst_access) {
-
-	VkBufferMemoryBarrier barrier;
-	barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;;
-	barrier.pNext = nullptr;
-	barrier.srcAccessMask = src_access;
-	barrier.dstAccessMask = dst_access;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.buffer = buffer;
-	barrier.offset = 0;
-	barrier.size = VK_WHOLE_SIZE;
-
-	vkCmdPipelineBarrier(cb, src_stages, dst_stages, 0, 0, nullptr, 1, &barrier, 0, nullptr);
-}
-
 Vk_Image vk_create_image(int width, int height, VkFormat format, int mip_levels, bool repeat_texture) {
 	Vk_Image image;
 
@@ -1570,10 +1552,6 @@ void vk_upload_image_data(VkImage image, int width, int height, bool mipmap, con
 
 	record_and_run_commands(vk.command_pool, vk.queue,
 		[&image, &num_regions, &regions](VkCommandBuffer command_buffer) {
-
-		record_buffer_memory_barrier(command_buffer, vk_world.staging_buffer,
-			VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
 		record_image_layout_transition(command_buffer, image, VK_IMAGE_ASPECT_COLOR_BIT,
 			0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -2372,15 +2350,6 @@ void vk_begin_frame() {
 	begin_info.pInheritanceInfo = nullptr;
 
 	VK_CHECK(vkBeginCommandBuffer(vk.command_buffer, &begin_info));
-
-	// Ensure visibility of geometry buffers writes.
-	record_buffer_memory_barrier(vk.command_buffer, vk.vertex_buffer,
-		VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-		VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
-
-	record_buffer_memory_barrier(vk.command_buffer, vk.index_buffer,
-		VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-		VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT);
 
 	// Begin render pass.
 	VkClearValue clear_values[2];
