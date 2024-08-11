@@ -275,6 +275,22 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
 	subpass.preserveAttachmentCount = 0;
 	subpass.pPreserveAttachments = nullptr;
 
+	// Form an execution dependency with the stage specified in the image acquire
+	// semaphore wait in QueueSubmit (COLOR_ATTACHMENT_OUTPUT). This will ensure
+	// that image acquire operation is finished before layout transition starts.
+    VkSubpassDependency dependency;
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    // srcStageMask chains with the QueueSubmit semaphore wait stage
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // dstStageMask is a "real" color attachment output stage
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // Use only execution dependency to synchronize with image acquire (assume it's READ)
+    dependency.srcAccessMask = 0;
+    // Specify regular color attachment accesses
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dependencyFlags = 0;
+
 	VkRenderPassCreateInfo desc;
 	desc.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	desc.pNext = nullptr;
@@ -283,8 +299,8 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
 	desc.pAttachments = attachments;
 	desc.subpassCount = 1;
 	desc.pSubpasses = &subpass;
-	desc.dependencyCount = 0;
-	desc.pDependencies = nullptr;
+	desc.dependencyCount = 1;
+	desc.pDependencies = &dependency;
 
 	VkRenderPass render_pass;
 	VK_CHECK(vkCreateRenderPass(device, &desc, nullptr, &render_pass));
