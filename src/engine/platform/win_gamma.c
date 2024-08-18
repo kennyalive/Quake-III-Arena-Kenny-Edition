@@ -85,7 +85,7 @@ void WG_CheckHardwareGamma( void )
 **
 ** This routine should only be called if glConfig.deviceSupportsGamma is TRUE
 */
-void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned char blue[256] ) {
+void GLimp_SetGamma( unsigned char mapping[256]) {
 	unsigned short table[3][256];
 	int		i, j;
 	int		ret;
@@ -95,9 +95,10 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 	}
 
 	for ( i = 0; i < 256; i++ ) {
-		table[0][i] = ( ( ( unsigned short ) red[i] ) << 8 ) | red[i];
-		table[1][i] = ( ( ( unsigned short ) green[i] ) << 8 ) | green[i];
-		table[2][i] = ( ( ( unsigned short ) blue[i] ) << 8 ) | blue[i];
+		unsigned short value = (((unsigned short)mapping[i]) << 8) | mapping[i];
+		table[0][i] = value;
+		table[1][i] = value;
+		table[2][i] = value;
 	}
 
 	// Win2K puts this odd restriction on gamma ramps...
@@ -122,12 +123,12 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 		}
 	}
 
-    HDC hdc = GetDC(NULL);
+	HDC hdc = GetDC(NULL);
 	ret = SetDeviceGammaRamp( hdc, table );
 	if ( !ret ) {
 		Com_Printf( "SetDeviceGammaRamp failed.\n" );
 	}
-    ReleaseDC(NULL, hdc);
+	ReleaseDC(NULL, hdc);
 }
 
 /*
@@ -145,3 +146,7 @@ void WG_RestoreGamma( void )
 	}
 }
 
+void GLimp_RestoreGamma()
+{
+	WG_RestoreGamma();
+}

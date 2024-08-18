@@ -167,6 +167,9 @@
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_lt80_ps.cpp">
       <Filter>Source Files\hlsl_compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\apply_gamma_comp.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\engine\qcommon\cm_public.h">

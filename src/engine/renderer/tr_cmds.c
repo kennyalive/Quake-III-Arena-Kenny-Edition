@@ -318,11 +318,12 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 	//
 	// gamma stuff
 	//
-	if ( r_gamma->modified ) {
+	if ( r_gamma->modified || r_shaderGamma->modified ) {
 		r_gamma->modified = qfalse;
 
 		R_SyncRenderThread();
 		R_SetColorMappings();
+		r_shaderGamma->modified = qfalse;
 	}
 
     // check for errors

@@ -114,6 +114,7 @@
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_lt80_ps.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_ps.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\hlsl_compiled\single_texture_vs.cpp" />
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\apply_gamma_comp.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_add_frag.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_clipping_plane_vert.cpp" />
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\multi_texture_mul_frag.cpp" />

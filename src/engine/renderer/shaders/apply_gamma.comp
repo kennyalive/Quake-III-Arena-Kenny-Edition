@@ -1,0 +1,31 @@
+#version 450
+#extension GL_EXT_samplerless_texture_functions : require
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(push_constant) uniform Push_Constants {
+    uvec2 output_size;
+    uint identity_gamma;
+};
+layout(binding=0) uniform texture2D output_image;
+layout(binding=1, rgba8) uniform writeonly image2D swapchain_image;
+layout(binding=2) buffer Gamma_Buffer {float data[256];} gamma_buffer;
+
+float apply_gamma(float c) {
+    int index = clamp(int(c * 256.0), 0, 255);
+    float cc = gamma_buffer.data[index];
+    return cc;
+}
+
+void main() {
+    ivec2 loc = ivec2(gl_GlobalInvocationID.xy);
+    if (loc.x < output_size.x && loc.y < output_size.y) {
+        vec4 color = texelFetch(output_image, loc, 0);
+        if (identity_gamma == 0) {
+            color.x = apply_gamma(color.x);
+            color.y = apply_gamma(color.y);
+            color.z = apply_gamma(color.z);
+        }
+        imageStore(swapchain_image, loc, color);
+    }
+}

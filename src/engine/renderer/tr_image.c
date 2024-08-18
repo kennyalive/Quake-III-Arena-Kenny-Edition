@@ -1913,9 +1913,22 @@ void R_SetColorMappings( void ) {
 		s_intensitytable[i] = j;
 	}
 
-	if ( glConfig.deviceSupportsGamma )
+	if (vk.active && r_shaderGamma->integer) {
+		if (r_ignorehwgamma->integer) {
+			return;
+		}
+		if (r_shaderGamma->modified) {
+			GLimp_RestoreGamma();
+		}
+		float shader_gamma_table[256];
+		for (int i = 0; i < 256; i++) {
+			shader_gamma_table[i] = float((((unsigned short)s_gammatable[i]) << 8) | s_gammatable[i]) / UINT16_MAX;
+		}
+		vk_update_gamma_buffer(shader_gamma_table);
+	}
+	else if ( glConfig.deviceSupportsGamma )
 	{
-		GLimp_SetGamma( s_gammatable, s_gammatable, s_gammatable );
+		GLimp_SetGamma( s_gammatable );
 	}
 }
 

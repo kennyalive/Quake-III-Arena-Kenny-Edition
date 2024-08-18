@@ -20,6 +20,8 @@ const int ST1_OFFSET    = ST0_OFFSET + ST0_SIZE;
 static const int VERTEX_BUFFER_SIZE = XYZ_SIZE + COLOR_SIZE + ST0_SIZE + ST1_SIZE;
 static const int INDEX_BUFFER_SIZE = 2 * 1024 * 1024;
 
+constexpr VkFormat output_image_format = VK_FORMAT_R8G8B8A8_UNORM;
+
 //
 // Vulkan API functions used by the renderer.
 //
@@ -60,8 +62,10 @@ PFN_vkCmdBindPipeline							vkCmdBindPipeline;
 PFN_vkCmdBindVertexBuffers						vkCmdBindVertexBuffers;
 PFN_vkCmdBlitImage								vkCmdBlitImage;
 PFN_vkCmdClearAttachments						vkCmdClearAttachments;
+PFN_vkCmdCopyBuffer								vkCmdCopyBuffer;
 PFN_vkCmdCopyBufferToImage						vkCmdCopyBufferToImage;
 PFN_vkCmdCopyImage								vkCmdCopyImage;
+PFN_vkCmdDispatch								vkCmdDispatch;
 PFN_vkCmdDraw									vkCmdDraw;
 PFN_vkCmdDrawIndexed							vkCmdDrawIndexed;
 PFN_vkCmdEndRenderPass							vkCmdEndRenderPass;
@@ -72,6 +76,7 @@ PFN_vkCmdSetScissor								vkCmdSetScissor;
 PFN_vkCmdSetViewport							vkCmdSetViewport;
 PFN_vkCreateBuffer								vkCreateBuffer;
 PFN_vkCreateCommandPool							vkCreateCommandPool;
+PFN_vkCreateComputePipelines					vkCreateComputePipelines;
 PFN_vkCreateDescriptorPool						vkCreateDescriptorPool;
 PFN_vkCreateDescriptorSetLayout					vkCreateDescriptorSetLayout;
 PFN_vkCreateFence								vkCreateFence;
@@ -218,7 +223,7 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
 	desc.imageColorSpace = surface_format.colorSpace;
 	desc.imageExtent = image_extent;
 	desc.imageArrayLayers = 1;
-	desc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	desc.imageUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	desc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	desc.queueFamilyIndexCount = 0;
 	desc.pQueueFamilyIndices = nullptr;
@@ -243,7 +248,7 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
 	attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	attachments[1].flags = 0;
 	attachments[1].format = depth_format;
@@ -263,33 +268,22 @@ static VkRenderPass create_render_pass(VkDevice device, VkFormat color_format, V
 	depth_attachment_ref.attachment = 1;
 	depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-	VkSubpassDescription subpass;
-	subpass.flags = 0;
+	VkSubpassDescription subpass{};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.inputAttachmentCount = 0;
-	subpass.pInputAttachments = nullptr;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &color_attachment_ref;
-	subpass.pResolveAttachments = nullptr;
 	subpass.pDepthStencilAttachment = &depth_attachment_ref;
-	subpass.preserveAttachmentCount = 0;
-	subpass.pPreserveAttachments = nullptr;
 
-	// Form an execution dependency with the stage specified in the image acquire
-	// semaphore wait in QueueSubmit (COLOR_ATTACHMENT_OUTPUT). This will ensure
-	// that image acquire operation is finished before layout transition starts.
-    VkSubpassDependency dependency;
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    // srcStageMask chains with the QueueSubmit semaphore wait stage
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    // dstStageMask is a "real" color attachment output stage
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    // Use only execution dependency to synchronize with image acquire (assume it's READ)
-    dependency.srcAccessMask = 0;
-    // Specify regular color attachment accesses
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependency.dependencyFlags = 0;
+	// Synchronize color attachment output stage (main rendering) and compute state (gamma shader).
+	// This replaces Vulkan's implicit barrier that transitions output image to final layout (SHADER_READ).
+	VkSubpassDependency dependency;
+	dependency.srcSubpass = 0;
+	dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+	dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependency.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	dependency.dependencyFlags = 0;
 
 	VkRenderPassCreateInfo desc;
 	desc.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -547,7 +541,7 @@ static void create_device() {
 		
 		if (candidates.size() == 1 && candidates[0].format == VK_FORMAT_UNDEFINED) { // special case that means we can choose any format
 			vk.surface_format.format = VK_FORMAT_R8G8B8A8_UNORM;
-			vk.surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+			vk.surface_format.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 		} else {
 			vk.surface_format = candidates[0];
 		}
@@ -696,8 +690,10 @@ static void init_vulkan_library() {
 	INIT_DEVICE_FUNCTION(vkCmdBindVertexBuffers)
 	INIT_DEVICE_FUNCTION(vkCmdBlitImage)
 	INIT_DEVICE_FUNCTION(vkCmdClearAttachments)
+	INIT_DEVICE_FUNCTION(vkCmdCopyBuffer)
 	INIT_DEVICE_FUNCTION(vkCmdCopyBufferToImage)
 	INIT_DEVICE_FUNCTION(vkCmdCopyImage)
+	INIT_DEVICE_FUNCTION(vkCmdDispatch)
 	INIT_DEVICE_FUNCTION(vkCmdDraw)
 	INIT_DEVICE_FUNCTION(vkCmdDrawIndexed)
 	INIT_DEVICE_FUNCTION(vkCmdEndRenderPass)
@@ -708,6 +704,7 @@ static void init_vulkan_library() {
 	INIT_DEVICE_FUNCTION(vkCmdSetViewport)
 	INIT_DEVICE_FUNCTION(vkCreateBuffer)
 	INIT_DEVICE_FUNCTION(vkCreateCommandPool)
+	INIT_DEVICE_FUNCTION(vkCreateComputePipelines)
 	INIT_DEVICE_FUNCTION(vkCreateDescriptorPool)
 	INIT_DEVICE_FUNCTION(vkCreateDescriptorSetLayout)
 	INIT_DEVICE_FUNCTION(vkCreateFence)
@@ -799,8 +796,10 @@ static void deinit_vulkan_library() {
 	vkCmdBindVertexBuffers						= nullptr;
 	vkCmdBlitImage								= nullptr;
 	vkCmdClearAttachments						= nullptr;
+	vkCmdCopyBuffer								= nullptr;
 	vkCmdCopyBufferToImage						= nullptr;
 	vkCmdCopyImage								= nullptr;
+	vkCmdDispatch								= nullptr;
 	vkCmdDraw									= nullptr;
 	vkCmdDrawIndexed							= nullptr;
 	vkCmdEndRenderPass							= nullptr;
@@ -811,6 +810,7 @@ static void deinit_vulkan_library() {
 	vkCmdSetViewport							= nullptr;
 	vkCreateBuffer								= nullptr;
 	vkCreateCommandPool							= nullptr;
+	vkCreateComputePipelines					= nullptr;
 	vkCreateDescriptorPool						= nullptr;
 	vkCreateDescriptorSetLayout					= nullptr;
 	vkCreateFence								= nullptr;
@@ -862,6 +862,7 @@ static void deinit_vulkan_library() {
 }
 
 VkPipeline create_pipeline(const Vk_Pipeline_Def&);
+void create_gamma_pipeline();
 
 void vk_initialize() {
 	init_vulkan_library();
@@ -952,6 +953,41 @@ void vk_initialize() {
 	}
 
 	//
+	// Output image.
+	//
+	{
+		VkImageCreateInfo image_ci{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		image_ci.imageType = VK_IMAGE_TYPE_2D;
+		image_ci.format = output_image_format;;
+		image_ci.extent.width = glConfig.vidWidth;
+		image_ci.extent.height = glConfig.vidHeight;
+		image_ci.extent.depth = 1;
+		image_ci.mipLevels = 1;
+		image_ci.arrayLayers = 1;
+		image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
+		image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+		image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		VK_CHECK(vkCreateImage(vk.device, &image_ci, nullptr, &vk.output_image));
+
+		VkMemoryRequirements memory_requirements;
+		vkGetImageMemoryRequirements(vk.device, vk.output_image, &memory_requirements);
+		VkMemoryAllocateInfo alloc_info{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+		alloc_info.allocationSize = memory_requirements.size;
+		alloc_info.memoryTypeIndex = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.output_image_memory));
+		VK_CHECK(vkBindImageMemory(vk.device, vk.output_image, vk.output_image_memory, 0));
+
+		VkImageViewCreateInfo image_view_ci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+		image_view_ci.image = vk.output_image;
+		image_view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		image_view_ci.format = output_image_format;
+		image_view_ci.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+		VK_CHECK(vkCreateImageView(vk.device, &image_view_ci, nullptr, &vk.output_image_view));
+	}
+
+	//
 	// Depth attachment image.
 	// 
 	{
@@ -1031,75 +1067,99 @@ void vk_initialize() {
 	//
 	{
 		VkFormat depth_format = get_depth_format(vk.physical_device);
-		vk.render_pass = create_render_pass(vk.device, vk.surface_format.format, depth_format);
+		vk.render_pass = create_render_pass(vk.device, output_image_format, depth_format);
 	}
 
 	//
-	// Framebuffers for each swapchain image.
+	// Framebuffer for output image rendering.
 	//
 	{
-		VkImageView attachments[2] = {VK_NULL_HANDLE, vk.depth_image_view};
-
-		VkFramebufferCreateInfo desc;
-		desc.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		desc.pNext = nullptr;
-		desc.flags = 0;
-		desc.renderPass = vk.render_pass;
-		desc.attachmentCount = 2;
-		desc.pAttachments = attachments;
-		desc.width = glConfig.vidWidth;
-		desc.height = glConfig.vidHeight;
-		desc.layers = 1;
-
-		for (uint32_t i = 0; i < vk.swapchain_image_count; i++) {
-			attachments[0] = vk.swapchain_image_views[i]; // set color attachment
-			VK_CHECK(vkCreateFramebuffer(vk.device, &desc, nullptr, &vk.framebuffers[i]));
-		}
+		VkImageView attachments[2] = { vk.output_image_view, vk.depth_image_view };
+		VkFramebufferCreateInfo create_info{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+		create_info.renderPass = vk.render_pass;
+		create_info.attachmentCount = 2;
+		create_info.pAttachments = attachments;
+		create_info.width = glConfig.vidWidth;
+		create_info.height = glConfig.vidHeight;
+		create_info.layers = 1;
+		VK_CHECK(vkCreateFramebuffer(vk.device, &create_info, nullptr, &vk.framebuffer));
 	}
 
-	//
 	// Descriptor pool.
-	//
 	{
 		VkDescriptorPoolSize pool_size;
 		pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		pool_size.descriptorCount = MAX_DRAWIMAGES;
 
-		VkDescriptorPoolCreateInfo desc;
-		desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		desc.pNext = nullptr;
-		desc.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT; // used by the cinematic images
-		desc.maxSets = MAX_DRAWIMAGES;
-		desc.poolSizeCount = 1;
-		desc.pPoolSizes = &pool_size;
-
-		VK_CHECK(vkCreateDescriptorPool(vk.device, &desc, nullptr, &vk.descriptor_pool));
+		VkDescriptorPoolCreateInfo create_info{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT; // used by the cinematic images
+		create_info.maxSets = MAX_DRAWIMAGES;
+		create_info.poolSizeCount = 1;
+		create_info.pPoolSizes = &pool_size;
+		VK_CHECK(vkCreateDescriptorPool(vk.device, &create_info, nullptr, &vk.descriptor_pool));
 	}
 
-	//
-	// Descriptor set layout.
-	//
+	// Gamma descriptor pool
 	{
-		VkDescriptorSetLayoutBinding descriptor_binding;
-		descriptor_binding.binding = 0;
-		descriptor_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptor_binding.descriptorCount = 1;
-		descriptor_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		descriptor_binding.pImmutableSamplers = nullptr;
+		VkDescriptorPoolSize pool_sizes[3];
+		pool_sizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		pool_sizes[0].descriptorCount = 1;
+		pool_sizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		pool_sizes[1].descriptorCount = 1;
+		pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		pool_sizes[2].descriptorCount = 1;
 
-		VkDescriptorSetLayoutCreateInfo desc;
-		desc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		desc.pNext = nullptr;
-		desc.flags = 0;
-		desc.bindingCount = 1;
-		desc.pBindings = &descriptor_binding;
+		VkDescriptorPoolCreateInfo create_info{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		create_info.maxSets = 1;
+		create_info.poolSizeCount = 3;
+		create_info.pPoolSizes = pool_sizes;
+		VK_CHECK(vkCreateDescriptorPool(vk.device, &create_info, nullptr, &vk.gamma_descriptor_pool));
 
-		VK_CHECK(vkCreateDescriptorSetLayout(vk.device, &desc, nullptr, &vk.set_layout));
 	}
 
-	//
-	// Pipeline layout.
-	//
+	// Main set layout
+	{
+		VkDescriptorSetLayoutBinding binding;
+		binding.binding = 0;
+		binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		binding.descriptorCount = 1;
+		binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		binding.pImmutableSamplers = nullptr;
+
+        VkDescriptorSetLayoutCreateInfo set_layout_ci{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        set_layout_ci.bindingCount = 1;
+        set_layout_ci.pBindings = &binding;
+        VK_CHECK(vkCreateDescriptorSetLayout(vk.device, &set_layout_ci, nullptr, &vk.set_layout));
+	}
+
+	// Gamma set layout
+	{
+		VkDescriptorSetLayoutBinding bindings[3];
+		bindings[0].binding = 0;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		bindings[0].descriptorCount = 1;
+		bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[0].pImmutableSamplers = nullptr;
+
+		bindings[1].binding = 1;
+		bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		bindings[1].descriptorCount = 1;
+		bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[1].pImmutableSamplers = nullptr;
+
+		bindings[2].binding = 2;
+		bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		bindings[2].descriptorCount = 1;
+		bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[2].pImmutableSamplers = nullptr;
+
+        VkDescriptorSetLayoutCreateInfo set_layout_ci{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		set_layout_ci.bindingCount = 3;
+		set_layout_ci.pBindings = bindings;
+        VK_CHECK(vkCreateDescriptorSetLayout(vk.device, &set_layout_ci, nullptr, &vk.gamma_set_layout));
+	}
+
+	// Main pipeline layout
 	{
 		VkPushConstantRange push_range;
 		push_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -1108,16 +1168,27 @@ void vk_initialize() {
 
 		VkDescriptorSetLayout set_layouts[2] = {vk.set_layout, vk.set_layout};
 
-		VkPipelineLayoutCreateInfo desc;
-		desc.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		desc.pNext = nullptr;
-		desc.flags = 0;
-		desc.setLayoutCount = 2;
-		desc.pSetLayouts = set_layouts;
-		desc.pushConstantRangeCount = 1;
-		desc.pPushConstantRanges = &push_range;
+		VkPipelineLayoutCreateInfo pipeline_layout_ci{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+		pipeline_layout_ci.setLayoutCount = 2;
+		pipeline_layout_ci.pSetLayouts = set_layouts;
+		pipeline_layout_ci.pushConstantRangeCount = 1;
+		pipeline_layout_ci.pPushConstantRanges = &push_range;
+		VK_CHECK(vkCreatePipelineLayout(vk.device, &pipeline_layout_ci, nullptr, &vk.pipeline_layout));
+	}
 
-		VK_CHECK(vkCreatePipelineLayout(vk.device, &desc, nullptr, &vk.pipeline_layout));
+	// Gamma pipeline layout
+	{
+		VkPushConstantRange push_constants;
+		push_constants.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		push_constants.offset = 0;
+		push_constants.size = 12; // 3 uint
+
+		VkPipelineLayoutCreateInfo pipeline_layout_ci{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+		pipeline_layout_ci.setLayoutCount = 1;
+		pipeline_layout_ci.pSetLayouts = &vk.gamma_set_layout;
+		pipeline_layout_ci.pushConstantRangeCount = 1;
+		pipeline_layout_ci.pPushConstantRanges = &push_constants;
+		VK_CHECK(vkCreatePipelineLayout(vk.device, &pipeline_layout_ci, nullptr, &vk.gamma_pipeline_layout));
 	}
 
 	//
@@ -1166,6 +1237,30 @@ void vk_initialize() {
 		VK_CHECK(vkMapMemory(vk.device, vk.geometry_buffer_memory, 0, VK_WHOLE_SIZE, 0, &data));
 		vk.vertex_buffer_ptr = (byte*)data;
 		vk.index_buffer_ptr = (byte*)data + index_buffer_offset;
+	}
+
+	//
+	// Gamma buffer.
+	//
+	{
+        VkBufferCreateInfo desc{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		desc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		desc.size = 256 * sizeof(float);
+		desc.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		VK_CHECK(vkCreateBuffer(vk.device, &desc, nullptr, &vk.gamma_buffer));
+
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements(vk.device, vk.gamma_buffer, &memory_requirements);
+
+        uint32_t memory_type = find_memory_type(vk.physical_device, memory_requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		VkMemoryAllocateInfo alloc_info{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+		alloc_info.allocationSize = memory_requirements.size;
+		alloc_info.memoryTypeIndex = memory_type;
+		VK_CHECK(vkAllocateMemory(vk.device, &alloc_info, nullptr, &vk.gamma_buffer_memory));
+
+		vkBindBufferMemory(vk.device, vk.gamma_buffer, vk.gamma_buffer_memory, 0);
 	}
 
 	//
@@ -1221,6 +1316,8 @@ void vk_initialize() {
 	// Standard pipelines.
 	//
 	{
+		create_gamma_pipeline();
+
 		// skybox
 		{
 			Vk_Pipeline_Def def;
@@ -1344,13 +1441,15 @@ void vk_initialize() {
 }
 
 void vk_shutdown() {
+	vkDestroyImage(vk.device, vk.output_image, nullptr);
+	vkFreeMemory(vk.device, vk.output_image_memory, nullptr);
+	vkDestroyImageView(vk.device, vk.output_image_view, nullptr);
+
 	vkDestroyImage(vk.device, vk.depth_image, nullptr);
 	vkFreeMemory(vk.device, vk.depth_image_memory, nullptr);
 	vkDestroyImageView(vk.device, vk.depth_image_view, nullptr);
 
-	for (uint32_t i = 0; i < vk.swapchain_image_count; i++)
-		vkDestroyFramebuffer(vk.device, vk.framebuffers[i], nullptr);
-
+	vkDestroyFramebuffer(vk.device, vk.framebuffer, nullptr);
 	vkDestroyRenderPass(vk.device, vk.render_pass, nullptr);
 
 	vkDestroyCommandPool(vk.device, vk.command_pool, nullptr);
@@ -1359,11 +1458,16 @@ void vk_shutdown() {
 		vkDestroyImageView(vk.device, vk.swapchain_image_views[i], nullptr);
 
 	vkDestroyDescriptorPool(vk.device, vk.descriptor_pool, nullptr);
+	vkDestroyDescriptorPool(vk.device, vk.gamma_descriptor_pool, nullptr);
 	vkDestroyDescriptorSetLayout(vk.device, vk.set_layout, nullptr);
+	vkDestroyDescriptorSetLayout(vk.device, vk.gamma_set_layout, nullptr);
 	vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
+	vkDestroyPipelineLayout(vk.device, vk.gamma_pipeline_layout, nullptr);
 	vkDestroyBuffer(vk.device, vk.vertex_buffer, nullptr);
 	vkDestroyBuffer(vk.device, vk.index_buffer, nullptr);
 	vkFreeMemory(vk.device, vk.geometry_buffer_memory, nullptr);
+	vkDestroyBuffer(vk.device, vk.gamma_buffer, nullptr);
+	vkFreeMemory(vk.device, vk.gamma_buffer_memory, nullptr);
 	vkDestroySemaphore(vk.device, vk.image_acquired, nullptr);
 	vkDestroySemaphore(vk.device, vk.rendering_finished, nullptr);
 	vkDestroyFence(vk.device, vk.rendering_finished_fence, nullptr);
@@ -1376,6 +1480,7 @@ void vk_shutdown() {
 	vkDestroyShaderModule(vk.device, vk.multi_texture_mul_fs, nullptr);
 	vkDestroyShaderModule(vk.device, vk.multi_texture_add_fs, nullptr);
 
+	vkDestroyPipeline(vk.device, vk.gamma_pipeline, nullptr);
 	vkDestroyPipeline(vk.device, vk.skybox_pipeline, nullptr);
 	for (int i = 0; i < 2; i++)
 		for (int j = 0; j < 2; j++) {
@@ -1592,6 +1697,61 @@ void vk_update_descriptor_set(VkDescriptorSet set, VkImageView image_view, bool 
 	descriptor_write.pTexelBufferView = nullptr;
 
 	vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
+}
+
+static void create_gamma_pipeline() {
+    extern unsigned char apply_gamma_comp_spv[];
+	extern long long apply_gamma_comp_spv_size;
+
+    VkShaderModuleCreateInfo shader_ci{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+    shader_ci.codeSize = apply_gamma_comp_spv_size;
+    shader_ci.pCode = reinterpret_cast<const uint32_t*>(apply_gamma_comp_spv);
+    VkShaderModule apply_gamma_shader;
+    VK_CHECK(vkCreateShaderModule(vk.device, &shader_ci, nullptr, &apply_gamma_shader));
+
+	VkComputePipelineCreateInfo pipeline_ci{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+	pipeline_ci.stage = VkPipelineShaderStageCreateInfo{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	pipeline_ci.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	pipeline_ci.stage.module = apply_gamma_shader;
+	pipeline_ci.stage.pName = "main";
+	pipeline_ci.layout = vk.gamma_pipeline_layout;
+	VK_CHECK(vkCreateComputePipelines(vk.device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &vk.gamma_pipeline));
+	vkDestroyShaderModule(vk.device, apply_gamma_shader, nullptr);
+
+	VkDescriptorSetAllocateInfo set_alloc_info{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	set_alloc_info.descriptorPool = vk.gamma_descriptor_pool;
+	set_alloc_info.descriptorSetCount = 1;
+	set_alloc_info.pSetLayouts = &vk.gamma_set_layout;
+	VK_CHECK(vkAllocateDescriptorSets(vk.device, &set_alloc_info, &vk.gamma_descriptor_set));
+
+	// Write output image descriptor
+	{
+		VkDescriptorImageInfo image_info{};
+		image_info.imageView = vk.output_image_view;
+		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		VkWriteDescriptorSet descriptor_write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		descriptor_write.dstSet = vk.gamma_descriptor_set;
+		descriptor_write.dstBinding = 0;
+		descriptor_write.dstArrayElement = 0;
+		descriptor_write.descriptorCount = 1;
+		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		descriptor_write.pImageInfo = &image_info;
+		vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
+	}
+	// Write gamma buffer descriptor
+	{
+		VkDescriptorBufferInfo buffer_info{};
+		buffer_info.buffer = vk.gamma_buffer;
+		buffer_info.range = VK_WHOLE_SIZE;
+		VkWriteDescriptorSet descriptor_write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		descriptor_write.dstSet = vk.gamma_descriptor_set;
+		descriptor_write.dstBinding = 2;
+		descriptor_write.dstArrayElement = 0;
+		descriptor_write.descriptorCount = 1;
+		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptor_write.pBufferInfo = &buffer_info;
+		vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
+	}
 }
 
 static VkPipeline create_pipeline(const Vk_Pipeline_Def& def) {
@@ -2343,6 +2503,19 @@ void vk_begin_frame() {
 	VK_CHECK(vkResetFences(vk.device, 1, &vk.rendering_finished_fence));
 	VK_CHECK(vkAcquireNextImageKHR(vk.device, vk.swapchain, UINT64_MAX, vk.image_acquired, VK_NULL_HANDLE, &vk.swapchain_image_index));
 
+	// Write swapchain image descriptor for gamma shader
+	VkDescriptorImageInfo image_info{};
+	image_info.imageView = vk.swapchain_image_views[vk.swapchain_image_index];
+	image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	VkWriteDescriptorSet descriptor_write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	descriptor_write.dstSet = vk.gamma_descriptor_set;
+	descriptor_write.dstBinding = 1;
+	descriptor_write.dstArrayElement = 0;
+	descriptor_write.descriptorCount = 1;
+	descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	descriptor_write.pImageInfo = &image_info;
+	vkUpdateDescriptorSets(vk.device, 1, &descriptor_write, 0, nullptr);
+
 	VkCommandBufferBeginInfo begin_info;
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.pNext = nullptr;
@@ -2361,7 +2534,7 @@ void vk_begin_frame() {
 	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	render_pass_begin_info.pNext = nullptr;
 	render_pass_begin_info.renderPass = vk.render_pass;
-	render_pass_begin_info.framebuffer = vk.framebuffers[vk.swapchain_image_index];
+	render_pass_begin_info.framebuffer = vk.framebuffer;
 	render_pass_begin_info.renderArea.offset = { 0, 0 };
 	render_pass_begin_info.renderArea.extent = { (uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight };
 	render_pass_begin_info.clearValueCount = 2;
@@ -2380,12 +2553,37 @@ void vk_end_frame() {
 		return;
 
 	vkCmdEndRenderPass(vk.command_buffer);
+
+	record_image_layout_transition(vk.command_buffer, vk.swapchain_images[vk.swapchain_image_index], VK_IMAGE_ASPECT_COLOR_BIT,
+		0, VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL);
+
+	const uint32_t group_size_x = 8; // according to shader
+	const uint32_t group_size_y = 8;
+	uint32_t group_count_x = ((uint32_t)glConfig.vidWidth + group_size_x - 1) / group_size_x;
+	uint32_t group_count_y = ((uint32_t)glConfig.vidHeight + group_size_y - 1) / group_size_y;
+	const uint32_t push_constants[3] = {
+		(uint32_t)glConfig.vidWidth,
+		(uint32_t)glConfig.vidHeight,
+		r_shaderGamma->integer ? 0u : 1u // identity_gamma
+	};
+
+    vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vk.gamma_pipeline_layout, 0, 1, &vk.gamma_descriptor_set, 0, nullptr);
+    vkCmdPushConstants(vk.command_buffer, vk.gamma_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, 12, push_constants);
+	vkCmdBindPipeline(vk.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vk.gamma_pipeline);
+	vkCmdDispatch(vk.command_buffer, group_count_x, group_count_y, 1);
+
+    record_image_layout_transition(vk.command_buffer, vk.swapchain_images[vk.swapchain_image_index], VK_IMAGE_ASPECT_COLOR_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL,
+        0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
 	VK_CHECK(vkEndCommandBuffer(vk.command_buffer));
 
-	VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	VkSubmitInfo submit_info;
-	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submit_info.pNext = nullptr;
+	// Compute shader generates final swapchain image by applying gamma shader to the output image.
+	// Ensure that compute stage waits for image acquire semaphore.
+	const VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+	VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = &vk.image_acquired;
 	submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
@@ -2393,18 +2591,14 @@ void vk_end_frame() {
 	submit_info.pCommandBuffers = &vk.command_buffer;
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = &vk.rendering_finished;
-
 	VK_CHECK(vkQueueSubmit(vk.queue, 1, &submit_info, vk.rendering_finished_fence));
 
-	VkPresentInfoKHR present_info;
-	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	present_info.pNext = nullptr;
+	VkPresentInfoKHR present_info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 	present_info.waitSemaphoreCount = 1;
 	present_info.pWaitSemaphores = &vk.rendering_finished;
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &vk.swapchain;
 	present_info.pImageIndices = &vk.swapchain_image_index;
-	present_info.pResults = nullptr;
 	VK_CHECK(vkQueuePresentKHR(vk.queue, &present_info));
 }
 
@@ -2538,3 +2732,13 @@ void vk_read_pixels(byte* buffer) {
 	vkFreeMemory(vk.device, memory, nullptr);
 }
 
+void vk_update_gamma_buffer(float gamma_table[256]) {
+	vkDeviceWaitIdle(vk.device);
+	ensure_staging_buffer_allocation(256 * sizeof(float));
+	Com_Memcpy(vk_world.staging_buffer_ptr, gamma_table, 256 * sizeof(float));
+	record_and_run_commands(vk.command_pool, vk.queue, [](VkCommandBuffer command_buffer) {
+		VkBufferCopy region{};
+		region.size = 256 * sizeof(float);
+		vkCmdCopyBuffer(command_buffer, vk_world.staging_buffer, vk.gamma_buffer, 1, &region);
+	});
+}

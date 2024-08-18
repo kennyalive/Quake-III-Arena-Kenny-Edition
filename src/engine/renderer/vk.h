@@ -103,6 +103,8 @@ void vk_end_frame();
 
 void vk_read_pixels(byte* buffer); // screenshots
 
+void vk_update_gamma_buffer(float gamma_table[256]);
+
 // Vk_Instance contains engine-specific vulkan resources that persist entire renderer lifetime.
 // This structure is initialized/deinitialized by vk_initialize/vk_shutdown functions correspondingly.
 struct Vk_Instance {
@@ -129,12 +131,16 @@ struct Vk_Instance {
 	VkCommandPool command_pool = VK_NULL_HANDLE;
 	VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 
+	VkImage output_image = VK_NULL_HANDLE;
+	VkDeviceMemory output_image_memory = VK_NULL_HANDLE;
+	VkImageView output_image_view = VK_NULL_HANDLE;
+
 	VkImage depth_image = VK_NULL_HANDLE;
 	VkDeviceMemory depth_image_memory = VK_NULL_HANDLE;
 	VkImageView depth_image_view = VK_NULL_HANDLE;
 
 	VkRenderPass render_pass = VK_NULL_HANDLE;
-	VkFramebuffer framebuffers[MAX_SWAPCHAIN_IMAGES];
+	VkFramebuffer framebuffer = VK_NULL_HANDLE;
 
 	VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
 	VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
@@ -151,6 +157,14 @@ struct Vk_Instance {
 
 	// host visible memory that holds both vertex and index data
 	VkDeviceMemory geometry_buffer_memory = VK_NULL_HANDLE;
+
+	VkDescriptorPool gamma_descriptor_pool = VK_NULL_HANDLE;
+	VkDescriptorSetLayout gamma_set_layout = VK_NULL_HANDLE;
+	VkPipelineLayout gamma_pipeline_layout = VK_NULL_HANDLE;
+	VkDescriptorSet gamma_descriptor_set = VK_NULL_HANDLE;
+	VkPipeline gamma_pipeline = VK_NULL_HANDLE;
+	VkBuffer gamma_buffer = VK_NULL_HANDLE;
+	VkDeviceMemory gamma_buffer_memory = VK_NULL_HANDLE;
 
 	//
 	// Shader modules.

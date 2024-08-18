@@ -960,6 +960,8 @@ extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan, 2 - DX12
 
 extern cvar_t	*r_twinMode;			// Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs
 
+extern cvar_t	*r_shaderGamma;			// Use compute shader to apply gamma (only in Vulkan) instead HW gamma API.
+
 extern cvar_t	*r_railWidth;
 extern cvar_t	*r_railCoreWidth;
 extern cvar_t	*r_railSegmentLength;
@@ -1214,10 +1216,8 @@ void dx_imp_shutdown();
 
 // NOTE TTimo linux works with float gamma value, not the gamma table
 //   the params won't be used, getting the r_gamma cvar directly
-void		GLimp_SetGamma( unsigned char red[256], 
-						    unsigned char green[256],
-							unsigned char blue[256] );
-
+void		GLimp_SetGamma( unsigned char mapping[256] );
+void		GLimp_RestoreGamma();
 
 /*
 ====================================================================
