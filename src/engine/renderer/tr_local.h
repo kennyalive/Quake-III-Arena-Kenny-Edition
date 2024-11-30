@@ -957,6 +957,7 @@ RenderApi get_render_api();
 // cvars
 //
 extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan, 2 - DX12
+extern cvar_t	*r_gpuIndex;			// GPU to use. By default the first GPU (0) is selected. Can be used only with Vulkan.
 
 extern cvar_t	*r_twinMode;			// Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs
 

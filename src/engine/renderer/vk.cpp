@@ -516,15 +516,19 @@ static void create_instance() {
 static void create_device() {
 	// select physical device
 	{
-		uint32_t count;
+		uint32_t count = 0;
 		VK_CHECK(vkEnumeratePhysicalDevices(vk.instance, &count, nullptr));
-
-		if (count == 0)
+		if (count == 0) {
 			ri.Error(ERR_FATAL, "Vulkan: no physical device found");
-
+		}
 		std::vector<VkPhysicalDevice> physical_devices(count);
 		VK_CHECK(vkEnumeratePhysicalDevices(vk.instance, &count, physical_devices.data()));
-		vk.physical_device = physical_devices[0];
+		int gpu_index = r_gpuIndex->integer;
+        if (gpu_index >= count) {
+            ri.Printf(PRINT_WARNING, "r_gpuIndex %d is too large. Maximum value is %u. Vulkan backend will use GPU 0\n", gpu_index, count - 1);
+            gpu_index = 0;
+        }
+		vk.physical_device = physical_devices[gpu_index];
 	}
 
 	vk_imp_create_surface();
