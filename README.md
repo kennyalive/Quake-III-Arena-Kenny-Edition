@@ -10,9 +10,8 @@
 * No changes in terms of visual appearence or gameplay. Provided Vulkan backend is a safe measure in case of poor OpenGL support in the future (hopefully not). It produces the same pixels as OpenGL backend.
 
 ## Usage
-* Build `visual-studio/quake3.sln` solution.
-* Copy `quake3-ke.exe` to your local Quake-III-Arena installation folder.
-* To start the game from Visual Studio go to `Debugging->Command Arguments` in quake3 project's properties and specify command line in the form: `+set fs_basepath <quake3/installation/directory>`
+* Build `visual-studio/quake3.sln` solution and copy `quake3-ke.exe` to your local Quake-III-Arena installation folder.
+* To debug the game from Visual Studio go to quake3 project settings -> Debugging -> Command Arguments. Specify game installation location: `+set fs_basepath <quake3/installation/directory>`
 
 ## Vulkan support 
 Vulkan backend provides the same graphics features as original OpenGL-based one including customization via r_xxx cvars and debug visualization.
@@ -21,9 +20,12 @@ Vulkan backend provides the same graphics features as original OpenGL-based one 
 * **r_renderAPI** - 3D API to use. Requires vid_restart.
     * 0 - OpenGL
     * 1 - Vulkan
-    * 2 - DX12 (if enabled, see below)
+ 
+* **r_gpuIndex** - Selects GPU in multi-GPU systems. By default the first detected GPU is used. Requires vid_restart.
 
-* **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs. Requires vid_restart.
+* **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan APIs. Requires vid_restart.
+
+* **r_shaderGamma** - Use compute shader to apply gamma instead of legacy HW gamma API (SetDeviceGammaRamp). 
 
 ![twin_mode](https://user-images.githubusercontent.com/4964024/34961607-48aae882-fa40-11e7-9bf0-d4400afdad34.jpg)
 
