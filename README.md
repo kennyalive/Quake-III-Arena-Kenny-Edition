@@ -1,6 +1,6 @@
 # Welcome to Quake 3 source code!
 
-<img src="https://ci.appveyor.com/api/projects/status/github/kennyalive/Quake-III-Arena-Kenny-Edition?svg=true" alt="Project Badge">
+![Actions Status](https://github.com/kennyalive/Quake-III-Arena-Kenny-Edition/actions/workflows/msbuild.yml/badge.svg)
 
 ## What's in this repository
 * This repository contains Quake 3 Arena source code which can be built with modern versions of Visual Studio.
