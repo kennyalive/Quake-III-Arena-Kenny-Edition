@@ -2569,7 +2569,7 @@ void vk_end_frame() {
 	const uint32_t push_constants[3] = {
 		(uint32_t)glConfig.vidWidth,
 		(uint32_t)glConfig.vidHeight,
-		r_shaderGamma->integer ? 0u : 1u // identity_gamma
+		r_shaderGamma->integer && !r_ignorehwgamma->integer ? 0u : 1u // identity_gamma
 	};
 
     vkCmdBindDescriptorSets(vk.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vk.gamma_pipeline_layout, 0, 1, &vk.gamma_descriptor_set, 0, nullptr);
