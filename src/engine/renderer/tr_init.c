@@ -183,10 +183,10 @@ RenderApi get_render_api() {
 #ifdef ENABLE_DX12
 		return RENDER_API_DX;
 #else
-		return RENDER_API_GL; // use default (GL) if dx12 is disabled
+		return RENDER_API_VK; // use default (Vulkan) if dx12 is disabled
 #endif
 	else
-		return RENDER_API_GL; // use default (GL) if invalid r_renderAPI value is specified
+		return RENDER_API_VK; // use default (Vulkan) if invalid r_renderAPI value is specified
 }
 
 /*
@@ -209,7 +209,7 @@ static void InitRenderAPI( void )
 	{
 #ifndef ENABLE_DX12
 		if (r_renderAPI->integer == 2) {
-			ri.Printf(PRINT_WARNING, "DirectX 12 backend is disabled (code was compiled without ENABLE_DX12). OpenGL backend will be used instead.\n");
+			ri.Printf(PRINT_WARNING, "DirectX 12 backend is disabled (code was compiled without ENABLE_DX12). Vulkan backend will be used instead.\n");
 		}
 #endif
 
@@ -911,7 +911,7 @@ R_Register
 */
 void R_Register( void ) 
 {
-    r_renderAPI = ri.Cvar_Get( "r_renderAPI", "0", CVAR_ARCHIVE | CVAR_LATCH ) ;
+    r_renderAPI = ri.Cvar_Get( "r_renderAPI", "1", CVAR_ARCHIVE | CVAR_LATCH ) ;
 	r_gpu = ri.Cvar_Get( "r_gpu", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_vsync = ri.Cvar_Get( "r_vsync", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_shaderGamma = ri.Cvar_Get("r_shaderGamma", "0", CVAR_ARCHIVE);

@@ -7,7 +7,7 @@
 * Only Windows x64 platform is supported.
 * I don't try to fix bugs inherited from the original Q3 source code distribution - in this regard the project is Q3-bugs-friendly. I still make fixes if the compiler complains about something or if functionality starts to shows its age (SetDeviceGammaRamp).
 * Some functionality related to ancient graphics hardware was removed. Also I removed compilation of qvm code to native instructions to simplify maintenance. This means all game code is run through QVM which is slower than native execution but fast enough for modern computers.
-* No changes in terms of visual appearence or gameplay. Provided Vulkan backend is a safe measure in case of poor OpenGL support in the future (hopefully not). It produces the same pixels as OpenGL backend.
+* No changes in terms of visual appearence or gameplay. Provided Vulkan backend is enabled by default. It produces the same pixels as OpenGL backend. The decision to make Vulkan a default backend was made after the issues with SetDeviceGammaRamp API.
 
 ## Usage
 * Build `visual-studio/quake3.sln` solution and copy `quake3-ke.exe` to your local Quake-III-Arena installation folder.
