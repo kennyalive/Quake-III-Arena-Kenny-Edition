@@ -39,8 +39,9 @@ static void GfxInfo_f( void );
 
 cvar_t *r_renderAPI;
 cvar_t* r_gpuIndex;
-cvar_t *r_twinMode;
+cvar_t* r_vsync;
 cvar_t *r_shaderGamma;
+cvar_t* r_twinMode;
 
 cvar_t	*r_railWidth;
 cvar_t	*r_railCoreWidth;
@@ -912,8 +913,9 @@ void R_Register( void )
 {
     r_renderAPI = ri.Cvar_Get( "r_renderAPI", "0", CVAR_ARCHIVE | CVAR_LATCH ) ;
 	r_gpuIndex = ri.Cvar_Get( "r_gpuIndex", "0", CVAR_ARCHIVE | CVAR_LATCH );
-    r_twinMode = ri.Cvar_Get( "r_twinMode", "0", CVAR_LATCH ) ;
+	r_vsync = ri.Cvar_Get( "r_vsync", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_shaderGamma = ri.Cvar_Get("r_shaderGamma", "0", CVAR_ARCHIVE);
+	r_twinMode = ri.Cvar_Get( "r_twinMode", "0", CVAR_LATCH );
 
 	//
 	// latched and archived variables

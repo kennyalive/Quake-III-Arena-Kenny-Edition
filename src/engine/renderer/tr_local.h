@@ -958,10 +958,9 @@ RenderApi get_render_api();
 //
 extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan, 2 - DX12
 extern cvar_t	*r_gpuIndex;			// GPU to use. By default the first GPU (0) is selected. Can be used only with Vulkan.
-
-extern cvar_t	*r_twinMode;			// Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs
-
+extern cvar_t	*r_vsync;				// Select Vulkan presentation mode that enables vsync (com_maxFPS can be set to 0)
 extern cvar_t	*r_shaderGamma;			// Use compute shader to apply gamma (only in Vulkan) instead HW gamma API.
+extern cvar_t	*r_twinMode;			// Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs
 
 extern cvar_t	*r_railWidth;
 extern cvar_t	*r_railCoreWidth;

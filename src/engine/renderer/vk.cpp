@@ -191,21 +191,33 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
 
 	bool mailbox_supported = false;
 	bool immediate_supported = false;
+	bool fifo_relaxed_supported = false;
 	for (auto pm : present_modes) {
 		if (pm == VK_PRESENT_MODE_MAILBOX_KHR)
 			mailbox_supported = true;
 		else if (pm == VK_PRESENT_MODE_IMMEDIATE_KHR)
 			immediate_supported = true;
+		else if (pm == VK_PRESENT_MODE_FIFO_RELAXED_KHR)
+			fifo_relaxed_supported = true;
 	}
 
-	VkPresentModeKHR present_mode;
-	uint32_t image_count;
-	if (mailbox_supported) {
+    VkPresentModeKHR present_mode;
+    uint32_t image_count = surface_caps.minImageCount;
+
+	if (!r_vsync->integer && mailbox_supported) {
 		present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
-		image_count = std::max(3u, surface_caps.minImageCount);
-	} else {
-		present_mode = immediate_supported ? VK_PRESENT_MODE_IMMEDIATE_KHR : VK_PRESENT_MODE_FIFO_KHR;
-		image_count = std::max(2u, surface_caps.minImageCount);
+		// Additional image over reported min count is to ensure AcquireNextImage does not block
+		// (check Q/A section for VK_KHR_swapchain extension in the specification)
+		image_count = surface_caps.minImageCount + 1;
+	}
+	else if (!r_vsync->integer && immediate_supported) {
+		present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+	}
+	else if (fifo_relaxed_supported) {
+		present_mode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+	}
+	else {
+		present_mode = VK_PRESENT_MODE_FIFO_KHR;
 	}
 
 	if (surface_caps.maxImageCount > 0) {
