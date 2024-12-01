@@ -2216,28 +2216,11 @@ void vk_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t col
 		attachment_count++;
 	}
 
-	VkClearRect clear_rect[2];
-	clear_rect[0].rect = get_scissor_rect();
-	clear_rect[0].baseArrayLayer = 0;
-	clear_rect[0].layerCount = 1;
-	int rect_count = 1;
-
-	// Split viewport rectangle into two non-overlapping rectangles.
-	// It's a HACK to prevent Vulkan validation layer's performance warning:
-	//		"vkCmdClearAttachments() issued on command buffer object XXX prior to any Draw Cmds.
-	//		 It is recommended you use RenderPass LOAD_OP_CLEAR on Attachments prior to any Draw."
-	// 
-	// NOTE: we don't use LOAD_OP_CLEAR for color attachment when we begin renderpass
-	// since at that point we don't know whether we need collor buffer clear (usually we don't).
-	if (clear_color) {
-		uint32_t h = clear_rect[0].rect.extent.height / 2;
-		clear_rect[0].rect.extent.height = h;
-		clear_rect[1] = clear_rect[0];
-		clear_rect[1].rect.offset.y = h;
-		rect_count = 2;
-	}
-
-	vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, rect_count, clear_rect);
+	VkClearRect clear_rect{};
+	clear_rect.rect = get_scissor_rect();
+	clear_rect.baseArrayLayer = 0;
+	clear_rect.layerCount = 1;
+	vkCmdClearAttachments(vk.command_buffer, attachment_count, attachments, 1, &clear_rect);
 }
 
 void vk_bind_geometry() {
