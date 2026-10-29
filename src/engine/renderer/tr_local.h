@@ -948,21 +948,23 @@ extern Dx_World		dx_world;		// this data is cleared during ref re-init
 enum RenderApi {
 	RENDER_API_GL,
 	RENDER_API_VK,
-	RENDER_API_DX
+	RENDER_API_DX,
+	RENDER_API_WEBGPU
 };
 
 RenderApi get_render_api();
 const char* get_render_api_name(RenderApi render_api);
+bool is_render_api_enabled(RenderApi render_api);
 
 //
 // cvars
 //
-extern cvar_t	*r_renderAPI;			// 3D API to use: 0 - OpenGL, 1 - Vulkan
+extern cvar_t	*r_renderAPI;			// Main API: 0 - OpenGL, 1 - Vulkan, 2 - DX12, 3 - WebGPU placeholder
 extern cvar_t	*r_gpu;					// Select GPU in multi-GPU system (zero-based index, only in Vulkan). By default, GPU 0 is selected.
 extern cvar_t	*r_vsync;				// Enable vsync in Vulkan (com_maxFPS may be set to 0)
 extern cvar_t	*r_shaderGamma;			// Use compute shader to apply gamma (only in Vulkan) instead of legacy HW gamma API.
 extern cvar_t	*r_twinMode;			// Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs
-extern cvar_t	*r_twinAPIs;			// Additional APIs rendered in twin windows: 1 - OpenGL, 2 - Vulkan, 4 - DX12
+extern cvar_t	*r_twinAPIs;			// Additional twin APIs: 1 - OpenGL, 2 - Vulkan, 4 - DX12, 8 - WebGPU placeholder
 
 extern cvar_t	*r_railWidth;
 extern cvar_t	*r_railCoreWidth;
@@ -1215,6 +1217,9 @@ void vk_imp_create_surface();
 
 void dx_imp_init();
 void dx_imp_shutdown();
+
+void webgpu_imp_init();
+void webgpu_imp_shutdown();
 
 // NOTE TTimo linux works with float gamma value, not the gamma table
 //   the params won't be used, getting the r_gamma cvar directly

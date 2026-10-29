@@ -319,6 +319,33 @@ static qboolean GLW_InitDriver(HWND hwnd) {
 	return qtrue;
 }
 
+// Windowed position of the main window: vid_xpos/vid_ypos adjusted so that a window
+// with the given outer size is completely on screen. Twin windows use the same origin
+// for their grid, so all windows agree on it regardless of creation order.
+static void get_main_window_origin(int w, int h, int* x, int* y)
+{
+	cvar_t* vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
+	cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
+	*x = vid_xpos->integer;
+	*y = vid_ypos->integer;
+
+	if ( *x < 0 )
+		*x = 0;
+	if ( *y < 0 )
+		*y = 0;
+
+	int desktop_width = GetDesktopWidth();
+	int desktop_height = GetDesktopHeight();
+
+	if (w < desktop_width && h < desktop_height)
+	{
+		if ( *x + w > desktop_width )
+			*x = ( desktop_width - w );
+		if ( *y + h > desktop_height )
+			*y = ( desktop_height - h );
+	}
+}
+
 static HWND create_main_window(int width, int height, qboolean fullscreen)
 {
 	//
@@ -385,28 +412,9 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
 	}
 	else
 	{
-		cvar_t* vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
-		cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
-		x = vid_xpos->integer;
-		y = vid_ypos->integer;
-
-		// adjust window coordinates if necessary 
+		// adjust window coordinates if necessary
 		// so that the window is completely on screen
-		if ( x < 0 )
-			x = 0;
-		if ( y < 0 )
-			y = 0;
-
-        int desktop_width = GetDesktopWidth();
-        int desktop_height = GetDesktopHeight();
-
-		if (w < desktop_width && h < desktop_height)
-		{
-			if ( x + w > desktop_width )
-				x = ( desktop_width - w );
-			if ( y + h > desktop_height )
-				y = ( desktop_height - h );
-		}
+		get_main_window_origin(w, h, &x, &y);
 	}
 
 	char window_name[1024];
@@ -483,19 +491,30 @@ static HWND create_twin_window(int width, int height, RenderApi render_api)
     int w = r.right - r.left;
     int h = r.bottom - r.top;
 
-    cvar_t* vid_xpos = ri.Cvar_Get ("vid_xpos", "", 0);
-    cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
+	// Grid origin: the main window position, adjusted the same way create_main_window
+	// does, so twins created before and after the main window agree on it.
+	int origin_x, origin_y;
+	get_main_window_origin(w, h, &origin_x, &origin_y);
 	int x, y;
 
-	// Place twin windows side by side to the right of the main window
-	int twin_index = 1;
-	HWND api_windows[] = { g_wv.hWnd_opengl, g_wv.hWnd_vulkan, g_wv.hWnd_dx };
+	// Windows are placed around the main window, which keeps its position (cell 0).
+	// Twin windows take the following cells in creation order: a single row, or a 2x2 grid
+	// when all four APIs are active.
+	int window_count = 0;
+	for (int api = RENDER_API_GL; api <= RENDER_API_WEBGPU; ++api) {
+		if (is_render_api_enabled((RenderApi)api))
+			++window_count;
+	}
+	int columns = window_count == 4 ? 2 : window_count;
+
+	int cell_index = 1;
+	HWND api_windows[] = { g_wv.hWnd_opengl, g_wv.hWnd_vulkan, g_wv.hWnd_dx, g_wv.hWnd_webgpu };
 	for (int i = 0; i < (int)(sizeof(api_windows) / sizeof(api_windows[0])); ++i) {
 		if (api_windows[i] != NULL && api_windows[i] != g_wv.hWnd)
-			++twin_index;
+			++cell_index;
 	}
-	x = vid_xpos->integer + twin_index * (width + 5);
-	y = vid_ypos->integer;
+	x = origin_x + (cell_index % columns) * (w + 5);
+	y = origin_y + (cell_index / columns) * (h + 5);
 
 	int desktop_width = GetDesktopWidth();
     int desktop_height = GetDesktopHeight();
@@ -946,6 +965,51 @@ void dx_imp_shutdown() {
 
 	WG_RestoreGamma();
 
+	memset(&glConfig, 0, sizeof(glConfig));
+	memset(&glState, 0, sizeof(glState));
+
+	if (log_fp) {
+		fclose(log_fp);
+		log_fp = 0;
+	}
+}
+
+void webgpu_imp_init() {
+	ri.Printf(PRINT_ALL, "Initializing WebGPU subsystem (window placeholder)\n");
+
+	// Reuse the no-op OpenGL entry points until WebGPU rendering is implemented
+	if (!gl_active) {
+		QGL_Init(nullptr);
+		qglActiveTextureARB = [](GLenum) {};
+		qglClientActiveTextureARB = [](GLenum) {};
+	}
+
+	SetMode(r_mode->integer, (qboolean)r_fullscreen->integer);
+
+	if (get_render_api() == RENDER_API_WEBGPU) {
+		g_wv.hWnd_webgpu = create_main_window(glConfig.vidWidth, glConfig.vidHeight, (qboolean)r_fullscreen->integer);
+		g_wv.hWnd = g_wv.hWnd_webgpu;
+		SetForegroundWindow(g_wv.hWnd);
+		SetFocus(g_wv.hWnd);
+		WG_CheckHardwareGamma();
+	} else {
+		g_wv.hWnd_webgpu = create_twin_window(glConfig.vidWidth, glConfig.vidHeight, RENDER_API_WEBGPU);
+	}
+}
+
+void webgpu_imp_shutdown() {
+	ri.Printf(PRINT_ALL, "Shutting down WebGPU subsystem\n");
+
+	if (g_wv.hWnd_webgpu) {
+		ri.Printf(PRINT_ALL, "...destroying WebGPU window\n");
+		DestroyWindow(g_wv.hWnd_webgpu);
+		if (g_wv.hWnd == g_wv.hWnd_webgpu)
+			g_wv.hWnd = NULL;
+		g_wv.hWnd_webgpu = NULL;
+	}
+
+	QGL_Shutdown();
+	WG_RestoreGamma();
 	memset(&glConfig, 0, sizeof(glConfig));
 	memset(&glState, 0, sizeof(glState));
 

@@ -80,6 +80,7 @@ typedef struct
     HWND            hWnd_opengl;
     HWND            hWnd_vulkan;
 	HWND			hWnd_dx;
+	HWND			hWnd_webgpu;
 
 	HINSTANCE		hInstance;
 	qboolean		activeApp;

@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_local.h"
 
 bool		gl_active;
+static bool webgpu_active;
 glconfig_t	glConfig;
 glstate_t	glState;
 
@@ -186,6 +187,8 @@ RenderApi get_render_api() {
 #else
 		return RENDER_API_VK; // use default (Vulkan) if dx12 is disabled
 #endif
+	else if (r_renderAPI->integer == 3)
+		return RENDER_API_WEBGPU;
 	else
 		return RENDER_API_VK; // use default (Vulkan) if invalid r_renderAPI value is specified
 }
@@ -195,15 +198,20 @@ const char* get_render_api_name(RenderApi render_api) {
 	case RENDER_API_GL: return "OpenGL";
 	case RENDER_API_VK: return "Vulkan";
 	case RENDER_API_DX: return "DX12";
+	case RENDER_API_WEBGPU: return "WebGPU";
 	default: return "invalid-render-api";
 	}
 }
 
 // The API selected by r_renderAPI always renders the main window.
 // In twin mode r_twinAPIs enables additional APIs that render twin windows.
-static bool is_render_api_enabled(RenderApi render_api) {
+bool is_render_api_enabled(RenderApi render_api) {
 	if (render_api == get_render_api())
 		return true;
+#ifndef ENABLE_DX12
+	if (render_api == RENDER_API_DX)
+		return false;
+#endif
 	if (!r_twinMode->integer)
 		return false;
 	return (r_twinAPIs->integer & (1 << render_api)) != 0;
@@ -260,6 +268,12 @@ static void InitRenderAPI( void )
 			dx_initialize();
 		}
 #endif
+
+		// WebGPU window placeholder
+		if (is_render_api_enabled(RENDER_API_WEBGPU)) {
+			webgpu_imp_init();
+			webgpu_active = true;
+		}
 	}
 
 	// init command buffers and SMP
@@ -677,6 +691,11 @@ Doesn't print the pacifier message if there is a second arg
 ================== 
 */  
 void R_ScreenShot_f (void) {
+	if (get_render_api() == RENDER_API_WEBGPU) {
+		ri.Printf(PRINT_WARNING, "Screenshots are not implemented for the WebGPU placeholder.\n");
+		return;
+	}
+
 	char	checkname[MAX_OSPATH];
 	static	int	lastNumber = -1;
 	qboolean	silent;
@@ -730,6 +749,11 @@ void R_ScreenShot_f (void) {
 } 
 
 void R_ScreenShotJPEG_f (void) {
+	if (get_render_api() == RENDER_API_WEBGPU) {
+		ri.Printf(PRINT_WARNING, "Screenshots are not implemented for the WebGPU placeholder.\n");
+		return;
+	}
+
 	char		checkname[MAX_OSPATH];
 	static	int	lastNumber = -1;
 	qboolean	silent;
@@ -903,6 +927,10 @@ void GfxInfo_f( void )
 		ri.Printf( PRINT_ALL, "\nActive 3D API: DirectX 12\n" );
 	}
 
+	if (webgpu_active) {
+		ri.Printf(PRINT_ALL, "\nActive 3D API: WebGPU (window placeholder; rendering is not implemented)\n");
+	}
+
 	//
 	// Info that doesn't depend on r_renderAPI
 	//
@@ -936,7 +964,7 @@ void R_Register( void )
 	r_vsync = ri.Cvar_Get( "r_vsync", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_shaderGamma = ri.Cvar_Get("r_shaderGamma", "0", CVAR_ARCHIVE);
 	r_twinMode = ri.Cvar_Get( "r_twinMode", "0", CVAR_LATCH );
-	r_twinAPIs = ri.Cvar_Get( "r_twinAPIs", "7", CVAR_LATCH );
+	r_twinAPIs = ri.Cvar_Get( "r_twinAPIs", "15", CVAR_LATCH );
 
 	//
 	// latched and archived variables
@@ -1200,6 +1228,11 @@ void RE_Shutdown( qboolean destroyWindow ) {
 			dx_shutdown();
 			dx_imp_shutdown();
 		}
+	}
+
+	if (webgpu_active && destroyWindow) {
+		webgpu_imp_shutdown();
+		webgpu_active = false;
 	}
 
 	tr.registered = qfalse;
