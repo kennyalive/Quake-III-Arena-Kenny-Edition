@@ -20,6 +20,7 @@ void wgpu_wait_device_idle();
 // Resources allocation
 //
 Wgpu_Image wgpu_create_image(int width, int height, WGPUTextureFormat format, int mip_levels, bool repeat_texture);
+void wgpu_destroy_image(Wgpu_Image& image);
 void wgpu_upload_image_data(WGPUTexture texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel);
 void wgpu_update_bind_group(Wgpu_Image& image, bool mipmap, bool repeat_texture);
 WGPUSampler wgpu_find_sampler(const Vk_Sampler_Def& def);

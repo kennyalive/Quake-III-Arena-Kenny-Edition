@@ -230,7 +230,10 @@ void wgpu_shutdown() {
 }
 
 void wgpu_release_resources() {
-	// WGPU_TODO: Release WebGPU resources allocated during registration
+	for (int i = 0; i < MAX_VK_IMAGES; i++) {
+		wgpu_destroy_image(wgpu_world.images[i]);
+	}
+	Com_Memset(&wgpu_world, 0, sizeof(wgpu_world));
 }
 
 void wgpu_wait_device_idle() {
@@ -241,12 +244,68 @@ void wgpu_wait_device_idle() {
 // Resources allocation
 //
 Wgpu_Image wgpu_create_image(int width, int height, WGPUTextureFormat format, int mip_levels, bool repeat_texture) {
-	// WGPU_TODO: Create the WebGPU texture, view, and bind group
-	return Wgpu_Image{};
+	if (format != WGPUTextureFormat_RGBA8Unorm) {
+		ri.Error(ERR_FATAL, "wgpu_create_image: only RGBA8 is supported");
+		return Wgpu_Image{};
+	}
+
+	Wgpu_Image image;
+
+	// Create texture
+	WGPUTextureDescriptor desc = WGPU_TEXTURE_DESCRIPTOR_INIT;
+	desc.dimension = WGPUTextureDimension_2D;
+	desc.size = { (uint32_t)width, (uint32_t)height, 1 };
+	desc.format = format;
+	desc.mipLevelCount = mip_levels;
+	desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+	image.texture = wgpuDeviceCreateTexture(wgpu.device, &desc);
+
+	// Create a view of all mip levels
+	image.view = wgpuTextureCreateView(image.texture, nullptr);
+	wgpu_update_bind_group(image, mip_levels > 1, repeat_texture);
+	return image;
+}
+
+void wgpu_destroy_image(Wgpu_Image& image) {
+	if (image.bind_group != nullptr) {
+		wgpuBindGroupRelease(image.bind_group);
+	}
+	if (image.view != nullptr) {
+		wgpuTextureViewRelease(image.view);
+	}
+	if (image.texture != nullptr) {
+		wgpuTextureRelease(image.texture);
+	}
+	image = Wgpu_Image{};
 }
 
 void wgpu_upload_image_data(WGPUTexture texture, int width, int height, int mip_levels, const uint8_t* pixels, int bytes_per_pixel) {
-	// WGPU_TODO: Upload the image pixels and mip levels to the WebGPU texture
+	if (bytes_per_pixel != 4) {
+		ri.Error(ERR_FATAL, "wgpu_upload_image_data: only RGBA8 is supported");
+		return;
+	}
+	for (int i = 0; i < mip_levels; i++) {
+		WGPUTexelCopyTextureInfo destination = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
+		destination.texture = texture;
+		destination.mipLevel = i;
+		destination.aspect = WGPUTextureAspect_All;
+
+        // Queue writes accept tightly packed rows. Dawn handles staging and alignment
+        WGPUTexelCopyBufferLayout layout = WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT;
+		layout.bytesPerRow = width * bytes_per_pixel;
+		layout.rowsPerImage = height;
+		WGPUExtent3D size = { (uint32_t)width, (uint32_t)height, 1 };
+		size_t data_size = (size_t)layout.bytesPerRow * height;
+		wgpuQueueWriteTexture(wgpu.queue, &destination, pixels, data_size, &layout, &size);
+
+		pixels += data_size;
+
+		width >>= 1;
+		if (width < 1) width = 1;
+
+		height >>= 1;
+		if (height < 1) height = 1;
+	}
 }
 
 void wgpu_update_bind_group(Wgpu_Image& image, bool mipmap, bool repeat_texture) {

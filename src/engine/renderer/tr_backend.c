@@ -760,7 +760,7 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 		// WEBGPU
 		if (wgpu.active) {
 			Wgpu_Image& image = wgpu_world.images[tr.scratchImage[client]->index];
-			// WGPU_TODO: Release the old cinematic texture, view, and bind group before replacing them
+			wgpu_destroy_image(image);
 			image = wgpu_create_image(cols, rows, WGPUTextureFormat_RGBA8Unorm, 1, false);
 			wgpu_upload_image_data(image.texture, cols, rows, 1, data, 4);
 		}
