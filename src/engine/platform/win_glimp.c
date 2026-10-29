@@ -413,14 +413,7 @@ static HWND create_main_window(int width, int height, qboolean fullscreen)
 	if (r_twinMode->integer == 0) {
 		strcpy(window_name, MAIN_WINDOW_CLASS_NAME);
 	} else {
-		const char* api_name = "invalid-render-api";
-		if (get_render_api() == RENDER_API_GL)
-			api_name = "OpenGL";
-		else if (get_render_api() == RENDER_API_VK)
-			api_name = "Vulkan";
-		else if (get_render_api() == RENDER_API_DX)
-			api_name = "DX12";
-		sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
+		sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, get_render_api_name(get_render_api()));
 	}
 
 	HWND hwnd = CreateWindowEx(
@@ -494,17 +487,15 @@ static HWND create_twin_window(int width, int height, RenderApi render_api)
     cvar_t* vid_ypos = ri.Cvar_Get ("vid_ypos", "", 0);
 	int x, y;
 
-	bool first_twin_window =
-			(get_render_api() != RENDER_API_GL && render_api == RENDER_API_GL) ||
-			(get_render_api() == RENDER_API_GL && render_api == RENDER_API_VK);
-
-	if (first_twin_window) {
-		x = vid_xpos->integer + width + 5;
-		y = vid_ypos->integer;
-	}  else {
-		x = vid_xpos->integer + 2*width + 10;
-		y = vid_ypos->integer;
+	// Place twin windows side by side to the right of the main window
+	int twin_index = 1;
+	HWND api_windows[] = { g_wv.hWnd_opengl, g_wv.hWnd_vulkan, g_wv.hWnd_dx };
+	for (int i = 0; i < (int)(sizeof(api_windows) / sizeof(api_windows[0])); ++i) {
+		if (api_windows[i] != NULL && api_windows[i] != g_wv.hWnd)
+			++twin_index;
 	}
+	x = vid_xpos->integer + twin_index * (width + 5);
+	y = vid_ypos->integer;
 
 	int desktop_width = GetDesktopWidth();
     int desktop_height = GetDesktopHeight();
@@ -520,14 +511,7 @@ static HWND create_twin_window(int width, int height, RenderApi render_api)
 		y = desktop_height - 20;
 	
 	char window_name[1024];
-	const char* api_name = "invalid-render-api";
-	if (render_api == RENDER_API_GL)
-		api_name = "OpenGL";
-	else if (render_api == RENDER_API_VK)
-		api_name = "Vulkan";
-	else if (render_api == RENDER_API_DX)
-		api_name = "DX12";
-	sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, api_name);
+	sprintf(window_name, "%s [%s]", MAIN_WINDOW_CLASS_NAME, get_render_api_name(render_api));
 
     HWND hwnd = CreateWindowEx(
         0, 

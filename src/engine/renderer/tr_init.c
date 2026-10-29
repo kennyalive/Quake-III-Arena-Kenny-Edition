@@ -42,6 +42,7 @@ cvar_t* r_gpu;
 cvar_t* r_vsync;
 cvar_t *r_shaderGamma;
 cvar_t* r_twinMode;
+cvar_t* r_twinAPIs;
 
 cvar_t	*r_railWidth;
 cvar_t	*r_railCoreWidth;
@@ -189,6 +190,25 @@ RenderApi get_render_api() {
 		return RENDER_API_VK; // use default (Vulkan) if invalid r_renderAPI value is specified
 }
 
+const char* get_render_api_name(RenderApi render_api) {
+	switch (render_api) {
+	case RENDER_API_GL: return "OpenGL";
+	case RENDER_API_VK: return "Vulkan";
+	case RENDER_API_DX: return "DX12";
+	default: return "invalid-render-api";
+	}
+}
+
+// The API selected by r_renderAPI always renders the main window.
+// In twin mode r_twinAPIs enables additional APIs that render twin windows.
+static bool is_render_api_enabled(RenderApi render_api) {
+	if (render_api == get_render_api())
+		return true;
+	if (!r_twinMode->integer)
+		return false;
+	return (r_twinAPIs->integer & (1 << render_api)) != 0;
+}
+
 /*
 ** This function is responsible for initializing a valid OpenGL/Vulkan subsystem.
 */
@@ -214,7 +234,7 @@ static void InitRenderAPI( void )
 #endif
 
 		// OpenGL
-		if (get_render_api() == RENDER_API_GL || r_twinMode->integer)
+		if (is_render_api_enabled(RENDER_API_GL))
 		{
 			GLimp_Init();
 
@@ -226,7 +246,7 @@ static void InitRenderAPI( void )
 		}
 
 		// VULKAN
-		if (get_render_api() == RENDER_API_VK || r_twinMode->integer)
+		if (is_render_api_enabled(RENDER_API_VK))
 		{
 			vk_imp_init();
 			vk_initialize();
@@ -234,7 +254,7 @@ static void InitRenderAPI( void )
 
 		// DX12
 #ifdef ENABLE_DX12
-		if (get_render_api() == RENDER_API_DX || r_twinMode->integer)
+		if (is_render_api_enabled(RENDER_API_DX))
 		{
 			dx_imp_init();
 			dx_initialize();
@@ -916,6 +936,7 @@ void R_Register( void )
 	r_vsync = ri.Cvar_Get( "r_vsync", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_shaderGamma = ri.Cvar_Get("r_shaderGamma", "0", CVAR_ARCHIVE);
 	r_twinMode = ri.Cvar_Get( "r_twinMode", "0", CVAR_LATCH );
+	r_twinAPIs = ri.Cvar_Get( "r_twinAPIs", "7", CVAR_LATCH );
 
 	//
 	// latched and archived variables

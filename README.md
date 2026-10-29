@@ -27,7 +27,16 @@ The Vulkan backend supports everything provided by the original OpenGL version, 
 
 * **r_shaderGamma** - Use compute shader to apply gamma instead of legacy HW gamma API (SetDeviceGammaRamp). 
 
-* **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan APIs. Requires vid_restart.
+* **r_twinMode** - Debug feature to compare rendering output between OpenGL/Vulkan/DX12 APIs. Requires vid_restart.
+
+* **r_twinAPIs** - Select additional API windows when `r_twinMode` is enabled. Requires vid_restart. Add these bitmask values:
+    * 1 - OpenGL
+    * 2 - Vulkan
+    * 4 - DirectX 12 (if compiled with `ENABLE_DX12`)
+    * 7 - All available APIs (default)
+    * 0 - Main window only
+    * The main API selected by `r_renderAPI` always stays active; its bit in the mask is ignored. This setting has no effect when `r_twinMode` is disabled.
+    * Example: `\r_renderAPI 1`, `\r_twinMode 1`, `\r_twinAPIs 4`, then `\vid_restart` enables Vulkan + DX12 without OpenGL.
 
 ![twin_mode](https://user-images.githubusercontent.com/4964024/34961607-48aae882-fa40-11e7-9bf0-d4400afdad34.jpg)
 
