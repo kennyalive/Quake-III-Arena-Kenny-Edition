@@ -148,11 +148,13 @@
     <ClCompile Include="..\src\engine\platform\win_glimp.c" />
     <ClCompile Include="..\src\engine\platform\win_qgl.c" />
     <ClCompile Include="..\src\engine\renderer\vk.cpp" />
+    <ClCompile Include="..\src\engine\renderer\wgpu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\engine\qcommon\cm_public.h" />
     <ClInclude Include="..\src\engine\renderer\dx.h" />
     <ClInclude Include="..\src\engine\renderer\vk.h" />
+    <ClInclude Include="..\src\engine\renderer\wgpu.h" />
     <ClInclude Include="..\src\game\q_shared.h" />
     <ClInclude Include="..\src\engine\qcommon\qcommon.h" />
     <ClInclude Include="..\src\engine\qcommon\qfiles.h" />

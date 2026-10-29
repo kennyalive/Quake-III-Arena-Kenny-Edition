@@ -170,6 +170,9 @@
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\apply_gamma_comp.cpp">
       <Filter>Source Files\spirv</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\engine\renderer\wgpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\engine\qcommon\cm_public.h">
@@ -206,6 +209,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\renderer\dx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\renderer\wgpu.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

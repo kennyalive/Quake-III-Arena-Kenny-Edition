@@ -1,0 +1,51 @@
+// Copyright 2026 The Dawn & Tint Authors
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its
+//    contributors may be used to endorse or promote products derived from
+//    this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+// FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+// OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#ifndef INCLUDE_DAWN_DAWN_VERSION_H_
+#define INCLUDE_DAWN_DAWN_VERSION_H_
+
+#include <stdint.h>
+
+// The full 64-bit Dawn version reserves the top 24 bits for the major version and the bottom 40
+// bits for the minor version.
+#define DAWN_MAKE_VERSION(major, minor) ((UINT64_C(major) << UINT64_C(40)) | UINT64_C(minor))
+#define DAWN_MAJOR_VERSION 1
+#define DAWN_MINOR_VERSION 2026101200
+#define DAWN_VERSION DAWN_MAKE_VERSION(DAWN_MAJOR_VERSION, DAWN_MINOR_VERSION)
+
+#ifdef __cplusplus
+#include <array>
+
+namespace dawn {
+
+// The version is a 20-byte SHA1 hash. If the hash is not available, it is all zeros.
+static constexpr std::array<uint8_t, 20> kDawnVersion = { 0x10, 0x67, 0x04, 0xa9, 0xac, 0x3f, 0xc2, 0x1b, 0x15, 0x80, 0xea, 0x85, 0xae, 0xa3, 0x02, 0xac, 0x17, 0xd4, 0x16, 0xf1 };
+
+}  // namespace dawn
+#endif  // __cplusplus
+
+#endif  // INCLUDE_DAWN_DAWN_VERSION_H_
