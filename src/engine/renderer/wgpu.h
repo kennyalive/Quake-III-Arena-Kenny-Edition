@@ -45,6 +45,15 @@ struct Wgpu_Instance {
 	WGPUQueue queue = nullptr;
 
 	//
+	// Surface and frame resources
+	//
+	WGPUSurface surface = nullptr;
+	WGPUTexture frame_texture = nullptr;
+	WGPUTextureView frame_view = nullptr;
+	WGPUCommandEncoder command_encoder = nullptr;
+	WGPURenderPassEncoder render_pass = nullptr;
+
+	//
 	// Standard pipelines
 	//
 	WGPURenderPipeline skybox_pipeline = nullptr;

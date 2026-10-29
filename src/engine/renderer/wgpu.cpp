@@ -1,4 +1,5 @@
 #include "tr_local.h"
+#include "../platform/win_local.h"
 
 //
 // Initialization
@@ -44,6 +45,30 @@ static void log_device_error(const char* event, int status, WGPUStringView messa
 	fputs(text, stderr);
 }
 
+static void end_render_pass() {
+	if (wgpu.render_pass != nullptr) {
+		wgpuRenderPassEncoderEnd(wgpu.render_pass);
+		wgpuRenderPassEncoderRelease(wgpu.render_pass);
+		wgpu.render_pass = nullptr;
+	}
+}
+
+static void release_frame() {
+	end_render_pass();
+	if (wgpu.command_encoder != nullptr) {
+		wgpuCommandEncoderRelease(wgpu.command_encoder);
+		wgpu.command_encoder = nullptr;
+	}
+	if (wgpu.frame_view != nullptr) {
+		wgpuTextureViewRelease(wgpu.frame_view);
+		wgpu.frame_view = nullptr;
+	}
+	if (wgpu.frame_texture != nullptr) {
+		wgpuTextureRelease(wgpu.frame_texture);
+		wgpu.frame_texture = nullptr;
+	}
+}
+
 void wgpu_initialize() {
 	//
 	// Instance
@@ -60,12 +85,30 @@ void wgpu_initialize() {
 	}
 
 	//
+	// Surface
+	//
+	{
+		WGPUSurfaceSourceWindowsHWND window_desc = WGPU_SURFACE_SOURCE_WINDOWS_HWND_INIT;
+		window_desc.hinstance = GetModuleHandle(nullptr);
+		window_desc.hwnd = g_wv.hWnd_webgpu;
+		WGPUSurfaceDescriptor surface_desc = WGPU_SURFACE_DESCRIPTOR_INIT;
+		surface_desc.nextInChain = &window_desc.chain;
+		wgpu.surface = wgpuInstanceCreateSurface(wgpu.instance, &surface_desc);
+		if (wgpu.surface == nullptr) {
+			wgpu_shutdown();
+			ri.Error(ERR_FATAL, "WebGPU: failed to create the window surface");
+			return;
+		}
+	}
+
+	//
 	// Adapter
 	//
 	{
 		WGPURequestAdapterOptions options = WGPU_REQUEST_ADAPTER_OPTIONS_INIT;
 		options.backendType = WGPUBackendType_Vulkan;
 		options.powerPreference = WGPUPowerPreference_HighPerformance;
+		options.compatibleSurface = wgpu.surface;
 
 		Wgpu_Request_Result result;
 		WGPURequestAdapterCallbackInfo callback_info = WGPU_REQUEST_ADAPTER_CALLBACK_INFO_INIT;
@@ -121,10 +164,55 @@ void wgpu_initialize() {
 		return;
 	}
 
+	//
+	// Surface configuration
+	//
+	{
+		WGPUSurfaceCapabilities caps = WGPU_SURFACE_CAPABILITIES_INIT;
+		WGPUStatus status = wgpuSurfaceGetCapabilities(wgpu.surface, wgpu.adapter, &caps);
+		if (status != WGPUStatus_Success || caps.formatCount == 0) {
+			wgpuSurfaceCapabilitiesFreeMembers(caps);
+			wgpu_shutdown();
+			ri.Error(ERR_FATAL, "WebGPU: failed to query surface capabilities");
+			return;
+		}
+		WGPUSurfaceConfiguration surface_config = WGPU_SURFACE_CONFIGURATION_INIT;
+		surface_config.device = wgpu.device;
+		surface_config.width = glConfig.vidWidth;
+		surface_config.height = glConfig.vidHeight;
+		surface_config.format = caps.formats[0];
+		// Prefer a linear UNORM target, like the Vulkan and DX12 backends
+		for (size_t i = 0; i < caps.formatCount; i++) {
+			if (caps.formats[i] == WGPUTextureFormat_BGRA8Unorm || caps.formats[i] == WGPUTextureFormat_RGBA8Unorm) {
+				surface_config.format = caps.formats[i];
+				break;
+			}
+		}
+		surface_config.presentMode = WGPUPresentMode_Fifo;
+		if (!r_vsync->integer) {
+			for (size_t i = 0; i < caps.presentModeCount; i++) {
+				if (caps.presentModes[i] == WGPUPresentMode_Mailbox) {
+					surface_config.presentMode = WGPUPresentMode_Mailbox;
+					break;
+				}
+				if (caps.presentModes[i] == WGPUPresentMode_Immediate) {
+					surface_config.presentMode = WGPUPresentMode_Immediate;
+				}
+			}
+		}
+		wgpuSurfaceCapabilitiesFreeMembers(caps);
+		wgpuSurfaceConfigure(wgpu.surface, &surface_config);
+	}
+
 	wgpu.active = true;
 }
 
 void wgpu_shutdown() {
+	release_frame();
+	if (wgpu.surface != nullptr) {
+		wgpuSurfaceUnconfigure(wgpu.surface);
+		wgpuSurfaceRelease(wgpu.surface);
+	}
 	if (wgpu.queue != nullptr) {
 		wgpuQueueRelease(wgpu.queue);
 	}
@@ -179,7 +267,25 @@ WGPURenderPipeline wgpu_find_pipeline(const Vk_Pipeline_Def& def) {
 // Rendering setup
 //
 void wgpu_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t color) {
-	// WGPU_TODO: Clear the requested WebGPU attachments
+	if (!wgpu.active || wgpu.command_encoder == nullptr) {
+		return;
+	}
+	// WGPU_TODO: Clear depth/stencil when the depth attachment is implemented
+	if (!clear_color) {
+		return;
+	}
+	// WGPU_TODO: Restrict clears to the current viewport when geometry rendering is implemented
+	end_render_pass();
+	WGPURenderPassColorAttachment attachment = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
+	attachment.view = wgpu.frame_view;
+	attachment.loadOp = WGPULoadOp_Clear;
+	attachment.storeOp = WGPUStoreOp_Store;
+	attachment.clearValue = { color[0], color[1], color[2], color[3] };
+
+	WGPURenderPassDescriptor pass_desc = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
+	pass_desc.colorAttachmentCount = 1;
+	pass_desc.colorAttachments = &attachment;
+	wgpu.render_pass = wgpuCommandEncoderBeginRenderPass(wgpu.command_encoder, &pass_desc);
 }
 
 void wgpu_bind_geometry() {
@@ -191,11 +297,42 @@ void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Dept
 }
 
 void wgpu_begin_frame() {
-	// WGPU_TODO: Acquire the surface texture and begin recording the WebGPU frame
+	if (!wgpu.active) {
+		return;
+	}
+	WGPUSurfaceTexture surface_texture = WGPU_SURFACE_TEXTURE_INIT;
+	wgpuSurfaceGetCurrentTexture(wgpu.surface, &surface_texture);
+	switch (surface_texture.status) {
+		case WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal:
+		case WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal:
+			break;
+		case WGPUSurfaceGetCurrentTextureStatus_Timeout:
+			return;
+		default:
+			ri.Error(ERR_FATAL, "WebGPU: failed to acquire the surface texture (status %d)", (int)surface_texture.status);
+			return;
+	}
+	wgpu.frame_texture = surface_texture.texture;
+	wgpu.frame_view = wgpuTextureCreateView(wgpu.frame_texture, nullptr);
+	wgpu.command_encoder = wgpuDeviceCreateCommandEncoder(wgpu.device, nullptr);
+
+	vec4_t black = { 0, 0, 0, 1 };
+	wgpu_clear_attachments(false, true, black);
 }
 
 void wgpu_end_frame() {
-	// WGPU_TODO: Submit the recorded WebGPU commands and present the frame
+	if (!wgpu.active || wgpu.command_encoder == nullptr)
+		return;
+
+	end_render_pass();
+	WGPUCommandBuffer commands = wgpuCommandEncoderFinish(wgpu.command_encoder, nullptr);
+	wgpuQueueSubmit(wgpu.queue, 1, &commands);
+	wgpuCommandBufferRelease(commands);
+	WGPUStatus status = wgpuSurfacePresent(wgpu.surface);
+	release_frame();
+	if (status != WGPUStatus_Success) {
+		ri.Error(ERR_FATAL, "WebGPU: failed to present the surface");
+	}
 }
 
 void wgpu_update_gamma_buffer(float gamma_table[256]) {

@@ -975,9 +975,9 @@ void dx_imp_shutdown() {
 }
 
 void webgpu_imp_init() {
-	ri.Printf(PRINT_ALL, "Initializing WebGPU subsystem (window placeholder)\n");
+	ri.Printf(PRINT_ALL, "Initializing WebGPU subsystem\n");
 
-	// Reuse the no-op OpenGL entry points until WebGPU rendering is implemented
+	// Reuse the no-op OpenGL entry points for the WebGPU backend
 	if (!gl_active) {
 		QGL_Init(nullptr);
 		qglActiveTextureARB = [](GLenum) {};
