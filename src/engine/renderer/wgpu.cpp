@@ -1,6 +1,10 @@
 #include "tr_local.h"
 #include "../platform/win_local.h"
 
+#include <vector>
+
+static const int GEOMETRY_BUFFER_SIZE = 8 * 1024 * 1024;
+
 //
 // Initialization
 //
@@ -69,14 +73,19 @@ static void release_frame() {
 	}
 }
 
+WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def);
+
 void wgpu_initialize() {
 	//
 	// Instance
 	//
-	WGPUInstanceFeatureName instance_feature = WGPUInstanceFeatureName_TimedWaitAny;
+	WGPUInstanceFeatureName instance_features[] = {
+		WGPUInstanceFeatureName_TimedWaitAny,
+		WGPUInstanceFeatureName_ShaderSourceSPIRV
+	};
 	WGPUInstanceDescriptor instance_desc = WGPU_INSTANCE_DESCRIPTOR_INIT;
-	instance_desc.requiredFeatureCount = 1;
-	instance_desc.requiredFeatures = &instance_feature;
+	instance_desc.requiredFeatureCount = 2;
+	instance_desc.requiredFeatures = instance_features;
 	wgpu.instance = wgpuCreateInstance(&instance_desc);
 	if (wgpu.instance == nullptr) {
 		wgpu_shutdown();
@@ -127,8 +136,11 @@ void wgpu_initialize() {
 	// Device
 	//
 	{
+		WGPULimits required_limits = WGPU_LIMITS_INIT;
+		required_limits.maxImmediateSize = 64;
 		WGPUDeviceDescriptor device_desc = WGPU_DEVICE_DESCRIPTOR_INIT;
 		device_desc.label = { "Quake III WebGPU device", WGPU_STRLEN };
+		device_desc.requiredLimits = &required_limits;
 		device_desc.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
 		device_desc.deviceLostCallbackInfo.callback = [](WGPUDevice const*, WGPUDeviceLostReason reason, WGPUStringView message, void*, void*)
 		{
@@ -202,6 +214,98 @@ void wgpu_initialize() {
 		}
 		wgpuSurfaceCapabilitiesFreeMembers(caps);
 		wgpuSurfaceConfigure(wgpu.surface, &surface_config);
+		wgpu.surface_format = surface_config.format;
+	}
+
+	//
+	// Geometry buffer
+	//
+	WGPUBufferDescriptor buffer_desc = WGPU_BUFFER_DESCRIPTOR_INIT;
+	buffer_desc.label = { "WebGPU geometry buffer", WGPU_STRLEN };
+	buffer_desc.size = GEOMETRY_BUFFER_SIZE;
+	buffer_desc.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
+	wgpu.geometry_buffer = wgpuDeviceCreateBuffer(wgpu.device, &buffer_desc);
+
+	//
+	// Pipeline layout
+	//
+	{
+		WGPUBindGroupLayoutEntry entries[2] = { WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT, WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT };
+		entries[0].binding = 0;
+		entries[0].visibility = WGPUShaderStage_Fragment;
+		entries[0].texture.sampleType = WGPUTextureSampleType_Float;
+		entries[0].texture.viewDimension = WGPUTextureViewDimension_2D;
+		entries[1].binding = 1;
+		entries[1].visibility = WGPUShaderStage_Fragment;
+		entries[1].sampler.type = WGPUSamplerBindingType_Filtering;
+
+		WGPUBindGroupLayoutDescriptor bind_group_desc = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
+		bind_group_desc.entryCount = 2;
+		bind_group_desc.entries = entries;
+		wgpu.image_bind_group_layout = wgpuDeviceCreateBindGroupLayout(wgpu.device, &bind_group_desc);
+
+		WGPUPipelineLayoutDescriptor layout_desc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
+		WGPUBindGroupLayout layouts[] = { wgpu.image_bind_group_layout, wgpu.image_bind_group_layout };
+		layout_desc.bindGroupLayouts = layouts;
+		layout_desc.immediateSize = 64;
+
+		// Single texture
+		layout_desc.bindGroupLayoutCount = 1;
+		wgpu.pipeline_layouts[0] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+
+		// Multitexture
+		layout_desc.bindGroupLayoutCount = 2;
+		wgpu.pipeline_layouts[1] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+	}
+
+	//
+	// Shader modules
+	//
+	{
+		auto create_shader_module = [](const unsigned char* bytes, size_t size) {
+			std::vector<uint32_t> words(size / sizeof(uint32_t));
+			Com_Memcpy(words.data(), bytes, size);
+			WGPUShaderSourceSPIRV source = WGPU_SHADER_SOURCE_SPIRV_INIT;
+			source.codeSize = (uint32_t)words.size();
+			source.code = words.data();
+			WGPUShaderModuleDescriptor desc = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
+			desc.nextInChain = &source.chain;
+			return wgpuDeviceCreateShaderModule(wgpu.device, &desc);
+		};
+
+		extern unsigned char single_texture_vert_spv[];
+		extern long long single_texture_vert_spv_size;
+		wgpu.single_texture_vs = create_shader_module(single_texture_vert_spv, single_texture_vert_spv_size);
+
+		extern unsigned char single_texture_frag_spv[];
+		extern long long single_texture_frag_spv_size;
+		wgpu.single_texture_fs = create_shader_module(single_texture_frag_spv, single_texture_frag_spv_size);
+
+		extern unsigned char multi_texture_vert_spv[];
+		extern long long multi_texture_vert_spv_size;
+		wgpu.multi_texture_vs = create_shader_module(multi_texture_vert_spv, multi_texture_vert_spv_size);
+
+		extern unsigned char multi_texture_mul_frag_spv[];
+		extern long long multi_texture_mul_frag_spv_size;
+		wgpu.multi_texture_mul_fs = create_shader_module(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
+
+		extern unsigned char multi_texture_add_frag_spv[];
+		extern long long multi_texture_add_frag_spv_size;
+		wgpu.multi_texture_add_fs = create_shader_module(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
+
+		// WGPU_TODO: Load the clipping variants after adapting their 128-byte transform block
+	}
+
+	//
+	// Standard pipelines
+	//
+	{
+		// WGPU_TODO: Create the remaining standard pipelines as their rendering paths are implemented
+		{
+			Vk_Pipeline_Def def;
+			def.state_bits = GLS_DEPTHTEST_DISABLE | GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
+			wgpu.images_debug_pipeline = create_pipeline(def);
+		}
 	}
 
 	wgpu.active = true;
@@ -209,6 +313,35 @@ void wgpu_initialize() {
 
 void wgpu_shutdown() {
 	release_frame();
+	if (wgpu.geometry_buffer != nullptr) {
+		wgpuBufferRelease(wgpu.geometry_buffer);
+	}
+	if (wgpu.images_debug_pipeline != nullptr) {
+		wgpuRenderPipelineRelease(wgpu.images_debug_pipeline);
+	}
+	for (int i = 0; i < 2; i++) {
+		if (wgpu.pipeline_layouts[i] != nullptr) {
+			wgpuPipelineLayoutRelease(wgpu.pipeline_layouts[i]);
+		}
+	}
+	if (wgpu.single_texture_vs != nullptr) {
+		wgpuShaderModuleRelease(wgpu.single_texture_vs);
+	}
+	if (wgpu.single_texture_fs != nullptr) {
+		wgpuShaderModuleRelease(wgpu.single_texture_fs);
+	}
+	if (wgpu.multi_texture_vs != nullptr) {
+		wgpuShaderModuleRelease(wgpu.multi_texture_vs);
+	}
+	if (wgpu.multi_texture_mul_fs != nullptr) {
+		wgpuShaderModuleRelease(wgpu.multi_texture_mul_fs);
+	}
+	if (wgpu.multi_texture_add_fs != nullptr) {
+		wgpuShaderModuleRelease(wgpu.multi_texture_add_fs);
+	}
+	if (wgpu.image_bind_group_layout != nullptr) {
+		wgpuBindGroupLayoutRelease(wgpu.image_bind_group_layout);
+	}
 	if (wgpu.surface != nullptr) {
 		wgpuSurfaceUnconfigure(wgpu.surface);
 		wgpuSurfaceRelease(wgpu.surface);
@@ -232,6 +365,9 @@ void wgpu_shutdown() {
 void wgpu_release_resources() {
 	for (int i = 0; i < MAX_VK_IMAGES; i++) {
 		wgpu_destroy_image(wgpu_world.images[i]);
+	}
+	for (int i = 0; i < wgpu_world.num_samplers; i++) {
+		wgpuSamplerRelease(wgpu_world.samplers[i]);
 	}
 	Com_Memset(&wgpu_world, 0, sizeof(wgpu_world));
 }
@@ -309,12 +445,273 @@ void wgpu_upload_image_data(WGPUTexture texture, int width, int height, int mip_
 }
 
 void wgpu_update_bind_group(Wgpu_Image& image, bool mipmap, bool repeat_texture) {
-	// WGPU_TODO: Replace the image bind group using the current sampler settings
+	Vk_Sampler_Def sampler_def;
+	sampler_def.repeat_texture = repeat_texture;
+	if (mipmap) {
+		sampler_def.gl_mag_filter = gl_filter_max;
+		sampler_def.gl_min_filter = gl_filter_min;
+	}
+	else {
+		sampler_def.gl_mag_filter = GL_LINEAR;
+		sampler_def.gl_min_filter = GL_LINEAR;
+	}
+
+	WGPUBindGroupEntry entries[2] = { WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT };
+	entries[0].binding = 0;
+	entries[0].textureView = image.view;
+
+	entries[1].binding = 1;
+	entries[1].sampler = wgpu_find_sampler(sampler_def);
+
+	WGPUBindGroupDescriptor desc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
+	desc.layout = wgpu.image_bind_group_layout;
+	desc.entryCount = 2;
+	desc.entries = entries;
+
+	WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(wgpu.device, &desc);
+	if (image.bind_group != nullptr) {
+		wgpuBindGroupRelease(image.bind_group);
+	}
+	image.bind_group = bind_group;
 }
 
 WGPUSampler wgpu_find_sampler(const Vk_Sampler_Def& def) {
-	// WGPU_TODO: Find or create the WebGPU sampler matching def
-	return nullptr;
+	for (int i = 0; i < wgpu_world.num_samplers; i++) {
+		const auto& cur_def = wgpu_world.sampler_defs[i];
+
+		if (cur_def.repeat_texture == def.repeat_texture &&
+			cur_def.gl_mag_filter == def.gl_mag_filter &&
+			cur_def.gl_min_filter == def.gl_min_filter)
+		{
+			return wgpu_world.samplers[i];
+		}
+	}
+	if (wgpu_world.num_samplers >= MAX_VK_SAMPLERS) {
+		ri.Error(ERR_DROP, "wgpu_find_sampler: MAX_VK_SAMPLERS hit\n");
+		return nullptr;
+	}
+
+	// Create new sampler
+	WGPUSamplerDescriptor desc = WGPU_SAMPLER_DESCRIPTOR_INIT;
+	desc.addressModeU = def.repeat_texture ? WGPUAddressMode_Repeat : WGPUAddressMode_ClampToEdge;
+	desc.addressModeV = desc.addressModeU;
+	desc.addressModeW = desc.addressModeU;
+
+	if (def.gl_mag_filter == GL_NEAREST) {
+		desc.magFilter = WGPUFilterMode_Nearest;
+	} else if (def.gl_mag_filter == GL_LINEAR) {
+		desc.magFilter = WGPUFilterMode_Linear;
+	} else {
+		ri.Error(ERR_FATAL, "wgpu_find_sampler: invalid gl_mag_filter");
+		return nullptr;
+	}
+
+	desc.mipmapFilter = WGPUMipmapFilterMode_Nearest;
+	desc.lodMaxClamp = 12.0f;
+	switch (def.gl_min_filter) {
+		case GL_NEAREST:
+		case GL_LINEAR:
+			desc.minFilter = def.gl_min_filter == GL_NEAREST ? WGPUFilterMode_Nearest : WGPUFilterMode_Linear;
+			desc.lodMaxClamp = 0.25f;
+			break;
+		case GL_NEAREST_MIPMAP_NEAREST:
+		case GL_LINEAR_MIPMAP_NEAREST:
+			desc.minFilter = def.gl_min_filter == GL_NEAREST_MIPMAP_NEAREST ? WGPUFilterMode_Nearest : WGPUFilterMode_Linear;
+			break;
+		case GL_NEAREST_MIPMAP_LINEAR:
+		case GL_LINEAR_MIPMAP_LINEAR:
+			desc.minFilter = def.gl_min_filter == GL_NEAREST_MIPMAP_LINEAR ? WGPUFilterMode_Nearest : WGPUFilterMode_Linear;
+			desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+			break;
+		default:
+			ri.Error(ERR_FATAL, "wgpu_find_sampler: invalid gl_min_filter");
+			return nullptr;
+	}
+
+	WGPUSampler sampler = wgpuDeviceCreateSampler(wgpu.device, &desc);
+	wgpu_world.sampler_defs[wgpu_world.num_samplers] = def;
+	wgpu_world.samplers[wgpu_world.num_samplers] = sampler;
+	wgpu_world.num_samplers++;
+	return sampler;
+}
+
+static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
+	// WGPU_TODO: Add the depth/stencil attachment, polygon offset, wireframe triangles and clipping
+	if (!(def.state_bits & GLS_DEPTHTEST_DISABLE) || (def.state_bits & GLS_DEPTHMASK_TRUE) ||
+		def.shadow_phase != Vk_Shadow_Phase::disabled || def.polygon_offset || def.clipping_plane ||
+		((def.state_bits & GLS_POLYMODE_LINE) && !def.line_primitives)) {
+		return nullptr;
+	}
+
+	//
+	// Shader stages
+	//
+	WGPUShaderModule vs, fs;
+	if (def.shader_type == Vk_Shader_Type::single_texture) {
+		vs = wgpu.single_texture_vs;
+		fs = wgpu.single_texture_fs;
+	} else if (def.shader_type == Vk_Shader_Type::multi_texture_mul) {
+		vs = wgpu.multi_texture_vs;
+		fs = wgpu.multi_texture_mul_fs;
+	} else {
+		vs = wgpu.multi_texture_vs;
+		fs = wgpu.multi_texture_add_fs;
+	}
+
+	WGPUConstantEntry alpha_test = WGPU_CONSTANT_ENTRY_INIT;
+	alpha_test.key = { "0", WGPU_STRLEN };
+	if ((def.state_bits & GLS_ATEST_BITS) == 0)
+		alpha_test.value = 0;
+	else if (def.state_bits & GLS_ATEST_GT_0)
+		alpha_test.value = 1;
+	else if (def.state_bits & GLS_ATEST_LT_80)
+		alpha_test.value = 2;
+	else if (def.state_bits & GLS_ATEST_GE_80)
+		alpha_test.value = 3;
+	else
+		ri.Error(ERR_DROP, "create_pipeline: invalid alpha test state bits\n");
+
+	//
+	// Vertex input
+	//
+	WGPUVertexAttribute attributes[4] = {
+		WGPU_VERTEX_ATTRIBUTE_INIT,
+		WGPU_VERTEX_ATTRIBUTE_INIT,
+		WGPU_VERTEX_ATTRIBUTE_INIT,
+		WGPU_VERTEX_ATTRIBUTE_INIT
+	};
+	attributes[0].format = WGPUVertexFormat_Float32x3;
+	attributes[1].format = WGPUVertexFormat_Unorm8x4;
+	attributes[2].format = WGPUVertexFormat_Float32x2;
+	attributes[3].format = WGPUVertexFormat_Float32x2;
+
+	WGPUVertexBufferLayout buffers[4] = {
+		WGPU_VERTEX_BUFFER_LAYOUT_INIT,
+		WGPU_VERTEX_BUFFER_LAYOUT_INIT,
+		WGPU_VERTEX_BUFFER_LAYOUT_INIT,
+		WGPU_VERTEX_BUFFER_LAYOUT_INIT
+	};
+	for (int i = 0; i < 4; i++) {
+		attributes[i].shaderLocation = i;
+		buffers[i].stepMode = WGPUVertexStepMode_Vertex;
+		buffers[i].attributeCount = 1;
+		buffers[i].attributes = &attributes[i];
+	}
+	buffers[0].arrayStride = sizeof(vec4_t);
+	buffers[1].arrayStride = sizeof(color4ub_t);
+	buffers[2].arrayStride = sizeof(vec2_t);
+	buffers[3].arrayStride = sizeof(vec2_t);
+
+	//
+	// Primitive assembly and rasterization
+	//
+	WGPUPrimitiveState primitive = WGPU_PRIMITIVE_STATE_INIT;
+	primitive.topology = def.line_primitives ? WGPUPrimitiveTopology_LineList : WGPUPrimitiveTopology_TriangleList;
+	primitive.frontFace = WGPUFrontFace_CW;
+	if (def.face_culling == CT_TWO_SIDED)
+		primitive.cullMode = WGPUCullMode_None;
+	else if (def.face_culling == CT_FRONT_SIDED)
+		primitive.cullMode = def.mirror ? WGPUCullMode_Front : WGPUCullMode_Back;
+	else if (def.face_culling == CT_BACK_SIDED)
+		primitive.cullMode = def.mirror ? WGPUCullMode_Back : WGPUCullMode_Front;
+	else
+		ri.Error(ERR_DROP, "create_pipeline: invalid face culling mode\n");
+
+	//
+	// Blend state
+	//
+	WGPUBlendState blend = WGPU_BLEND_STATE_INIT;
+	bool blend_enable = (def.state_bits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) != 0;
+	if (blend_enable) {
+		switch (def.state_bits & GLS_SRCBLEND_BITS) {
+			case GLS_SRCBLEND_ZERO:
+				blend.color.srcFactor = WGPUBlendFactor_Zero;
+				break;
+			case GLS_SRCBLEND_ONE:
+				blend.color.srcFactor = WGPUBlendFactor_One;
+				break;
+			case GLS_SRCBLEND_DST_COLOR:
+				blend.color.srcFactor = WGPUBlendFactor_Dst;
+				break;
+			case GLS_SRCBLEND_ONE_MINUS_DST_COLOR:
+				blend.color.srcFactor = WGPUBlendFactor_OneMinusDst;
+				break;
+			case GLS_SRCBLEND_SRC_ALPHA:
+				blend.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+				break;
+			case GLS_SRCBLEND_ONE_MINUS_SRC_ALPHA:
+				blend.color.srcFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+				break;
+			case GLS_SRCBLEND_DST_ALPHA:
+				blend.color.srcFactor = WGPUBlendFactor_DstAlpha;
+				break;
+			case GLS_SRCBLEND_ONE_MINUS_DST_ALPHA:
+				blend.color.srcFactor = WGPUBlendFactor_OneMinusDstAlpha;
+				break;
+			case GLS_SRCBLEND_ALPHA_SATURATE:
+				blend.color.srcFactor = WGPUBlendFactor_SrcAlphaSaturated;
+				break;
+			default:
+				ri.Error(ERR_DROP, "create_pipeline: invalid src blend state bits\n");
+		}
+		switch (def.state_bits & GLS_DSTBLEND_BITS) {
+			case GLS_DSTBLEND_ZERO:
+				blend.color.dstFactor = WGPUBlendFactor_Zero;
+				break;
+			case GLS_DSTBLEND_ONE:
+				blend.color.dstFactor = WGPUBlendFactor_One;
+				break;
+			case GLS_DSTBLEND_SRC_COLOR:
+				blend.color.dstFactor = WGPUBlendFactor_Src;
+				break;
+			case GLS_DSTBLEND_ONE_MINUS_SRC_COLOR:
+				blend.color.dstFactor = WGPUBlendFactor_OneMinusSrc;
+				break;
+			case GLS_DSTBLEND_SRC_ALPHA:
+				blend.color.dstFactor = WGPUBlendFactor_SrcAlpha;
+				break;
+			case GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA:
+				blend.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+				break;
+			case GLS_DSTBLEND_DST_ALPHA:
+				blend.color.dstFactor = WGPUBlendFactor_DstAlpha;
+				break;
+			case GLS_DSTBLEND_ONE_MINUS_DST_ALPHA:
+				blend.color.dstFactor = WGPUBlendFactor_OneMinusDstAlpha;
+				break;
+			default:
+				ri.Error(ERR_DROP, "create_pipeline: invalid dst blend state bits\n");
+		}
+		blend.color.operation = WGPUBlendOperation_Add;
+		blend.alpha = blend.color;
+	}
+
+	//
+	// Create pipeline
+	//
+	WGPUColorTargetState target = WGPU_COLOR_TARGET_STATE_INIT;
+	target.format = wgpu.surface_format;
+	target.blend = blend_enable ? &blend : nullptr;
+
+	WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
+	fragment.module = fs;
+	fragment.entryPoint = { "main", WGPU_STRLEN };
+	fragment.targetCount = 1;
+	fragment.targets = &target;
+	if (def.state_bits & GLS_ATEST_BITS) {
+		fragment.constantCount = 1;
+		fragment.constants = &alpha_test;
+	}
+
+	WGPURenderPipelineDescriptor desc = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
+	desc.layout = wgpu.pipeline_layouts[def.shader_type == Vk_Shader_Type::single_texture ? 0 : 1];
+	desc.vertex.module = vs;
+	desc.vertex.entryPoint = { "main", WGPU_STRLEN };
+	desc.vertex.bufferCount = def.shader_type == Vk_Shader_Type::single_texture ? 3 : 4;
+	desc.vertex.buffers = buffers;
+	desc.primitive = primitive;
+	desc.fragment = &fragment;
+	return wgpuDeviceCreateRenderPipeline(wgpu.device, &desc);
 }
 
 WGPURenderPipeline wgpu_find_pipeline(const Vk_Pipeline_Def& def) {
@@ -347,18 +744,84 @@ void wgpu_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t c
 	wgpu.render_pass = wgpuCommandEncoderBeginRenderPass(wgpu.command_encoder, &pass_desc);
 }
 
+static uint64_t upload_geometry(const void* data, size_t size) {
+	uint64_t offset = wgpu.geometry_buffer_offset;
+	if (offset + size > GEOMETRY_BUFFER_SIZE) {
+		ri.Error(ERR_DROP, "WebGPU: geometry buffer overflow\n");
+		return 0;
+	}
+	// Keep each draw's data until submission; queue writes to one offset would overwrite earlier draws
+	wgpuQueueWriteBuffer(wgpu.queue, wgpu.geometry_buffer, offset, data, size);
+	wgpu.geometry_buffer_offset += size;
+	return offset;
+}
+
+static void get_mvp_transform(float* mvp) {
+	// WGPU_TODO: Add the 3D projection/modelview branch when !backEnd.projection2D, following DX12
+	// WebGPU uses the same 2D clip-space conventions as DX12
+	float mvp0 = 2.0f / glConfig.vidWidth;
+	float mvp5 = 2.0f / glConfig.vidHeight;
+
+	mvp[0]  =  mvp0; mvp[1]  =  0.0f; mvp[2]  = 0.0f; mvp[3]  = 0.0f;
+	mvp[4]  =  0.0f; mvp[5]  = -mvp5; mvp[6]  = 0.0f; mvp[7]  = 0.0f;
+	mvp[8]  =  0.0f; mvp[9]  = 0.0f; mvp[10] = 1.0f; mvp[11] = 0.0f;
+	mvp[12] = -1.0f; mvp[13] = 1.0f; mvp[14] = 0.0f; mvp[15] = 1.0f;
+}
+
 void wgpu_bind_geometry() {
-	// WGPU_TODO: Upload and bind the current tessellated geometry
+	// WGPU_TODO: Support 3D geometry and its MVP transform
+	if (wgpu.render_pass == nullptr || !backEnd.projection2D || tess.numVertexes == 0) {
+		return;
+	}
+
+	size_t size = tess.numVertexes * sizeof(vec4_t);
+	uint64_t offset = upload_geometry(tess.xyz, size);
+	wgpuRenderPassEncoderSetVertexBuffer(wgpu.render_pass, 0, wgpu.geometry_buffer, offset, size);
+	if (tess.numIndexes > 0) {
+		size = tess.numIndexes * sizeof(glIndex_t);
+		offset = upload_geometry(tess.indexes, size);
+		wgpuRenderPassEncoderSetIndexBuffer(wgpu.render_pass, wgpu.geometry_buffer, WGPUIndexFormat_Uint32, offset, size);
+	}
+
+	float mvp[16];
+	get_mvp_transform(mvp);
+	wgpuRenderPassEncoderSetImmediates(wgpu.render_pass, 0, mvp, sizeof(mvp));
 }
 
 void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed) {
-	// WGPU_TODO: Bind the pipeline and resources and draw the current geometry
+	// WGPU_TODO: Support scene pipelines, multitexturing, and depth ranges
+	if (wgpu.render_pass == nullptr || pipeline == nullptr || !backEnd.projection2D ||
+		multitexture || depth_range != Vk_Depth_Range::normal || tess.numVertexes == 0) {
+		return;
+	}
+	WGPUBindGroup bind_group = wgpu_world.images[wgpu_world.current_image_indices[0]].bind_group;
+	if (bind_group == nullptr) {
+		return;
+	}
+
+	size_t size = tess.numVertexes * sizeof(color4ub_t);
+	uint64_t offset = upload_geometry(tess.svars.colors, size);
+	wgpuRenderPassEncoderSetVertexBuffer(wgpu.render_pass, 1, wgpu.geometry_buffer, offset, size);
+	size = tess.numVertexes * sizeof(vec2_t);
+	offset = upload_geometry(tess.svars.texcoords[0], size);
+	wgpuRenderPassEncoderSetVertexBuffer(wgpu.render_pass, 2, wgpu.geometry_buffer, offset, size);
+
+	wgpuRenderPassEncoderSetPipeline(wgpu.render_pass, pipeline);
+	wgpuRenderPassEncoderSetBindGroup(wgpu.render_pass, 0, bind_group, 0, nullptr);
+	wgpuRenderPassEncoderSetViewport(wgpu.render_pass, 0, 0, (float)glConfig.vidWidth, (float)glConfig.vidHeight, 0, 1);
+	wgpuRenderPassEncoderSetScissorRect(wgpu.render_pass, 0, 0, glConfig.vidWidth, glConfig.vidHeight);
+	if (indexed) {
+		wgpuRenderPassEncoderDrawIndexed(wgpu.render_pass, tess.numIndexes, 1, 0, 0, 0);
+	} else {
+		wgpuRenderPassEncoderDraw(wgpu.render_pass, tess.numVertexes, 1, 0, 0);
+	}
 }
 
 void wgpu_begin_frame() {
 	if (!wgpu.active) {
 		return;
 	}
+	wgpu.geometry_buffer_offset = 0;
 	WGPUSurfaceTexture surface_texture = WGPU_SURFACE_TEXTURE_INIT;
 	wgpuSurfaceGetCurrentTexture(wgpu.surface, &surface_texture);
 	switch (surface_texture.status) {

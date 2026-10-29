@@ -77,7 +77,7 @@ void GL_Bind( image_t *image ) {
 		}
 		// WEBGPU
 		if (wgpu.active) {
-			// WGPU_TODO: Select the WebGPU image for the current texture unit
+			wgpu_world.current_image_indices[glState.currenttmu] = final_image->index;
 		}
 	}
 }

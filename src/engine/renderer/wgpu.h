@@ -45,14 +45,33 @@ struct Wgpu_Instance {
 	WGPUDevice device = nullptr;
 	WGPUQueue queue = nullptr;
 
+	WGPUBindGroupLayout image_bind_group_layout = nullptr;
+	WGPUPipelineLayout pipeline_layouts[2] = {}; // single texture, multitexture
+
 	//
 	// Surface and frame resources
 	//
 	WGPUSurface surface = nullptr;
+	WGPUTextureFormat surface_format = WGPUTextureFormat_Undefined;
 	WGPUTexture frame_texture = nullptr;
 	WGPUTextureView frame_view = nullptr;
 	WGPUCommandEncoder command_encoder = nullptr;
 	WGPURenderPassEncoder render_pass = nullptr;
+
+	//
+	// Geometry buffer
+	//
+	WGPUBuffer geometry_buffer = nullptr;
+	uint64_t geometry_buffer_offset = 0;
+
+	//
+	// Shader modules
+	//
+	WGPUShaderModule single_texture_vs = nullptr;
+	WGPUShaderModule single_texture_fs = nullptr;
+	WGPUShaderModule multi_texture_vs = nullptr;
+	WGPUShaderModule multi_texture_mul_fs = nullptr;
+	WGPUShaderModule multi_texture_add_fs = nullptr;
 
 	//
 	// Standard pipelines
@@ -84,8 +103,14 @@ struct Wgpu_Instance {
 };
 
 struct Wgpu_World {
-	//
-	// Resources
-	//
-	Wgpu_Image images[MAX_VK_IMAGES];
+    //
+    // Resources
+    //
+    int num_samplers = 0;
+    Vk_Sampler_Def sampler_defs[MAX_VK_SAMPLERS];
+    WGPUSampler samplers[MAX_VK_SAMPLERS] = {};
+
+    Wgpu_Image images[MAX_VK_IMAGES];
+
+    int current_image_indices[2] = {};
 };
