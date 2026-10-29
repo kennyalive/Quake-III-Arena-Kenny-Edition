@@ -934,12 +934,33 @@ void GfxInfo_f( void )
 
 	// WEBGPU
 	if (wgpu.active) {
-		// WGPU_TODO: Print WebGPU adapter and device information
-	}
+		ri.Printf(PRINT_ALL, "\nActive 3D API: WebGPU (Dawn, Vulkan backend)\n");
 
-	// WEBGPU
-	if (webgpu_active) {
-		ri.Printf(PRINT_ALL, "\nActive 3D API: WebGPU (window placeholder; rendering is not implemented)\n");
+		WGPUAdapterInfo info = WGPU_ADAPTER_INFO_INIT;
+		if (wgpuAdapterGetInfo(wgpu.adapter, &info) == WGPUStatus_Success) {
+			const char* adapter_type = "Unknown";
+			if (info.adapterType == WGPUAdapterType_DiscreteGPU)
+				adapter_type = "DISCRETE_GPU";
+			else if (info.adapterType == WGPUAdapterType_IntegratedGPU)
+				adapter_type = "INTEGRATED_GPU";
+			else if (info.adapterType == WGPUAdapterType_CPU)
+				adapter_type = "CPU";
+
+			auto print_string = [](const char* name, WGPUStringView value) {
+				const char* data = value.data != nullptr ? value.data : "";
+				size_t length = value.length == WGPU_STRLEN ? strlen(data) : value.length;
+				ri.Printf(PRINT_ALL, "%s: %.*s\n", name, (int)length, data);
+			};
+			ri.Printf(PRINT_ALL, "WebGPU vendor id: 0x%X\n", info.vendorID);
+			ri.Printf(PRINT_ALL, "WebGPU device id: 0x%X\n", info.deviceID);
+			ri.Printf(PRINT_ALL, "WebGPU adapter type: %s\n", adapter_type);
+			print_string("WebGPU vendor", info.vendor);
+			print_string("WebGPU device name", info.device);
+			print_string("WebGPU driver description", info.description);
+			wgpuAdapterInfoFreeMembers(info);
+		} else {
+			ri.Printf(PRINT_WARNING, "WebGPU: failed to query adapter information\n");
+		}
 	}
 
 	//

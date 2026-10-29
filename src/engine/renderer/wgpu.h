@@ -39,6 +39,11 @@ void wgpu_update_gamma_buffer(float gamma_table[256]);
 struct Wgpu_Instance {
 	bool active = false;
 
+	WGPUInstance instance = nullptr;
+	WGPUAdapter adapter = nullptr;
+	WGPUDevice device = nullptr;
+	WGPUQueue queue = nullptr;
+
 	//
 	// Standard pipelines
 	//
