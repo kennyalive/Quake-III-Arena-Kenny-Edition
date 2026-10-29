@@ -173,7 +173,14 @@ void GL_TextureMode( const char *string ) {
 
 	// WEBGPU
 	if (wgpu.active) {
-		// WGPU_TODO: Update WebGPU samplers for the new texture filtering mode
+		wgpu_wait_device_idle();
+		for ( i = 0 ; i < tr.numImages ; i++ ) {
+			image_t* glt = tr.images[i];
+			if (glt->mipmap) {
+				Wgpu_Image& image = wgpu_world.images[i];
+				wgpu_update_bind_group(image, true, glt->wrapClampMode == GL_REPEAT);
+			}
+		}
 	}
 }
 
@@ -824,6 +831,18 @@ static Dx_Image upload_dx_image(const Image_Upload_Data& upload_data, bool repea
 	return image;
 }
 
+// WEBGPU
+static Wgpu_Image upload_wgpu_image(const Image_Upload_Data& upload_data, bool repeat_texture) {
+	int w = upload_data.base_level_width;
+	int h = upload_data.base_level_height;
+
+	// WebGPU has no packed RGBA4 or RGB5A1 texture formats
+	// WGPU_TODO: Decide how to handle r_texturebits <= 16; currently all uploads use RGBA8
+	Wgpu_Image image = wgpu_create_image(w, h, WGPUTextureFormat_RGBA8Unorm, upload_data.mip_levels, repeat_texture);
+	wgpu_upload_image_data(image.texture, w, h, upload_data.mip_levels, upload_data.buffer, 4);
+	return image;
+}
+
 /*
 ================
 R_CreateImage
@@ -879,7 +898,7 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	}
 	// WEBGPU
 	if (wgpu.active) {
-		// WGPU_TODO: Create and upload the WebGPU image from upload_data
+		wgpu_world.images[image->index] = upload_wgpu_image(upload_data, glWrapClampMode == GL_REPEAT);
 	}
 
 	if (isLightmap) {
@@ -1936,7 +1955,17 @@ void R_SetColorMappings( void ) {
 		vk_update_gamma_buffer(shader_gamma_table);
 	}
 	else if (wgpu.active && r_shaderGamma->integer) {
-		// WGPU_TODO: Apply the gamma table through the WebGPU shader gamma path
+		if (r_ignorehwgamma->integer) {
+			return;
+		}
+		if (r_shaderGamma->modified) {
+			GLimp_RestoreGamma();
+		}
+		float shader_gamma_table[256];
+		for (int i = 0; i < 256; i++) {
+			shader_gamma_table[i] = float((((unsigned short)s_gammatable[i]) << 8) | s_gammatable[i]) / UINT16_MAX;
+		}
+		wgpu_update_gamma_buffer(shader_gamma_table);
 	}
 	else if ( glConfig.deviceSupportsGamma )
 	{

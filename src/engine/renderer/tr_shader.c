@@ -2188,7 +2188,7 @@ static shader_t *FinishShader( void ) {
 			if (dx.active)
 				pStage->dx_pipeline = dx_find_pipeline(def);
 			if (wgpu.active)
-				(void)0; // WGPU_TODO: Find or create the WebGPU pipeline for this shader stage
+				pStage->wgpu_pipeline = wgpu_find_pipeline(def);
 
 			def.clipping_plane = true;
 			def.mirror = false;
@@ -2197,7 +2197,7 @@ static shader_t *FinishShader( void ) {
 			if (dx.active)
 				pStage->dx_portal_pipeline = dx_find_pipeline(def);
 			if (wgpu.active)
-				(void)0; // WGPU_TODO: Find or create the WebGPU portal pipeline for this shader stage
+				pStage->wgpu_portal_pipeline = wgpu_find_pipeline(def);
 
 			def.clipping_plane = true;
 			def.mirror = true;
@@ -2206,7 +2206,7 @@ static shader_t *FinishShader( void ) {
 			if (dx.active)
 				pStage->dx_mirror_pipeline = dx_find_pipeline(def);
 			if (wgpu.active)
-				(void)0; // WGPU_TODO: Find or create the WebGPU mirror pipeline for this shader stage
+				pStage->wgpu_mirror_pipeline = wgpu_find_pipeline(def);
 		}
 	}
 

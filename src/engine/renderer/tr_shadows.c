@@ -116,7 +116,7 @@ static void R_GL_RenderShadowEdges() {
 // VULKAN
 // DX12
 // WEBGPU
-static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineState* dx_pipeline) {
+static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineState* dx_pipeline, WGPURenderPipeline wgpu_pipeline) {
 	if (!vk.active && !dx.active && !wgpu.active)
 		return;
 
@@ -154,7 +154,8 @@ static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineStat
 			dx_shade_geometry(dx_pipeline, false, Vk_Depth_Range::normal, true, false);
 		}
 		if (wgpu.active) {
-			// WGPU_TODO: Select the WebGPU shadow-volume pass and draw these shadow edges
+			wgpu_bind_geometry();
+			wgpu_shade_geometry(wgpu_pipeline, false, Vk_Depth_Range::normal);
 		}
 
 		i += count;
@@ -256,8 +257,9 @@ void RB_ShadowTessEnd( void ) {
 
 		// VULKAN
 		// DX12
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][1], dx.shadow_volume_pipelines[0][1]);
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][1], dx.shadow_volume_pipelines[1][1]);
+		// WEBGPU
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][1], dx.shadow_volume_pipelines[0][1], wgpu.shadow_volume_pipelines[0][1]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][1], dx.shadow_volume_pipelines[1][1], wgpu.shadow_volume_pipelines[1][1]);
 	} else {
 		qglCullFace( GL_BACK );
 		qglStencilOp( GL_KEEP, GL_KEEP, GL_INCR );
@@ -269,8 +271,9 @@ void RB_ShadowTessEnd( void ) {
 
 		// VULKAN
 		// DX12
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][0], dx.shadow_volume_pipelines[0][0]);
-		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][0], dx.shadow_volume_pipelines[1][0]);
+		// WEBGPU
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[0][0], dx.shadow_volume_pipelines[0][0], wgpu.shadow_volume_pipelines[0][0]);
+		R_Vk_Dx_RenderShadowEdges(vk.shadow_volume_pipelines[1][0], dx.shadow_volume_pipelines[1][0], wgpu.shadow_volume_pipelines[1][0]);
 	}
 
 	qglDisable(GL_STENCIL_TEST);
@@ -377,7 +380,10 @@ void RB_ShadowFinish( void ) {
 		}
 
 		if (wgpu.active) {
-			// WGPU_TODO: Draw the WebGPU shadow-finish quad using an identity modelview transform
+			// WGPU_TODO: Save the WebGPU modelview transform and set it to identity
+			wgpu_bind_geometry();
+			wgpu_shade_geometry(wgpu.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
+			// WGPU_TODO: Restore the WebGPU modelview transform
 		}
 
 		tess.numIndexes = 0;

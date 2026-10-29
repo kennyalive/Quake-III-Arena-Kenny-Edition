@@ -1474,7 +1474,8 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	}
 
 	if (wgpu.active) {
-		// WGPU_TODO: Bind and draw the solid WebGPU debug polygon
+		wgpu_bind_geometry();
+		wgpu_shade_geometry(wgpu.surface_debug_pipeline_solid, false, Vk_Depth_Range::normal);
 	}
 
 	// Outline.
@@ -1498,7 +1499,8 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	}
 
 	if (wgpu.active) {
-		// WGPU_TODO: Bind and draw the WebGPU debug polygon outline
+		wgpu_bind_geometry();
+		wgpu_shade_geometry(wgpu.surface_debug_pipeline_outline, false, Vk_Depth_Range::force_zero, false);
 	}
 
 	tess.numVertexes = 0;

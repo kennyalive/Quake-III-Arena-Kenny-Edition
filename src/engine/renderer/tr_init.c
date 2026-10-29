@@ -38,6 +38,7 @@ Dx_World	dx_world;
 
 // WEBGPU
 Wgpu_Instance wgpu;
+Wgpu_World	  wgpu_world;
 
 static void GfxInfo_f( void );
 
@@ -276,7 +277,7 @@ static void InitRenderAPI( void )
 		if (is_render_api_enabled(RENDER_API_WEBGPU)) {
 			webgpu_imp_init();
 			webgpu_active = true;
-			// WGPU_TODO: Initialize WebGPU rendering and set wgpu.active after initialization succeeds
+			wgpu_initialize();
 		}
 	}
 
@@ -1109,6 +1110,7 @@ void R_Init( void ) {
 	Com_Memset( &backEnd, 0, sizeof( backEnd ) );
 	Com_Memset( &tess, 0, sizeof( tess ) );
 	Com_Memset( &vk_world, 0, sizeof( vk_world ) );
+	Com_Memset( &wgpu_world, 0, sizeof( wgpu_world ) );
 
 	if ( (intptr_t)tess.xyz & 15 ) {
 		Com_Printf( "WARNING: tess.xyz not 16 byte aligned\n" );
@@ -1242,9 +1244,9 @@ void RE_Shutdown( qboolean destroyWindow ) {
 
 	// WEBGPU
 	if (wgpu.active) {
-		// WGPU_TODO: Release WebGPU resources allocated during registration
+		wgpu_release_resources();
 		if (destroyWindow) {
-			// WGPU_TODO: Shut down the WebGPU backend and clear wgpu.active
+			wgpu_shutdown();
 		}
 	}
 

@@ -333,6 +333,11 @@ typedef struct {
 	ID3D12PipelineState* dx_pipeline;
 	ID3D12PipelineState* dx_portal_pipeline;
 	ID3D12PipelineState* dx_mirror_pipeline;
+
+	// WEBGPU
+	WGPURenderPipeline wgpu_pipeline;
+	WGPURenderPipeline wgpu_portal_pipeline;
+	WGPURenderPipeline wgpu_mirror_pipeline;
 	
 } shaderStage_t;
 
@@ -950,6 +955,7 @@ extern Dx_World		dx_world;		// this data is cleared during ref re-init
 
 // WEBGPU
 extern Wgpu_Instance wgpu;			// shouldn't be cleared during ref re-init
+extern Wgpu_World	 wgpu_world;	// this data is cleared during ref re-init
 
 enum RenderApi {
 	RENDER_API_GL,

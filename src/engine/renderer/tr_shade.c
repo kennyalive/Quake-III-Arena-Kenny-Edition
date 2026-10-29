@@ -131,7 +131,9 @@ static void DrawTris (shaderCommands_t *input) {
 
 	// WEBGPU
 	if (wgpu.active) {
-		// WGPU_TODO: Draw triangle outlines with the WebGPU debug pipeline
+		Com_Memset(tess.svars.colors, tr.identityLightByte, tess.numVertexes * 4 );
+		auto pipeline = backEnd.viewParms.isMirror ? wgpu.tris_mirror_debug_pipeline : wgpu.tris_debug_pipeline;
+		wgpu_shade_geometry(pipeline, false, Vk_Depth_Range::force_zero);
 	}
 }
 
@@ -193,7 +195,8 @@ static void DrawNormals (shaderCommands_t *input) {
 				dx_shade_geometry(dx.normals_debug_pipeline, false, Vk_Depth_Range::force_zero, false, true);
 			}
 			if (wgpu.active) {
-				// WGPU_TODO: Bind and draw vertex normals with the WebGPU debug pipeline
+				wgpu_bind_geometry();
+				wgpu_shade_geometry(wgpu.normals_debug_pipeline, false, Vk_Depth_Range::force_zero, false);
 			}
 
 			i += count;
@@ -430,7 +433,8 @@ static void ProjectDlightTexture( void ) {
 
 		// WEBGPU
 		if (wgpu.active) {
-			// WGPU_TODO: Draw the dynamic light pass with WebGPU
+			auto pipeline = wgpu.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
+			wgpu_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
 		}
 	}
 }
@@ -487,7 +491,9 @@ static void RB_FogPass( void ) {
 
 	// WEBGPU
 	if (wgpu.active) {
-		// WGPU_TODO: Draw the fog pass with WebGPU
+		assert(tess.shader->fogPass > 0);
+		auto pipeline = wgpu.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
+		wgpu_shade_geometry(pipeline, false, Vk_Depth_Range::normal);
 	}
 }
 
@@ -801,7 +807,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 
 	// WEBGPU
 	if (wgpu.active)
-		(void)0; // WGPU_TODO: Bind the WebGPU geometry for this surface
+		wgpu_bind_geometry();
 
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
@@ -855,14 +861,17 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		if (vk.active || dx.active || wgpu.active) {
 			VkPipeline vk_pipeline = pStage->vk_pipeline;
 			ID3D12PipelineState* dx_pipeline = pStage->dx_pipeline;
+			WGPURenderPipeline wgpu_pipeline = pStage->wgpu_pipeline;
 
 			if (backEnd.viewParms.isMirror) {
 				vk_pipeline = pStage->vk_mirror_pipeline;
 				dx_pipeline = pStage->dx_mirror_pipeline;
+				wgpu_pipeline = pStage->wgpu_mirror_pipeline;
 			}
 			else if (backEnd.viewParms.isPortal) {
 				vk_pipeline = pStage->vk_portal_pipeline;
 				dx_pipeline = pStage->dx_portal_pipeline;
+				wgpu_pipeline = pStage->wgpu_portal_pipeline;
 			}
 
 			Vk_Depth_Range depth_range = Vk_Depth_Range::normal;
@@ -882,7 +891,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 			if (dx.active)
 				dx_shade_geometry(dx_pipeline, multitexture, depth_range, true, false);
 			if (wgpu.active)
-				(void)0; // WGPU_TODO: Select the WebGPU stage pipeline and draw with multitexture and depth_range
+				wgpu_shade_geometry(wgpu_pipeline, multitexture, depth_range);
         }
 
 		// allow skipping out to show just lightmaps during development

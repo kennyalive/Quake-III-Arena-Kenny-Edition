@@ -505,7 +505,8 @@ static void DrawSkyBox( shader_t *shader )
 				dx_shade_geometry(dx.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one, true, false);
 			}
 			if (wgpu.active) {
-				// WGPU_TODO: Bind and draw the WebGPU skybox side with the r_showsky depth range
+				wgpu_bind_geometry();
+				wgpu_shade_geometry(wgpu.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one);
 			}
 		}
 	}
