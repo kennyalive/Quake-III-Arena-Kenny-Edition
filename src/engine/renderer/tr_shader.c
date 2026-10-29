@@ -2162,7 +2162,8 @@ static shader_t *FinishShader( void ) {
 
 	// VULKAN: create pipelines for each shader stage
 	// DX12
-	if (vk.active || dx.active) {
+	// WEBGPU
+	if (vk.active || dx.active || wgpu.active) {
 		Vk_Pipeline_Def def;
 		def.face_culling = shader.cullType;
 		def.polygon_offset = (shader.polygonOffset == qtrue);
@@ -2186,6 +2187,8 @@ static shader_t *FinishShader( void ) {
 				pStage->vk_pipeline = vk_find_pipeline(def);
 			if (dx.active)
 				pStage->dx_pipeline = dx_find_pipeline(def);
+			if (wgpu.active)
+				(void)0; // WGPU_TODO: Find or create the WebGPU pipeline for this shader stage
 
 			def.clipping_plane = true;
 			def.mirror = false;
@@ -2193,6 +2196,8 @@ static shader_t *FinishShader( void ) {
 				pStage->vk_portal_pipeline = vk_find_pipeline(def);
 			if (dx.active)
 				pStage->dx_portal_pipeline = dx_find_pipeline(def);
+			if (wgpu.active)
+				(void)0; // WGPU_TODO: Find or create the WebGPU portal pipeline for this shader stage
 
 			def.clipping_plane = true;
 			def.mirror = true;
@@ -2200,6 +2205,8 @@ static shader_t *FinishShader( void ) {
 				pStage->vk_mirror_pipeline = vk_find_pipeline(def);
 			if (dx.active)
 				pStage->dx_mirror_pipeline = dx_find_pipeline(def);
+			if (wgpu.active)
+				(void)0; // WGPU_TODO: Find or create the WebGPU mirror pipeline for this shader stage
 		}
 	}
 

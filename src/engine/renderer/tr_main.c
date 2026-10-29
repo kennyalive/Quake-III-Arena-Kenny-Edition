@@ -1407,7 +1407,8 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 
 	// VULKAN
 	// DX12
-	if (!vk.active && !dx.active)
+	// WEBGPU
+	if (!vk.active && !dx.active && !wgpu.active)
 		return;
 	if (numPoints < 3 || numPoints >= SHADER_MAX_VERTEXES/2)
 		return;
@@ -1419,6 +1420,7 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 
 	// Backface culling.
 	auto transform_to_eye_space = [](vec3_t v, vec3_t v_eye) {
+		// WGPU_TODO: Extend this selection with the WebGPU modelview transform
 		auto m = vk.active ? vk_world.modelview_transform : dx_world.modelview_transform;
 		v_eye[0] = m[0]*v[0] + m[4]*v[1] + m[8 ]*v[2] + m[12];
 		v_eye[1] = m[1]*v[0] + m[5]*v[1] + m[9 ]*v[2] + m[13];
@@ -1471,6 +1473,10 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 		dx_shade_geometry(dx.surface_debug_pipeline_solid, false, Vk_Depth_Range::normal, true, false);
 	}
 
+	if (wgpu.active) {
+		// WGPU_TODO: Bind and draw the solid WebGPU debug polygon
+	}
+
 	// Outline.
 	Com_Memset(tess.svars.colors, tr.identityLightByte, numPoints * 2 * sizeof(color4ub_t));
 
@@ -1489,6 +1495,10 @@ void R_DebugPolygon( int color, int numPoints, float *points ) {
 	if (dx.active) {
 		dx_bind_geometry();
 		dx_shade_geometry(dx.surface_debug_pipeline_outline, false, Vk_Depth_Range::force_zero, false, true);
+	}
+
+	if (wgpu.active) {
+		// WGPU_TODO: Bind and draw the WebGPU debug polygon outline
 	}
 
 	tess.numVertexes = 0;

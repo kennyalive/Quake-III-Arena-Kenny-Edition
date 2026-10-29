@@ -75,6 +75,10 @@ void GL_Bind( image_t *image ) {
 		if (dx.active) {
 			dx_world.current_image_indices[glState.currenttmu] = final_image->index;
 		}
+		// WEBGPU
+		if (wgpu.active) {
+			// WGPU_TODO: Select the WebGPU image for the current texture unit
+		}
 	}
 }
 
@@ -394,6 +398,9 @@ static void RB_Hyperspace( void ) {
 	// DX12
 	dx_clear_attachments(false, true, color);
 
+	// WEBGPU
+	// WGPU_TODO: Clear the WebGPU color attachment for the hyperspace effect
+
 	backEnd.isHyperspace = qtrue;
 }
 
@@ -453,6 +460,9 @@ void RB_BeginDrawingView (void) {
 
 	// DX12
 	dx_clear_attachments(true, fast_sky, fast_sky_color);
+
+	// WEBGPU
+	// WGPU_TODO: Clear WebGPU depth, stencil, and fast-sky color attachments for the view
 
 	if ( ( backEnd.refdef.rdflags & RDF_HYPERSPACE ) )
 	{
@@ -747,6 +757,10 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			image = dx_create_image(cols, rows, IMAGE_FORMAT_RGBA8, 1, false, image_index);
 			dx_upload_image_data(image.texture, cols, rows, 1, data, 4);
 		}
+		// WEBGPU
+		if (wgpu.active) {
+			// WGPU_TODO: Recreate and upload the WebGPU cinematic texture at the new size
+		}
 	} else {
 		if (dirty) {
 			// otherwise, just subimage upload it so that drivers can tell we are going to be changing
@@ -762,6 +776,10 @@ void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int
 			if (dx.active) {
 				const Dx_Image& image = dx_world.images[tr.scratchImage[client]->index];
 				dx_upload_image_data(image.texture, cols, rows, 1, data, 4);
+			}
+			// WEBGPU
+			if (wgpu.active) {
+				// WGPU_TODO: Upload the updated pixels to the WebGPU cinematic texture
 			}
 		}
 	}
@@ -907,6 +925,9 @@ const void	*RB_DrawBuffer( const void *data ) {
 	// DX12
 	dx_begin_frame();
 
+	// WEBGPU
+	// WGPU_TODO: Begin the WebGPU frame
+
 	// clear screen for debugging
 	if ( r_clear->integer ) {
 		float color[4] = {1, 0, 0.5, 1};
@@ -916,10 +937,12 @@ const void	*RB_DrawBuffer( const void *data ) {
 
 		// VULKAN
 		// DX12
-		if (vk.active || dx.active) {
+		// WEBGPU
+		if (vk.active || dx.active || wgpu.active) {
 			RB_SetGL2D(); // to ensure we have viewport that occupies entire window
 			vk_clear_attachments(false, true, color);
 			dx_clear_attachments(false, true, color);
+			// WGPU_TODO: Clear the WebGPU color attachment for r_clear
 		}
 	}
 
@@ -991,8 +1014,9 @@ void RB_ShowImages( void ) {
 
 // VULKAN
 // DX12
+// WEBGPU
 void RB_Show_Vk_Dx_Images() {
-	if (!vk.active && !dx.active) {
+	if (!vk.active && !dx.active && !wgpu.active) {
 		return;
 	}
 
@@ -1005,6 +1029,7 @@ void RB_Show_Vk_Dx_Images() {
 	vk_clear_attachments(false, true, black);
 	dx_clear_attachments(false, true, black);
 
+	// WGPU_TODO: Clear the WebGPU color attachment before displaying debug images
 
 	for (int i = 0 ; i < tr.numImages ; i++) {
 		auto image = tr.images[i];
@@ -1062,6 +1087,9 @@ void RB_Show_Vk_Dx_Images() {
 			dx_bind_geometry();
 			dx_shade_geometry(dx.images_debug_pipeline, false, Vk_Depth_Range::normal, true, false);
 		}
+		if (wgpu.active) {
+			// WGPU_TODO: Bind and draw the WebGPU debug image geometry
+		}
 	}
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -1101,6 +1129,9 @@ const void	*RB_SwapBuffers( const void *data ) {
 
 	// DX12
 	dx_end_frame();
+
+	// WEBGPU
+	// WGPU_TODO: Submit and present the WebGPU frame
 
 	return (const void *)(cmd + 1);
 }
@@ -1158,9 +1189,11 @@ void RB_ExecuteRenderCommands( const void *data ) {
 
 			// VULKAN
 			// DX12
+			// WEBGPU
 			if (com_errorEntered && (begin_frame_called && !end_frame_called)) {
 				vk_end_frame();
 				dx_end_frame();
+				// WGPU_TODO: Finish the in-progress WebGPU frame during error recovery
 			}
 
 			return;

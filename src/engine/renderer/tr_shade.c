@@ -128,6 +128,11 @@ static void DrawTris (shaderCommands_t *input) {
 		auto pipeline = backEnd.viewParms.isMirror ? dx.tris_mirror_debug_pipeline : dx.tris_debug_pipeline;
 		dx_shade_geometry(pipeline, false, Vk_Depth_Range::force_zero, true, false);
 	}
+
+	// WEBGPU
+	if (wgpu.active) {
+		// WGPU_TODO: Draw triangle outlines with the WebGPU debug pipeline
+	}
 }
 
 
@@ -159,7 +164,8 @@ static void DrawNormals (shaderCommands_t *input) {
 
 	// VULKAN
 	// DX12
-	if (vk.active || dx.active) {
+	// WEBGPU
+	if (vk.active || dx.active || wgpu.active) {
 		vec4_t xyz[SHADER_MAX_VERTEXES];
 		Com_Memcpy(xyz, tess.xyz, tess.numVertexes * sizeof(vec4_t));
 		Com_Memset(tess.svars.colors, tr.identityLightByte, SHADER_MAX_VERTEXES * sizeof(color4ub_t));
@@ -185,6 +191,9 @@ static void DrawNormals (shaderCommands_t *input) {
 			if (dx.active) {
 				dx_bind_geometry();
 				dx_shade_geometry(dx.normals_debug_pipeline, false, Vk_Depth_Range::force_zero, false, true);
+			}
+			if (wgpu.active) {
+				// WGPU_TODO: Bind and draw vertex normals with the WebGPU debug pipeline
 			}
 
 			i += count;
@@ -418,6 +427,11 @@ static void ProjectDlightTexture( void ) {
 			auto pipeline = dx.dlight_pipelines[dl->additive > 0 ? 1 : 0][tess.shader->cullType][tess.shader->polygonOffset];
 			dx_shade_geometry(pipeline, false, Vk_Depth_Range::normal, true, false);
 		}
+
+		// WEBGPU
+		if (wgpu.active) {
+			// WGPU_TODO: Draw the dynamic light pass with WebGPU
+		}
 	}
 }
 
@@ -469,6 +483,11 @@ static void RB_FogPass( void ) {
 		assert(tess.shader->fogPass > 0);
 		auto pipeline = dx.fog_pipelines[tess.shader->fogPass - 1][tess.shader->cullType][tess.shader->polygonOffset];
 		dx_shade_geometry(pipeline, false, Vk_Depth_Range::normal, true, false);
+	}
+
+	// WEBGPU
+	if (wgpu.active) {
+		// WGPU_TODO: Draw the fog pass with WebGPU
 	}
 }
 
@@ -780,6 +799,10 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 	if (dx.active)
 		dx_bind_geometry();
 
+	// WEBGPU
+	if (wgpu.active)
+		(void)0; // WGPU_TODO: Bind the WebGPU geometry for this surface
+
 	for ( int stage = 0; stage < MAX_SHADER_STAGES; stage++ )
 	{
 		shaderStage_t *pStage = tess.xstages[stage];
@@ -828,7 +851,8 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 
 		// VULKAN
 		// DX12
-		if (vk.active || dx.active) {
+		// WEBGPU
+		if (vk.active || dx.active || wgpu.active) {
 			VkPipeline vk_pipeline = pStage->vk_pipeline;
 			ID3D12PipelineState* dx_pipeline = pStage->dx_pipeline;
 
@@ -857,6 +881,8 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 				vk_shade_geometry(vk_pipeline, multitexture, depth_range);
 			if (dx.active)
 				dx_shade_geometry(dx_pipeline, multitexture, depth_range, true, false);
+			if (wgpu.active)
+				(void)0; // WGPU_TODO: Select the WebGPU stage pipeline and draw with multitexture and depth_range
         }
 
 		// allow skipping out to show just lightmaps during development

@@ -948,6 +948,9 @@ extern Vk_World		vk_world;		// this data is cleared during ref re-init
 extern Dx_Instance	dx;				// shouldn't be cleared during ref re-init
 extern Dx_World		dx_world;		// this data is cleared during ref re-init
 
+// WEBGPU
+extern Wgpu_Instance wgpu;			// shouldn't be cleared during ref re-init
+
 enum RenderApi {
 	RENDER_API_GL,
 	RENDER_API_VK,

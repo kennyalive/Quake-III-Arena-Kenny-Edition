@@ -452,7 +452,8 @@ static void DrawSkyBox( shader_t *shader )
 
 		// VULKAN: draw skybox side
 		// DX12
-		if (vk.active || dx.active) {
+		// WEBGPU
+		if (vk.active || dx.active || wgpu.active) {
 			GL_Bind(shader->sky.outerbox[sky_texorder[i]]);
 
 			tess.numVertexes = 0;
@@ -502,6 +503,9 @@ static void DrawSkyBox( shader_t *shader )
 			if (dx.active) {
 				dx_bind_geometry();
 				dx_shade_geometry(dx.skybox_pipeline, false, r_showsky->integer ? Vk_Depth_Range::force_zero : Vk_Depth_Range::force_one, true, false);
+			}
+			if (wgpu.active) {
+				// WGPU_TODO: Bind and draw the WebGPU skybox side with the r_showsky depth range
 			}
 		}
 	}

@@ -170,6 +170,11 @@ void GL_TextureMode( const char *string ) {
 		def.repeat_texture = false;
 		dx_create_sampler_descriptor(def, SAMPLER_MIP_CLAMP);
 	}
+
+	// WEBGPU
+	if (wgpu.active) {
+		// WGPU_TODO: Update WebGPU samplers for the new texture filtering mode
+	}
 }
 
 /*
@@ -871,6 +876,10 @@ image_t *R_CreateImage( const char *name, const byte *pic, int width, int height
 	// DX12
 	if (dx.active) {
 		dx_world.images[image->index] = upload_dx_image(upload_data, glWrapClampMode == GL_REPEAT, image->index);
+	}
+	// WEBGPU
+	if (wgpu.active) {
+		// WGPU_TODO: Create and upload the WebGPU image from upload_data
 	}
 
 	if (isLightmap) {
@@ -1925,6 +1934,9 @@ void R_SetColorMappings( void ) {
 			shader_gamma_table[i] = float((((unsigned short)s_gammatable[i]) << 8) | s_gammatable[i]) / UINT16_MAX;
 		}
 		vk_update_gamma_buffer(shader_gamma_table);
+	}
+	else if (wgpu.active && r_shaderGamma->integer) {
+		// WGPU_TODO: Apply the gamma table through the WebGPU shader gamma path
 	}
 	else if ( glConfig.deviceSupportsGamma )
 	{

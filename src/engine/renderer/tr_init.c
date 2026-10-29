@@ -36,6 +36,9 @@ Vk_World	vk_world;
 Dx_Instance dx;
 Dx_World	dx_world;
 
+// WEBGPU
+Wgpu_Instance wgpu;
+
 static void GfxInfo_f( void );
 
 cvar_t *r_renderAPI;
@@ -269,10 +272,11 @@ static void InitRenderAPI( void )
 		}
 #endif
 
-		// WebGPU window placeholder
+		// WEBGPU
 		if (is_render_api_enabled(RENDER_API_WEBGPU)) {
 			webgpu_imp_init();
 			webgpu_active = true;
+			// WGPU_TODO: Initialize WebGPU rendering and set wgpu.active after initialization succeeds
 		}
 	}
 
@@ -927,6 +931,12 @@ void GfxInfo_f( void )
 		ri.Printf( PRINT_ALL, "\nActive 3D API: DirectX 12\n" );
 	}
 
+	// WEBGPU
+	if (wgpu.active) {
+		// WGPU_TODO: Print WebGPU adapter and device information
+	}
+
+	// WEBGPU
 	if (webgpu_active) {
 		ri.Printf(PRINT_ALL, "\nActive 3D API: WebGPU (window placeholder; rendering is not implemented)\n");
 	}
@@ -1230,6 +1240,15 @@ void RE_Shutdown( qboolean destroyWindow ) {
 		}
 	}
 
+	// WEBGPU
+	if (wgpu.active) {
+		// WGPU_TODO: Release WebGPU resources allocated during registration
+		if (destroyWindow) {
+			// WGPU_TODO: Shut down the WebGPU backend and clear wgpu.active
+		}
+	}
+
+	// WEBGPU
 	if (webgpu_active && destroyWindow) {
 		webgpu_imp_shutdown();
 		webgpu_active = false;
@@ -1260,6 +1279,11 @@ void RE_EndRegistration( void ) {
 	// DX12
 	if (dx.active) {
 		ri.Printf(PRINT_ALL, "DX12: pipelines create time %d msec\n", (int)(dx_world.pipeline_create_time * 1000));
+	}
+
+	// WEBGPU
+	if (wgpu.active) {
+		// WGPU_TODO: Report WebGPU pipeline creation time
 	}
 }
 

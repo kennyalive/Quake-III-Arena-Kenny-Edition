@@ -115,8 +115,9 @@ static void R_GL_RenderShadowEdges() {
 
 // VULKAN
 // DX12
+// WEBGPU
 static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineState* dx_pipeline) {
-	if (!vk.active && !dx.active)
+	if (!vk.active && !dx.active && !wgpu.active)
 		return;
 
 	int i = 0;
@@ -151,6 +152,9 @@ static void R_Vk_Dx_RenderShadowEdges(VkPipeline vk_pipeline, ID3D12PipelineStat
 		if (dx.active) {
 			dx_bind_geometry();
 			dx_shade_geometry(dx_pipeline, false, Vk_Depth_Range::normal, true, false);
+		}
+		if (wgpu.active) {
+			// WGPU_TODO: Select the WebGPU shadow-volume pass and draw these shadow edges
 		}
 
 		i += count;
@@ -320,7 +324,8 @@ void RB_ShadowFinish( void ) {
 
 	// VULKAN
 	// DX12
-	if (vk.active || dx.active) {
+	// WEBGPU
+	if (vk.active || dx.active || wgpu.active) {
 		tess.indexes[0] = 0;
 		tess.indexes[1] = 1;
 		tess.indexes[2] = 2;
@@ -369,6 +374,10 @@ void RB_ShadowFinish( void ) {
 			dx_shade_geometry(dx.shadow_finish_pipeline, false, Vk_Depth_Range::normal, true, false);
 
 			Com_Memcpy(dx_world.modelview_transform, tmp, 64);
+		}
+
+		if (wgpu.active) {
+			// WGPU_TODO: Draw the WebGPU shadow-finish quad using an identity modelview transform
 		}
 
 		tess.numIndexes = 0;
