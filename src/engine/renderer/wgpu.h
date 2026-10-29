@@ -58,6 +58,9 @@ struct Wgpu_Instance {
 	WGPUCommandEncoder command_encoder = nullptr;
 	WGPURenderPassEncoder render_pass = nullptr;
 
+	WGPUTexture depth_texture = nullptr;
+	WGPUTextureView depth_view = nullptr;
+
 	//
 	// Geometry buffer
 	//
@@ -109,6 +112,10 @@ struct Wgpu_World {
     int num_samplers = 0;
     Vk_Sampler_Def sampler_defs[MAX_VK_SAMPLERS];
     WGPUSampler samplers[MAX_VK_SAMPLERS] = {};
+
+	int num_pipelines = 0;
+	Vk_Pipeline_Def pipeline_defs[MAX_VK_PIPELINES];
+	WGPURenderPipeline pipelines[MAX_VK_PIPELINES] = {};
 
     Wgpu_Image images[MAX_VK_IMAGES];
 

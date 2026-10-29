@@ -5,6 +5,16 @@
 
 static const int GEOMETRY_BUFFER_SIZE = 8 * 1024 * 1024;
 
+static WGPUTextureFormat get_depth_format() {
+	if (r_stencilbits->integer > 0) {
+		glConfig.stencilBits = 8;
+		return WGPUTextureFormat_Depth24PlusStencil8;
+	} else {
+		glConfig.stencilBits = 0;
+		return WGPUTextureFormat_Depth32Float;
+	}
+}
+
 //
 // Initialization
 //
@@ -218,6 +228,18 @@ void wgpu_initialize() {
 	}
 
 	//
+	// Depth/stencil attachment
+	//
+	{
+		WGPUTextureDescriptor desc = WGPU_TEXTURE_DESCRIPTOR_INIT;
+		desc.size = { (uint32_t)glConfig.vidWidth, (uint32_t)glConfig.vidHeight, 1 };
+		desc.format = get_depth_format();
+		desc.usage = WGPUTextureUsage_RenderAttachment;
+		wgpu.depth_texture = wgpuDeviceCreateTexture(wgpu.device, &desc);
+		wgpu.depth_view = wgpuTextureCreateView(wgpu.depth_texture, nullptr);
+	}
+
+	//
 	// Geometry buffer
 	//
 	WGPUBufferDescriptor buffer_desc = WGPU_BUFFER_DESCRIPTOR_INIT;
@@ -313,6 +335,12 @@ void wgpu_initialize() {
 
 void wgpu_shutdown() {
 	release_frame();
+	if (wgpu.depth_view != nullptr) {
+		wgpuTextureViewRelease(wgpu.depth_view);
+	}
+	if (wgpu.depth_texture != nullptr) {
+		wgpuTextureRelease(wgpu.depth_texture);
+	}
 	if (wgpu.geometry_buffer != nullptr) {
 		wgpuBufferRelease(wgpu.geometry_buffer);
 	}
@@ -363,6 +391,9 @@ void wgpu_shutdown() {
 }
 
 void wgpu_release_resources() {
+	for (int i = 0; i < wgpu_world.num_pipelines; i++) {
+		wgpuRenderPipelineRelease(wgpu_world.pipelines[i]);
+	}
 	for (int i = 0; i < MAX_VK_IMAGES; i++) {
 		wgpu_destroy_image(wgpu_world.images[i]);
 	}
@@ -536,9 +567,8 @@ WGPUSampler wgpu_find_sampler(const Vk_Sampler_Def& def) {
 }
 
 static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
-	// WGPU_TODO: Add the depth/stencil attachment, polygon offset, wireframe triangles and clipping
-	if (!(def.state_bits & GLS_DEPTHTEST_DISABLE) || (def.state_bits & GLS_DEPTHMASK_TRUE) ||
-		def.shadow_phase != Vk_Shadow_Phase::disabled || def.polygon_offset || def.clipping_plane ||
+	// WGPU_TODO: Add stencil shadows, polygon offset, wireframe triangles and clipping
+	if (def.shadow_phase != Vk_Shadow_Phase::disabled || def.polygon_offset || def.clipping_plane ||
 		((def.state_bits & GLS_POLYMODE_LINE) && !def.line_primitives)) {
 		return nullptr;
 	}
@@ -687,6 +717,17 @@ static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 	}
 
 	//
+	// Depth/stencil state
+	//
+	WGPUDepthStencilState depth_stencil = WGPU_DEPTH_STENCIL_STATE_INIT;
+	depth_stencil.format = get_depth_format();
+	depth_stencil.depthWriteEnabled = (def.state_bits & GLS_DEPTHMASK_TRUE) ? WGPUOptionalBool_True : WGPUOptionalBool_False;
+	if (def.state_bits & GLS_DEPTHTEST_DISABLE)
+		depth_stencil.depthCompare = WGPUCompareFunction_Always;
+	else
+		depth_stencil.depthCompare = (def.state_bits & GLS_DEPTHFUNC_EQUAL) ? WGPUCompareFunction_Equal : WGPUCompareFunction_LessEqual;
+
+	//
 	// Create pipeline
 	//
 	WGPUColorTargetState target = WGPU_COLOR_TARGET_STATE_INIT;
@@ -710,13 +751,40 @@ static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 	desc.vertex.bufferCount = def.shader_type == Vk_Shader_Type::single_texture ? 3 : 4;
 	desc.vertex.buffers = buffers;
 	desc.primitive = primitive;
+	desc.depthStencil = &depth_stencil;
 	desc.fragment = &fragment;
 	return wgpuDeviceCreateRenderPipeline(wgpu.device, &desc);
 }
 
 WGPURenderPipeline wgpu_find_pipeline(const Vk_Pipeline_Def& def) {
-	// WGPU_TODO: Find or create the WebGPU render pipeline matching def
-	return nullptr;
+	for (int i = 0; i < wgpu_world.num_pipelines; i++) {
+		const auto& cur_def = wgpu_world.pipeline_defs[i];
+
+		if (cur_def.shader_type == def.shader_type &&
+			cur_def.state_bits == def.state_bits &&
+			cur_def.face_culling == def.face_culling &&
+			cur_def.polygon_offset == def.polygon_offset &&
+			cur_def.clipping_plane == def.clipping_plane &&
+			cur_def.mirror == def.mirror &&
+			cur_def.line_primitives == def.line_primitives &&
+			cur_def.shadow_phase == def.shadow_phase)
+		{
+			return wgpu_world.pipelines[i];
+		}
+	}
+	if (wgpu_world.num_pipelines >= MAX_VK_PIPELINES) {
+		ri.Error(ERR_DROP, "wgpu_find_pipeline: MAX_VK_PIPELINES hit\n");
+		return nullptr;
+	}
+
+	WGPURenderPipeline pipeline = create_pipeline(def);
+	if (pipeline == nullptr)
+		return nullptr;
+
+	wgpu_world.pipeline_defs[wgpu_world.num_pipelines] = def;
+	wgpu_world.pipelines[wgpu_world.num_pipelines] = pipeline;
+	wgpu_world.num_pipelines++;
+	return pipeline;
 }
 
 //
@@ -726,21 +794,33 @@ void wgpu_clear_attachments(bool clear_depth_stencil, bool clear_color, vec4_t c
 	if (!wgpu.active || wgpu.command_encoder == nullptr) {
 		return;
 	}
-	// WGPU_TODO: Clear depth/stencil when the depth attachment is implemented
-	if (!clear_color) {
+	if (!clear_color && !clear_depth_stencil) {
 		return;
 	}
 	// WGPU_TODO: Restrict clears to the current viewport when geometry rendering is implemented
 	end_render_pass();
 	WGPURenderPassColorAttachment attachment = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
 	attachment.view = wgpu.frame_view;
-	attachment.loadOp = WGPULoadOp_Clear;
+	attachment.loadOp = clear_color ? WGPULoadOp_Clear : WGPULoadOp_Load;
 	attachment.storeOp = WGPUStoreOp_Store;
-	attachment.clearValue = { color[0], color[1], color[2], color[3] };
+	if (clear_color)
+		attachment.clearValue = { color[0], color[1], color[2], color[3] };
+
+	WGPURenderPassDepthStencilAttachment depth_attachment = WGPU_RENDER_PASS_DEPTH_STENCIL_ATTACHMENT_INIT;
+	depth_attachment.view = wgpu.depth_view;
+	depth_attachment.depthLoadOp = clear_depth_stencil ? WGPULoadOp_Clear : WGPULoadOp_Load;
+	depth_attachment.depthStoreOp = WGPUStoreOp_Store;
+	depth_attachment.depthClearValue = 1.0f;
+	if (r_stencilbits->integer > 0) {
+		depth_attachment.stencilLoadOp = clear_depth_stencil ? WGPULoadOp_Clear : WGPULoadOp_Load;
+		depth_attachment.stencilStoreOp = WGPUStoreOp_Store;
+		depth_attachment.stencilClearValue = 0;
+	}
 
 	WGPURenderPassDescriptor pass_desc = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
 	pass_desc.colorAttachmentCount = 1;
 	pass_desc.colorAttachments = &attachment;
+	pass_desc.depthStencilAttachment = &depth_attachment;
 	wgpu.render_pass = wgpuCommandEncoderBeginRenderPass(wgpu.command_encoder, &pass_desc);
 }
 
@@ -789,9 +869,9 @@ void wgpu_bind_geometry() {
 }
 
 void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed) {
-	// WGPU_TODO: Support scene pipelines, multitexturing, and depth ranges
+	// WGPU_TODO: Support 3D rendering and depth ranges
 	if (wgpu.render_pass == nullptr || pipeline == nullptr || !backEnd.projection2D ||
-		multitexture || depth_range != Vk_Depth_Range::normal || tess.numVertexes == 0) {
+		depth_range != Vk_Depth_Range::normal || tess.numVertexes == 0) {
 		return;
 	}
 	WGPUBindGroup bind_group = wgpu_world.images[wgpu_world.current_image_indices[0]].bind_group;
@@ -805,9 +885,17 @@ void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Dept
 	size = tess.numVertexes * sizeof(vec2_t);
 	offset = upload_geometry(tess.svars.texcoords[0], size);
 	wgpuRenderPassEncoderSetVertexBuffer(wgpu.render_pass, 2, wgpu.geometry_buffer, offset, size);
+	if (multitexture) {
+		offset = upload_geometry(tess.svars.texcoords[1], size);
+		wgpuRenderPassEncoderSetVertexBuffer(wgpu.render_pass, 3, wgpu.geometry_buffer, offset, size);
+	}
 
 	wgpuRenderPassEncoderSetPipeline(wgpu.render_pass, pipeline);
 	wgpuRenderPassEncoderSetBindGroup(wgpu.render_pass, 0, bind_group, 0, nullptr);
+	if (multitexture) {
+		WGPUBindGroup bind_group1 = wgpu_world.images[wgpu_world.current_image_indices[1]].bind_group;
+		wgpuRenderPassEncoderSetBindGroup(wgpu.render_pass, 1, bind_group1, 0, nullptr);
+	}
 	wgpuRenderPassEncoderSetViewport(wgpu.render_pass, 0, 0, (float)glConfig.vidWidth, (float)glConfig.vidHeight, 0, 1);
 	wgpuRenderPassEncoderSetScissorRect(wgpu.render_pass, 0, 0, glConfig.vidWidth, glConfig.vidHeight);
 	if (indexed) {
@@ -839,7 +927,7 @@ void wgpu_begin_frame() {
 	wgpu.command_encoder = wgpuDeviceCreateCommandEncoder(wgpu.device, nullptr);
 
 	vec4_t black = { 0, 0, 0, 1 };
-	wgpu_clear_attachments(false, true, black);
+	wgpu_clear_attachments(true, true, black);
 }
 
 void wgpu_end_frame() {
