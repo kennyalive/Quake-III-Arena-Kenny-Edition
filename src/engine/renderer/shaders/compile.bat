@@ -18,6 +18,12 @@ for %%f in (*.vert) do (
     del vert.spv
 )
 
+for %%f in (*_clipping_plane.vert) do (
+    %VULKAN_SDK%\Bin\glslangValidator.exe -V -DWEBGPU %%f
+    %bin2hex% vert.spv wgpu_%%~nf_vert_spv > spirv/wgpu_%%~nf_vert.cpp
+    del vert.spv
+)
+
 for %%f in (*.frag) do (
     %VULKAN_SDK%\Bin\glslangValidator.exe -V %%f
     %bin2hex% frag.spv %%~nf_frag_spv > spirv/%%~nf_frag.cpp

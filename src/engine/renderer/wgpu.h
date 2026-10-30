@@ -47,6 +47,9 @@ struct Wgpu_Instance {
 
 	WGPUBindGroupLayout image_bind_group_layout = nullptr;
 	WGPUPipelineLayout pipeline_layouts[2] = {}; // single texture, multitexture
+	WGPUBindGroupLayout clipping_bind_group_layout = nullptr;
+	WGPUBindGroup clipping_bind_group = nullptr;
+	WGPUPipelineLayout clipping_pipeline_layouts[2] = {}; // single texture, multitexture
 
 	//
 	// Surface and frame resources
@@ -66,13 +69,17 @@ struct Wgpu_Instance {
 	//
 	WGPUBuffer geometry_buffer = nullptr;
 	uint64_t geometry_buffer_offset = 0;
+	uint32_t uniform_buffer_alignment = 0;
+	uint32_t clipping_data_offset = 0;
 
 	//
 	// Shader modules
 	//
 	WGPUShaderModule single_texture_vs = nullptr;
+	WGPUShaderModule single_texture_clipping_plane_vs = nullptr;
 	WGPUShaderModule single_texture_fs = nullptr;
 	WGPUShaderModule multi_texture_vs = nullptr;
+	WGPUShaderModule multi_texture_clipping_plane_vs = nullptr;
 	WGPUShaderModule multi_texture_mul_fs = nullptr;
 	WGPUShaderModule multi_texture_add_fs = nullptr;
 

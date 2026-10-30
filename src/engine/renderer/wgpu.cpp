@@ -4,6 +4,7 @@
 #include <vector>
 
 static const int GEOMETRY_BUFFER_SIZE = 8 * 1024 * 1024;
+static const int CLIPPING_DATA_SIZE = 64;
 
 static WGPUTextureFormat get_depth_format() {
 	if (r_stencilbits->integer > 0) {
@@ -148,9 +149,12 @@ void wgpu_initialize() {
 	{
 		WGPULimits required_limits = WGPU_LIMITS_INIT;
 		required_limits.maxImmediateSize = 64;
+		WGPUFeatureName required_features[] = { WGPUFeatureName_ClipDistances };
 		WGPUDeviceDescriptor device_desc = WGPU_DEVICE_DESCRIPTOR_INIT;
 		device_desc.label = { "Quake III WebGPU device", WGPU_STRLEN };
 		device_desc.requiredLimits = &required_limits;
+		device_desc.requiredFeatureCount = 1;
+		device_desc.requiredFeatures = required_features;
 		device_desc.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
 		device_desc.deviceLostCallbackInfo.callback = [](WGPUDevice const*, WGPUDeviceLostReason reason, WGPUStringView message, void*, void*)
 		{
@@ -174,6 +178,10 @@ void wgpu_initialize() {
 		};
 		WGPUFuture future = wgpuAdapterRequestDevice(wgpu.adapter, &device_desc, callback_info);
 		wait_for_request(future, "wgpuAdapterRequestDevice", result);
+
+		WGPULimits limits = WGPU_LIMITS_INIT;
+		wgpuDeviceGetLimits(wgpu.device, &limits);
+		wgpu.uniform_buffer_alignment = limits.minUniformBufferOffsetAlignment;
 	}
 
 	//
@@ -247,7 +255,7 @@ void wgpu_initialize() {
 	WGPUBufferDescriptor buffer_desc = WGPU_BUFFER_DESCRIPTOR_INIT;
 	buffer_desc.label = { "WebGPU geometry buffer", WGPU_STRLEN };
 	buffer_desc.size = GEOMETRY_BUFFER_SIZE;
-	buffer_desc.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
+	buffer_desc.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_Index | WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
 	wgpu.geometry_buffer = wgpuDeviceCreateBuffer(wgpu.device, &buffer_desc);
 
 	//
@@ -268,18 +276,70 @@ void wgpu_initialize() {
 		bind_group_desc.entries = entries;
 		wgpu.image_bind_group_layout = wgpuDeviceCreateBindGroupLayout(wgpu.device, &bind_group_desc);
 
-		WGPUPipelineLayoutDescriptor layout_desc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
-		WGPUBindGroupLayout layouts[] = { wgpu.image_bind_group_layout, wgpu.image_bind_group_layout };
-		layout_desc.bindGroupLayouts = layouts;
-		layout_desc.immediateSize = 64;
-
 		// Single texture
-		layout_desc.bindGroupLayoutCount = 1;
-		wgpu.pipeline_layouts[0] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+		{
+			WGPUBindGroupLayout layouts[] = { wgpu.image_bind_group_layout };
+			WGPUPipelineLayoutDescriptor layout_desc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
+			layout_desc.bindGroupLayoutCount = 1;
+			layout_desc.bindGroupLayouts = layouts;
+			layout_desc.immediateSize = 64;
+			wgpu.pipeline_layouts[0] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+		}
 
 		// Multitexture
-		layout_desc.bindGroupLayoutCount = 2;
-		wgpu.pipeline_layouts[1] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+		{
+			WGPUBindGroupLayout layouts[] = { wgpu.image_bind_group_layout, wgpu.image_bind_group_layout };
+			WGPUPipelineLayoutDescriptor layout_desc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
+			layout_desc.bindGroupLayoutCount = 2;
+			layout_desc.bindGroupLayouts = layouts;
+			layout_desc.immediateSize = 64;
+			wgpu.pipeline_layouts[1] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+		}
+
+		// Clipping data follows the image bind groups, as set 1 or set 2 in the vertex shader
+		WGPUBindGroupLayoutEntry clipping_entry = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
+		clipping_entry.binding = 0;
+		clipping_entry.visibility = WGPUShaderStage_Vertex;
+		clipping_entry.buffer.type = WGPUBufferBindingType_Uniform;
+		clipping_entry.buffer.hasDynamicOffset = true;
+		clipping_entry.buffer.minBindingSize = CLIPPING_DATA_SIZE;
+
+		WGPUBindGroupLayoutDescriptor clipping_layout_desc = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
+		clipping_layout_desc.entryCount = 1;
+		clipping_layout_desc.entries = &clipping_entry;
+		wgpu.clipping_bind_group_layout = wgpuDeviceCreateBindGroupLayout(wgpu.device, &clipping_layout_desc);
+
+		// Single texture with clipping
+		{
+			WGPUBindGroupLayout layouts[] = { wgpu.image_bind_group_layout, wgpu.clipping_bind_group_layout };
+			WGPUPipelineLayoutDescriptor layout_desc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
+			layout_desc.bindGroupLayoutCount = 2;
+			layout_desc.bindGroupLayouts = layouts;
+			layout_desc.immediateSize = 64;
+			wgpu.clipping_pipeline_layouts[0] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+		}
+
+		// Multitexture with clipping
+		{
+			WGPUBindGroupLayout layouts[] = {
+				wgpu.image_bind_group_layout, wgpu.image_bind_group_layout, wgpu.clipping_bind_group_layout
+			};
+			WGPUPipelineLayoutDescriptor layout_desc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
+			layout_desc.bindGroupLayoutCount = 3;
+			layout_desc.bindGroupLayouts = layouts;
+			layout_desc.immediateSize = 64;
+			wgpu.clipping_pipeline_layouts[1] = wgpuDeviceCreatePipelineLayout(wgpu.device, &layout_desc);
+		}
+
+		WGPUBindGroupEntry clipping_buffer = WGPU_BIND_GROUP_ENTRY_INIT;
+		clipping_buffer.binding = 0;
+		clipping_buffer.buffer = wgpu.geometry_buffer;
+		clipping_buffer.size = CLIPPING_DATA_SIZE;
+		WGPUBindGroupDescriptor clipping_desc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
+		clipping_desc.layout = wgpu.clipping_bind_group_layout;
+		clipping_desc.entryCount = 1;
+		clipping_desc.entries = &clipping_buffer;
+		wgpu.clipping_bind_group = wgpuDeviceCreateBindGroup(wgpu.device, &clipping_desc);
 	}
 
 	//
@@ -301,6 +361,10 @@ void wgpu_initialize() {
 		extern long long single_texture_vert_spv_size;
 		wgpu.single_texture_vs = create_shader_module(single_texture_vert_spv, single_texture_vert_spv_size);
 
+		extern unsigned char wgpu_single_texture_clipping_plane_vert_spv[];
+		extern long long wgpu_single_texture_clipping_plane_vert_spv_size;
+		wgpu.single_texture_clipping_plane_vs = create_shader_module(wgpu_single_texture_clipping_plane_vert_spv, wgpu_single_texture_clipping_plane_vert_spv_size);
+
 		extern unsigned char single_texture_frag_spv[];
 		extern long long single_texture_frag_spv_size;
 		wgpu.single_texture_fs = create_shader_module(single_texture_frag_spv, single_texture_frag_spv_size);
@@ -309,6 +373,10 @@ void wgpu_initialize() {
 		extern long long multi_texture_vert_spv_size;
 		wgpu.multi_texture_vs = create_shader_module(multi_texture_vert_spv, multi_texture_vert_spv_size);
 
+		extern unsigned char wgpu_multi_texture_clipping_plane_vert_spv[];
+		extern long long wgpu_multi_texture_clipping_plane_vert_spv_size;
+		wgpu.multi_texture_clipping_plane_vs = create_shader_module(wgpu_multi_texture_clipping_plane_vert_spv, wgpu_multi_texture_clipping_plane_vert_spv_size);
+
 		extern unsigned char multi_texture_mul_frag_spv[];
 		extern long long multi_texture_mul_frag_spv_size;
 		wgpu.multi_texture_mul_fs = create_shader_module(multi_texture_mul_frag_spv, multi_texture_mul_frag_spv_size);
@@ -316,8 +384,6 @@ void wgpu_initialize() {
 		extern unsigned char multi_texture_add_frag_spv[];
 		extern long long multi_texture_add_frag_spv_size;
 		wgpu.multi_texture_add_fs = create_shader_module(multi_texture_add_frag_spv, multi_texture_add_frag_spv_size);
-
-		// WGPU_TODO: Load the clipping variants after adapting their 128-byte transform block
 	}
 
 	//
@@ -386,6 +452,9 @@ void wgpu_initialize() {
 
 void wgpu_shutdown() {
 	release_frame();
+	if (wgpu.clipping_bind_group != nullptr) {
+		wgpuBindGroupRelease(wgpu.clipping_bind_group);
+	}
 	if (wgpu.depth_view != nullptr) {
 		wgpuTextureViewRelease(wgpu.depth_view);
 	}
@@ -417,15 +486,24 @@ void wgpu_shutdown() {
 		if (wgpu.pipeline_layouts[i] != nullptr) {
 			wgpuPipelineLayoutRelease(wgpu.pipeline_layouts[i]);
 		}
+		if (wgpu.clipping_pipeline_layouts[i] != nullptr) {
+			wgpuPipelineLayoutRelease(wgpu.clipping_pipeline_layouts[i]);
+		}
 	}
 	if (wgpu.single_texture_vs != nullptr) {
 		wgpuShaderModuleRelease(wgpu.single_texture_vs);
+	}
+	if (wgpu.single_texture_clipping_plane_vs != nullptr) {
+		wgpuShaderModuleRelease(wgpu.single_texture_clipping_plane_vs);
 	}
 	if (wgpu.single_texture_fs != nullptr) {
 		wgpuShaderModuleRelease(wgpu.single_texture_fs);
 	}
 	if (wgpu.multi_texture_vs != nullptr) {
 		wgpuShaderModuleRelease(wgpu.multi_texture_vs);
+	}
+	if (wgpu.multi_texture_clipping_plane_vs != nullptr) {
+		wgpuShaderModuleRelease(wgpu.multi_texture_clipping_plane_vs);
 	}
 	if (wgpu.multi_texture_mul_fs != nullptr) {
 		wgpuShaderModuleRelease(wgpu.multi_texture_mul_fs);
@@ -435,6 +513,9 @@ void wgpu_shutdown() {
 	}
 	if (wgpu.image_bind_group_layout != nullptr) {
 		wgpuBindGroupLayoutRelease(wgpu.image_bind_group_layout);
+	}
+	if (wgpu.clipping_bind_group_layout != nullptr) {
+		wgpuBindGroupLayoutRelease(wgpu.clipping_bind_group_layout);
 	}
 	if (wgpu.surface != nullptr) {
 		wgpuSurfaceUnconfigure(wgpu.surface);
@@ -633,8 +714,8 @@ WGPUSampler wgpu_find_sampler(const Vk_Sampler_Def& def) {
 }
 
 static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
-	// WGPU_TODO: Add stencil shadows, wireframe triangles and clipping
-	if (def.shadow_phase != Vk_Shadow_Phase::disabled || def.clipping_plane ||
+	// WGPU_TODO: Add stencil shadows and wireframe triangles
+	if (def.shadow_phase != Vk_Shadow_Phase::disabled ||
 		((def.state_bits & GLS_POLYMODE_LINE) && !def.line_primitives)) {
 		return nullptr;
 	}
@@ -644,13 +725,13 @@ static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 	//
 	WGPUShaderModule vs, fs;
 	if (def.shader_type == Vk_Shader_Type::single_texture) {
-		vs = wgpu.single_texture_vs;
+		vs = def.clipping_plane ? wgpu.single_texture_clipping_plane_vs : wgpu.single_texture_vs;
 		fs = wgpu.single_texture_fs;
 	} else if (def.shader_type == Vk_Shader_Type::multi_texture_mul) {
-		vs = wgpu.multi_texture_vs;
+		vs = def.clipping_plane ? wgpu.multi_texture_clipping_plane_vs : wgpu.multi_texture_vs;
 		fs = wgpu.multi_texture_mul_fs;
 	} else {
-		vs = wgpu.multi_texture_vs;
+		vs = def.clipping_plane ? wgpu.multi_texture_clipping_plane_vs : wgpu.multi_texture_vs;
 		fs = wgpu.multi_texture_add_fs;
 	}
 
@@ -813,7 +894,8 @@ static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 	}
 
 	WGPURenderPipelineDescriptor desc = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
-	desc.layout = wgpu.pipeline_layouts[def.shader_type == Vk_Shader_Type::single_texture ? 0 : 1];
+	int layout_index = def.shader_type == Vk_Shader_Type::single_texture ? 0 : 1;
+	desc.layout = def.clipping_plane ? wgpu.clipping_pipeline_layouts[layout_index] : wgpu.pipeline_layouts[layout_index];
 	desc.vertex.module = vs;
 	desc.vertex.entryPoint = { "main", WGPU_STRLEN };
 	desc.vertex.bufferCount = def.shader_type == Vk_Shader_Type::single_texture ? 3 : 4;
@@ -993,6 +1075,39 @@ void wgpu_bind_geometry() {
 	float mvp[16];
 	get_mvp_transform(mvp);
 	wgpuRenderPassEncoderSetImmediates(wgpu.render_pass, 0, mvp, sizeof(mvp));
+
+	if (backEnd.viewParms.isPortal) {
+		float clipping_data[12 + 4]; // eye transform + clipping plane in eye space
+
+		// Eye space transform
+		// backEnd.or.modelMatrix incorporates s_flipMatrix, so apply it to the clipping plane too
+		for (int i = 0; i < 12; i++) {
+			clipping_data[i] = backEnd.or.modelMatrix[(i%4)*4 + i/4];
+		}
+
+		// Clipping plane in eye coordinates
+		float world_plane[4];
+		world_plane[0] = backEnd.viewParms.portalPlane.normal[0];
+		world_plane[1] = backEnd.viewParms.portalPlane.normal[1];
+		world_plane[2] = backEnd.viewParms.portalPlane.normal[2];
+		world_plane[3] = backEnd.viewParms.portalPlane.dist;
+
+		float eye_plane[4];
+		eye_plane[0] = DotProduct(backEnd.viewParms.or.axis[0], world_plane);
+		eye_plane[1] = DotProduct(backEnd.viewParms.or.axis[1], world_plane);
+		eye_plane[2] = DotProduct(backEnd.viewParms.or.axis[2], world_plane);
+		eye_plane[3] = DotProduct(world_plane, backEnd.viewParms.or.origin) - world_plane[3];
+
+		// Apply s_flipMatrix to match the eye transform
+		clipping_data[12] = -eye_plane[1];
+		clipping_data[13] =  eye_plane[2];
+		clipping_data[14] = -eye_plane[0];
+		clipping_data[15] =  eye_plane[3];
+
+		uint64_t alignment = wgpu.uniform_buffer_alignment;
+		wgpu.geometry_buffer_offset = (wgpu.geometry_buffer_offset + alignment - 1) & ~(alignment - 1);
+		wgpu.clipping_data_offset = (uint32_t)upload_geometry(clipping_data, sizeof(clipping_data));
+	}
 }
 
 void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed) {
@@ -1020,6 +1135,9 @@ void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Dept
 	if (multitexture) {
 		WGPUBindGroup bind_group1 = wgpu_world.images[wgpu_world.current_image_indices[1]].bind_group;
 		wgpuRenderPassEncoderSetBindGroup(wgpu.render_pass, 1, bind_group1, 0, nullptr);
+	}
+	if (backEnd.viewParms.isPortal) {
+		wgpuRenderPassEncoderSetBindGroup(wgpu.render_pass, multitexture ? 2 : 1, wgpu.clipping_bind_group, 1, &wgpu.clipping_data_offset);
 	}
 	set_viewport_and_scissor(depth_range);
 	if (indexed) {

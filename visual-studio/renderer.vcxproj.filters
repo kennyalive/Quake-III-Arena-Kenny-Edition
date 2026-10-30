@@ -116,6 +116,12 @@
     <ClCompile Include="..\src\engine\renderer\shaders\spirv\single_texture_clipping_plane_vert.cpp">
       <Filter>Source Files\spirv</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\wgpu_single_texture_clipping_plane_vert.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\engine\renderer\shaders\spirv\wgpu_multi_texture_clipping_plane_vert.cpp">
+      <Filter>Source Files\spirv</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\engine\renderer\dx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

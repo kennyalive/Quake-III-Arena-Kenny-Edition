@@ -1,11 +1,20 @@
 #version 450
 
-// 128 bytes
+// WebGPU keeps the MVP in immediates and supplies clipping data through a uniform buffer
 layout(push_constant) uniform Transform {
     mat4 clip_space_xform;
+#ifndef WEBGPU
+    mat3x4 eye_space_xform;
+    vec4 clipping_plane; // in eye space
+#endif
+};
+
+#ifdef WEBGPU
+layout(set = 1, binding = 0) uniform Clipping {
     mat3x4 eye_space_xform;
     vec4 clipping_plane; // in eye space
 };
+#endif
 
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec4 in_color;
