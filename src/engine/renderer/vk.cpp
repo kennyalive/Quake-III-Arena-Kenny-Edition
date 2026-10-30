@@ -204,13 +204,16 @@ static VkSwapchainKHR create_swapchain(VkPhysicalDevice physical_device, VkDevic
     VkPresentModeKHR present_mode;
     uint32_t image_count = surface_caps.minImageCount;
 
-	if (!r_vsync->integer && mailbox_supported) {
-		present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
-		// Additional image over reported min count is to ensure AcquireNextImage does not block
-		// (check Q/A section for VK_KHR_swapchain extension in the specification)
-		image_count = surface_caps.minImageCount + 1;
-	}
-	else if (!r_vsync->integer && immediate_supported) {
+
+	// TODO: this caps to 60 fps on nvidia with 3 swapchain images for some reason
+    /*if (!r_vsync->integer && mailbox_supported) {
+        present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+        // Additional image over reported min count is to ensure AcquireNextImage does not block
+        // (check Q/A section for VK_KHR_swapchain extension in the specification)
+        image_count = surface_caps.minImageCount + 1;
+    }
+    else*/
+	if (!r_vsync->integer && immediate_supported) {
 		present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	}
 	else if (fifo_relaxed_supported) {

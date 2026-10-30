@@ -213,12 +213,14 @@ void wgpu_initialize() {
 		surface_config.presentMode = WGPUPresentMode_Fifo;
 		if (!r_vsync->integer) {
 			for (size_t i = 0; i < caps.presentModeCount; i++) {
-				if (caps.presentModes[i] == WGPUPresentMode_Mailbox) {
-					surface_config.presentMode = WGPUPresentMode_Mailbox;
-					break;
-				}
+                // TODO: this caps to 60 fps on nvidia with 3 swapchain images for some reason
+                /*if (caps.presentModes[i] == WGPUPresentMode_Mailbox) {
+                    surface_config.presentMode = WGPUPresentMode_Mailbox;
+                    break;
+                }*/
 				if (caps.presentModes[i] == WGPUPresentMode_Immediate) {
 					surface_config.presentMode = WGPUPresentMode_Immediate;
+					break;
 				}
 			}
 		}
