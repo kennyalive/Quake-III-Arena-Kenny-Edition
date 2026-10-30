@@ -334,6 +334,34 @@ void wgpu_initialize() {
 			wgpu.skybox_pipeline = create_pipeline(def);
 		}
 
+		// fog
+		{
+			Vk_Pipeline_Def def;
+			def.shader_type = Vk_Shader_Type::single_texture;
+			def.clipping_plane = false;
+			def.mirror = false;
+
+			unsigned int fog_state_bits[2] = {
+				GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA | GLS_DEPTHFUNC_EQUAL,
+				GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA
+			};
+			bool polygon_offset[2] = {false, true};
+
+			for (int i = 0; i < 2; i++) {
+				unsigned fog_state = fog_state_bits[i];
+
+				for (int j = 0; j < 3; j++) {
+					def.face_culling = j; // cullType_t value
+
+					for (int k = 0; k < 2; k++) {
+						def.polygon_offset = polygon_offset[k];
+						def.state_bits = fog_state;
+						wgpu.fog_pipelines[i][j][k] = create_pipeline(def);
+					}
+				}
+			}
+		}
+
 		// WGPU_TODO: Create the remaining standard pipelines as their rendering paths are implemented
 		{
 			Vk_Pipeline_Def def;
@@ -358,6 +386,15 @@ void wgpu_shutdown() {
 	}
 	if (wgpu.skybox_pipeline != nullptr) {
 		wgpuRenderPipelineRelease(wgpu.skybox_pipeline);
+	}
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 3; j++) {
+			for (int k = 0; k < 2; k++) {
+				if (wgpu.fog_pipelines[i][j][k] != nullptr) {
+					wgpuRenderPipelineRelease(wgpu.fog_pipelines[i][j][k]);
+				}
+			}
+		}
 	}
 	if (wgpu.images_debug_pipeline != nullptr) {
 		wgpuRenderPipelineRelease(wgpu.images_debug_pipeline);
@@ -582,8 +619,8 @@ WGPUSampler wgpu_find_sampler(const Vk_Sampler_Def& def) {
 }
 
 static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
-	// WGPU_TODO: Add stencil shadows, polygon offset, wireframe triangles and clipping
-	if (def.shadow_phase != Vk_Shadow_Phase::disabled || def.polygon_offset || def.clipping_plane ||
+	// WGPU_TODO: Add stencil shadows, wireframe triangles and clipping
+	if (def.shadow_phase != Vk_Shadow_Phase::disabled || def.clipping_plane ||
 		((def.state_bits & GLS_POLYMODE_LINE) && !def.line_primitives)) {
 		return nullptr;
 	}
@@ -741,6 +778,8 @@ static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 		depth_stencil.depthCompare = WGPUCompareFunction_Always;
 	else
 		depth_stencil.depthCompare = (def.state_bits & GLS_DEPTHFUNC_EQUAL) ? WGPUCompareFunction_Equal : WGPUCompareFunction_LessEqual;
+	depth_stencil.depthBias = def.polygon_offset ? r_offsetUnits->integer : 0;
+	depth_stencil.depthBiasSlopeScale = def.polygon_offset ? r_offsetFactor->value : 0.0f;
 
 	//
 	// Create pipeline
