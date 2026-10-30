@@ -600,6 +600,9 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 			// DX12
 			Com_Memcpy(dx_world.modelview_transform, backEnd.or.modelMatrix, 64);
 
+			// WEBGPU
+			Com_Memcpy(wgpu_world.modelview_transform, backEnd.or.modelMatrix, 64);
+
 			//
 			// change depthrange if needed
 			//
@@ -634,6 +637,9 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 
 	// DX12
 	Com_Memcpy(dx_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
+
+	// WEBGPU
+	Com_Memcpy(wgpu_world.modelview_transform, backEnd.viewParms.world.modelMatrix, 64);
 
 	if ( depthRange ) {
 		qglDepthRange (0, 1);

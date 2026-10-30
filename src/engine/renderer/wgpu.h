@@ -119,5 +119,9 @@ struct Wgpu_World {
 
     Wgpu_Image images[MAX_VK_IMAGES];
 
+	//
+	// State
+	//
     int current_image_indices[2] = {};
+    float modelview_transform[16];
 };

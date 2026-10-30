@@ -837,20 +837,79 @@ static uint64_t upload_geometry(const void* data, size_t size) {
 }
 
 static void get_mvp_transform(float* mvp) {
-	// WGPU_TODO: Add the 3D projection/modelview branch when !backEnd.projection2D, following DX12
-	// WebGPU uses the same 2D clip-space conventions as DX12
-	float mvp0 = 2.0f / glConfig.vidWidth;
-	float mvp5 = 2.0f / glConfig.vidHeight;
+	if (backEnd.projection2D) {
+		float mvp0 = 2.0f / glConfig.vidWidth;
+		float mvp5 = 2.0f / glConfig.vidHeight;
 
-	mvp[0]  =  mvp0; mvp[1]  =  0.0f; mvp[2]  = 0.0f; mvp[3]  = 0.0f;
-	mvp[4]  =  0.0f; mvp[5]  = -mvp5; mvp[6]  = 0.0f; mvp[7]  = 0.0f;
-	mvp[8]  =  0.0f; mvp[9]  = 0.0f; mvp[10] = 1.0f; mvp[11] = 0.0f;
-	mvp[12] = -1.0f; mvp[13] = 1.0f; mvp[14] = 0.0f; mvp[15] = 1.0f;
+		mvp[0]  =  mvp0; mvp[1]  =  0.0f; mvp[2]  = 0.0f; mvp[3]  = 0.0f;
+		mvp[4]  =  0.0f; mvp[5]  = -mvp5; mvp[6]  = 0.0f; mvp[7]  = 0.0f;
+		mvp[8]  =  0.0f; mvp[9]  = 0.0f; mvp[10] = 1.0f; mvp[11] = 0.0f;
+		mvp[12] = -1.0f; mvp[13] = 1.0f; mvp[14] = 0.0f; mvp[15] = 1.0f;
+
+	} else {
+		const float* p = backEnd.viewParms.projectionMatrix;
+
+		// Update Q3's OpenGL projection to WebGPU conventions: z in [0, 1] instead of [-1, 1]
+		float zNear = r_znear->value;
+		float zFar = backEnd.viewParms.zFar;
+		float P10 = -zFar / (zFar - zNear);
+		float P14 = -zFar*zNear / (zFar - zNear);
+
+		float proj[16] = {
+			p[0],  p[1],  p[2], p[3],
+			p[4],  p[5],  p[6], p[7],
+			p[8],  p[9],  P10,  p[11],
+			p[12], p[13], P14,  p[15]
+		};
+
+		myGlMultMatrix(wgpu_world.modelview_transform, proj, mvp);
+	}
+}
+
+static void set_viewport_and_scissor(Vk_Depth_Range depth_range) {
+	int left, top, right, bottom;
+	if (backEnd.projection2D) {
+		left = 0;
+		top = 0;
+		right = glConfig.vidWidth;
+		bottom = glConfig.vidHeight;
+	} else {
+		left = backEnd.viewParms.viewportX;
+		top = glConfig.vidHeight - (backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight);
+		right = left + backEnd.viewParms.viewportWidth;
+		bottom = top + backEnd.viewParms.viewportHeight;
+	}
+
+	float min_depth, max_depth;
+	if (depth_range == Vk_Depth_Range::force_zero) {
+		min_depth = 0.0f;
+		max_depth = 0.0f;
+	} else if (depth_range == Vk_Depth_Range::force_one) {
+		min_depth = 1.0f;
+		max_depth = 1.0f;
+	} else if (depth_range == Vk_Depth_Range::weapon) {
+		min_depth = 0.0f;
+		max_depth = 0.3f;
+	} else {
+		min_depth = 0.0f;
+		max_depth = 1.0f;
+	}
+	wgpuRenderPassEncoderSetViewport(wgpu.render_pass, (float)left, (float)top,
+		(float)(right - left), (float)(bottom - top), min_depth, max_depth);
+
+	if (left < 0)
+		left = 0;
+	if (top < 0)
+		top = 0;
+	if (right > glConfig.vidWidth)
+		right = glConfig.vidWidth;
+	if (bottom > glConfig.vidHeight)
+		bottom = glConfig.vidHeight;
+	wgpuRenderPassEncoderSetScissorRect(wgpu.render_pass, left, top, right - left, bottom - top);
 }
 
 void wgpu_bind_geometry() {
-	// WGPU_TODO: Support 3D geometry and its MVP transform
-	if (wgpu.render_pass == nullptr || !backEnd.projection2D || tess.numVertexes == 0) {
+	if (wgpu.render_pass == nullptr || tess.numVertexes == 0) {
 		return;
 	}
 
@@ -869,9 +928,7 @@ void wgpu_bind_geometry() {
 }
 
 void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Depth_Range depth_range, bool indexed) {
-	// WGPU_TODO: Support 3D rendering and depth ranges
-	if (wgpu.render_pass == nullptr || pipeline == nullptr || !backEnd.projection2D ||
-		depth_range != Vk_Depth_Range::normal || tess.numVertexes == 0) {
+	if (wgpu.render_pass == nullptr || pipeline == nullptr || tess.numVertexes == 0) {
 		return;
 	}
 	WGPUBindGroup bind_group = wgpu_world.images[wgpu_world.current_image_indices[0]].bind_group;
@@ -896,8 +953,7 @@ void wgpu_shade_geometry(WGPURenderPipeline pipeline, bool multitexture, Vk_Dept
 		WGPUBindGroup bind_group1 = wgpu_world.images[wgpu_world.current_image_indices[1]].bind_group;
 		wgpuRenderPassEncoderSetBindGroup(wgpu.render_pass, 1, bind_group1, 0, nullptr);
 	}
-	wgpuRenderPassEncoderSetViewport(wgpu.render_pass, 0, 0, (float)glConfig.vidWidth, (float)glConfig.vidHeight, 0, 1);
-	wgpuRenderPassEncoderSetScissorRect(wgpu.render_pass, 0, 0, glConfig.vidWidth, glConfig.vidHeight);
+	set_viewport_and_scissor(depth_range);
 	if (indexed) {
 		wgpuRenderPassEncoderDrawIndexed(wgpu.render_pass, tess.numIndexes, 1, 0, 0, 0);
 	} else {
