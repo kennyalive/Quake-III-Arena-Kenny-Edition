@@ -402,6 +402,41 @@ void wgpu_initialize() {
 			wgpu.skybox_pipeline = create_pipeline(def);
 		}
 
+		// Q3 stencil shadows
+		if (r_stencilbits->integer > 0) {
+			{
+				Vk_Pipeline_Def def;
+				def.polygon_offset = false;
+				def.state_bits = 0;
+				def.shader_type = Vk_Shader_Type::single_texture;
+				def.clipping_plane = false;
+				def.shadow_phase = Vk_Shadow_Phase::shadow_edges_rendering;
+
+				cullType_t cull_types[2] = {CT_FRONT_SIDED, CT_BACK_SIDED};
+				bool mirror_flags[2] = {false, true};
+
+				for (int i = 0; i < 2; i++) {
+					def.face_culling = cull_types[i];
+					for (int j = 0; j < 2; j++) {
+						def.mirror = mirror_flags[j];
+						wgpu.shadow_volume_pipelines[i][j] = create_pipeline(def);
+					}
+				}
+			}
+
+			{
+				Vk_Pipeline_Def def;
+				def.face_culling = CT_FRONT_SIDED;
+				def.polygon_offset = false;
+				def.state_bits = GLS_DEPTHMASK_TRUE | GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO;
+				def.shader_type = Vk_Shader_Type::single_texture;
+				def.clipping_plane = false;
+				def.mirror = false;
+				def.shadow_phase = Vk_Shadow_Phase::fullscreen_quad_rendering;
+				wgpu.shadow_finish_pipeline = create_pipeline(def);
+			}
+		}
+
 		// fog and dlights
 		{
 			Vk_Pipeline_Def def;
@@ -466,6 +501,16 @@ void wgpu_shutdown() {
 	}
 	if (wgpu.skybox_pipeline != nullptr) {
 		wgpuRenderPipelineRelease(wgpu.skybox_pipeline);
+	}
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			if (wgpu.shadow_volume_pipelines[i][j] != nullptr) {
+				wgpuRenderPipelineRelease(wgpu.shadow_volume_pipelines[i][j]);
+			}
+		}
+	}
+	if (wgpu.shadow_finish_pipeline != nullptr) {
+		wgpuRenderPipelineRelease(wgpu.shadow_finish_pipeline);
 	}
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 3; j++) {
@@ -714,9 +759,8 @@ WGPUSampler wgpu_find_sampler(const Vk_Sampler_Def& def) {
 }
 
 static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
-	// WGPU_TODO: Add stencil shadows and wireframe triangles
-	if (def.shadow_phase != Vk_Shadow_Phase::disabled ||
-		((def.state_bits & GLS_POLYMODE_LINE) && !def.line_primitives)) {
+	// WGPU_TODO: Add wireframe triangles
+	if ((def.state_bits & GLS_POLYMODE_LINE) && !def.line_primitives) {
 		return nullptr;
 	}
 
@@ -876,12 +920,31 @@ static WGPURenderPipeline create_pipeline(const Vk_Pipeline_Def& def) {
 	depth_stencil.depthBias = def.polygon_offset ? r_offsetUnits->integer : 0;
 	depth_stencil.depthBiasSlopeScale = def.polygon_offset ? r_offsetFactor->value : 0.0f;
 
+	if (def.shadow_phase == Vk_Shadow_Phase::shadow_edges_rendering) {
+		depth_stencil.stencilFront.failOp = WGPUStencilOperation_Keep;
+		depth_stencil.stencilFront.depthFailOp = WGPUStencilOperation_Keep;
+		depth_stencil.stencilFront.passOp = (def.face_culling == CT_FRONT_SIDED) ? WGPUStencilOperation_IncrementClamp : WGPUStencilOperation_DecrementClamp;
+		depth_stencil.stencilFront.compare = WGPUCompareFunction_Always;
+		depth_stencil.stencilBack = depth_stencil.stencilFront;
+		depth_stencil.stencilReadMask = 255;
+		depth_stencil.stencilWriteMask = 255;
+	} else if (def.shadow_phase == Vk_Shadow_Phase::fullscreen_quad_rendering) {
+		depth_stencil.stencilFront.failOp = WGPUStencilOperation_Keep;
+		depth_stencil.stencilFront.depthFailOp = WGPUStencilOperation_Keep;
+		depth_stencil.stencilFront.passOp = WGPUStencilOperation_Keep;
+		depth_stencil.stencilFront.compare = WGPUCompareFunction_NotEqual;
+		depth_stencil.stencilBack = depth_stencil.stencilFront;
+		depth_stencil.stencilReadMask = 255;
+		depth_stencil.stencilWriteMask = 255;
+	}
+
 	//
 	// Create pipeline
 	//
 	WGPUColorTargetState target = WGPU_COLOR_TARGET_STATE_INIT;
 	target.format = wgpu.surface_format;
 	target.blend = blend_enable ? &blend : nullptr;
+	target.writeMask = (def.shadow_phase == Vk_Shadow_Phase::shadow_edges_rendering) ? WGPUColorWriteMask_None : WGPUColorWriteMask_All;
 
 	WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
 	fragment.module = fs;

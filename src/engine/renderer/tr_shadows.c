@@ -380,10 +380,19 @@ void RB_ShadowFinish( void ) {
 		}
 
 		if (wgpu.active) {
-			// WGPU_TODO: Save the WebGPU modelview transform and set it to identity
+			// set modelview transform to identity matrix
+			float tmp[16];
+			Com_Memcpy(tmp, wgpu_world.modelview_transform, 64);
+			Com_Memset(wgpu_world.modelview_transform, 0, 64);
+			wgpu_world.modelview_transform[0] = 1.0f;
+			wgpu_world.modelview_transform[5] = 1.0f;
+			wgpu_world.modelview_transform[10] = 1.0f;
+			wgpu_world.modelview_transform[15] = 1.0f;
+
 			wgpu_bind_geometry();
 			wgpu_shade_geometry(wgpu.shadow_finish_pipeline, false, Vk_Depth_Range::normal);
-			// WGPU_TODO: Restore the WebGPU modelview transform
+
+			Com_Memcpy(wgpu_world.modelview_transform, tmp, 64);
 		}
 
 		tess.numIndexes = 0;
