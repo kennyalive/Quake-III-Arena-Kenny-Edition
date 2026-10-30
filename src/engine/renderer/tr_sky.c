@@ -746,6 +746,7 @@ void RB_StageIteratorSky( void ) {
         };
         myGlMultMatrix(skybox_translate, modelMatrix_original, vk_world.modelview_transform);
 		myGlMultMatrix(skybox_translate, modelMatrix_original, dx_world.modelview_transform);
+		myGlMultMatrix(skybox_translate, modelMatrix_original, wgpu_world.modelview_transform);
 
 		GL_State( 0 );
         qglColor3f( tr.identityLight, tr.identityLight, tr.identityLight );
@@ -756,6 +757,7 @@ void RB_StageIteratorSky( void ) {
 
         Com_Memcpy(vk_world.modelview_transform, modelMatrix_original, sizeof(float[16]));
 		Com_Memcpy(dx_world.modelview_transform, modelMatrix_original, sizeof(float[16]));
+		Com_Memcpy(wgpu_world.modelview_transform, modelMatrix_original, sizeof(float[16]));
 	}
 
 	// generate the vertexes for all the clouds, which will be drawn

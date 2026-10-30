@@ -322,6 +322,18 @@ void wgpu_initialize() {
 	// Standard pipelines
 	//
 	{
+		// skybox
+		{
+			Vk_Pipeline_Def def;
+			def.shader_type = Vk_Shader_Type::single_texture;
+			def.state_bits = 0;
+			def.face_culling = CT_FRONT_SIDED;
+			def.polygon_offset = false;
+			def.clipping_plane = false;
+			def.mirror = false;
+			wgpu.skybox_pipeline = create_pipeline(def);
+		}
+
 		// WGPU_TODO: Create the remaining standard pipelines as their rendering paths are implemented
 		{
 			Vk_Pipeline_Def def;
@@ -343,6 +355,9 @@ void wgpu_shutdown() {
 	}
 	if (wgpu.geometry_buffer != nullptr) {
 		wgpuBufferRelease(wgpu.geometry_buffer);
+	}
+	if (wgpu.skybox_pipeline != nullptr) {
+		wgpuRenderPipelineRelease(wgpu.skybox_pipeline);
 	}
 	if (wgpu.images_debug_pipeline != nullptr) {
 		wgpuRenderPipelineRelease(wgpu.images_debug_pipeline);
